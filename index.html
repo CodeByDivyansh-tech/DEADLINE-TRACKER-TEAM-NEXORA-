@@ -3441,7 +3441,7 @@ function helpMsgHTML(m){
   return `<div class="msg ai${m.error ? " error" : ""}${m.found === false ? " unknown" : ""}" data-hmsg="${m.id}"><span class="orb sm" aria-hidden="true"></span><div class="bubble">${dwText(m.text)}
     ${m.sources && m.sources.length ? `<p class="dw-src">${IC.info}<span>From the help guide: ${m.sources.map(s => esc(s.title)).join(" · ")}</span></p>` : ""}
     ${m.error ? `<button class="btn sm" type="button" data-act="dwretry">Try again</button>` : ""}
-    <div class="dw-meta"><time>${dwTime(m.t)}</time>${m.via ? `<span class="via">${m.via === "ai" ? (m.kind === "general" ? "Google Gemini · general tip" : "Google Gemini · from the help guide") : m.via === "kb" ? "Help guide" : ""}</span>` : ""}
+    <div class="dw-meta"><time>${dwTime(m.t)}</time>${m.via ? `<span class="via">${m.via === "ai" ? (m.kind === "general" ? "Google Gemini" : "Google Gemini · from the help guide") : m.via === "kb" ? "Help guide" : ""}</span>` : ""}
       ${m.qid ? `<span class="dw-rate" role="group" aria-label="Was this helpful?"><button type="button" class="ib" data-act="dwrate" data-v="1" aria-pressed="${m.rating === 1}" aria-label="Helpful" title="Helpful">👍</button><button type="button" class="ib" data-act="dwrate" data-v="-1" aria-pressed="${m.rating === -1}" aria-label="Not helpful" title="Not helpful">👎</button></span>` : ""}</div></div></div>`;
 }
 const planMsgHTML = m => msgHTML(m);
@@ -3480,7 +3480,7 @@ function renderWidget(){
   const busy = help ? DW.busy : AI.busy;
   const name = (state.user.name || "").split(" ")[0];
   const empty = help
-    ? `<div class="dw-empty"><h3>${name ? `Hi ${esc(name)}! ` : ""}How can I help?</h3><p>Ask how anything in Deadline Tracker works, or for tips on planning your time. I answer from the help guide and say when I don't know.</p>
+    ? `<div class="dw-empty"><h3>${name ? `Hi ${esc(name)}! ` : ""}How can I help?</h3><p>Ask me anything: how Deadline Tracker works, study and planning tips, or any other question. Website answers come from the help guide, and I say when I don't know.</p>
        ${AI.gemini ? `<p class="dw-privacy">${IC.info}<span>Help questions are answered with Google Gemini's free tier, which Google may use to improve its products. Your tasks are never sent; don't type private details here.</span></p>` : ""}
        <div class="dw-sugg">${(DW.sugg || HELP_SUGG).map(s => `<button type="button" data-act="dwsuggest" data-v="${esc(s)}">${esc(s)}</button>`).join("")}</div></div>`
     : `<div class="dw-empty"><h3>Plan with your own tasks</h3><p>Tell me your work in English or Hinglish, or ask what to do next. I only save after you approve.</p>
@@ -3491,7 +3491,7 @@ function renderWidget(){
   list.setAttribute("aria-labelledby", help ? "dwTabHelp" : "dwTabPlan");
   if (atEnd || busy || DW.scroll) { list.scrollTop = list.scrollHeight; DW.scroll = false; }
   const inp = $("#dwInput");
-  inp.placeholder = help ? "Ask how something works…" : "e.g. What should I complete tomorrow?";
+  inp.placeholder = help ? "Ask me anything…" : "e.g. What should I complete tomorrow?";
   inp.disabled = busy; $("#dwSend").disabled = busy;
   if (document.activeElement !== inp && inp.value !== DW.draft[DW.tab]) inp.value = DW.draft[DW.tab];
 }

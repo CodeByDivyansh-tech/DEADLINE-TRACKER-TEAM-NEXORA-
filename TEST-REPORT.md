@@ -163,3 +163,8 @@ Built test-first in stages; each stage's tests pass before the next. Full suite 
 | Browser | account-ui, ui-server | log in/sign up, data saved to the account, privacy between accounts, import browser data, Deadline AI window (My Plan saves real tasks; Help with sources, rating, history after reload, personal questions routed to My Plan), bell shows server notifications, Mark all read syncs, Reports account statistics, reminder settings → account preferences, phone full-screen window |
 
 Removed: the Anthropic relay (`/api/ai`), its prompt/validation code and tests, `serve.ps1` and `ai-key.txt` (moved to `_to_delete/`). Not covered: real Gemini calls (tests use a fake Gemini API with the same request/response format); email or phone push delivery (not configured).
+
+## Help answers any question (2 Nov 2026)
+- New default: Help answers **any question** with Gemini. Website questions still come only from the help guide (the model can't invent a feature), and tasks are still never sent.
+- Admin → AI instructions → "What Help answers": **Any question** or **Focused** (website + planning tips only, saves the free quota).
+- Tests (api-help-gemini): general question answered; invented website feature blocked and shown to the admin; model can't answer → "I don't know"; focused mode prompt and refusal; invalid scope rejected. Full suite twice: 266 of 266.

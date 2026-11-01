@@ -31,7 +31,7 @@ There is no live sync yet. You can export your deadlines to any calendar app wit
 Yes. The app is free to run, and Help uses Google Gemini's free tier, with daily limits set by the server. When the daily AI limit is reached, Help still answers from the help guide.
 
 ## Why didn't Deadline AI answer my question?
-Help only answers questions about using Deadline Tracker (from the help guide) and general tips on planning your time. If the guide doesn't cover something, it says it doesn't know instead of guessing, and the admin sees the question so the guide can be improved. Questions about your own tasks go to the My Plan tab.
+Help answers questions about using Deadline Tracker from the help guide, and other questions with Google Gemini's general knowledge. If the guide doesn't cover a website question, or it can't answer, it says it doesn't know instead of guessing, and the admin sees the question so the guide can be improved. Questions about your own tasks go to the My Plan tab.
 
 ## Do reminders work when the app is closed?
 Yes, when you use the Deadline Tracker server with an account. The server creates reminders at the right time in your time zone even while the app is closed, and they wait in the bell menu. Pop-up desktop alerts appear only while the app is open in a browser tab. Email and phone notifications aren't set up.

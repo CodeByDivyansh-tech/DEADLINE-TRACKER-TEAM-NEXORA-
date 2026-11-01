@@ -101,7 +101,10 @@ async function show(){
         <div class="card"><h2>Rated answers</h2>${q.rated.length ? q.rated.map(x => `<div class="msg"><b>${x.rating > 0 ? "👍" : "👎"} ${esc(x.question)}</b><div class="pre">${esc(x.answer || "")}</div><div class="muted">${esc(x.via || "")} · ${when(x.createdAt)}</div></div>`).join("") : "<p>No ratings yet.</p>"}</div>`;
     } else if (tab === "ai") {
       const s = await api("GET", "/api/admin/settings");
-      m.innerHTML = `<div class="card"><h2>Instructions for Deadline AI (Help)</h2><p class="muted">Tone and rules for answers. The safety rules (answer website questions only from the guide, never see users' tasks) are always added by the server.</p>
+      m.innerHTML = `<div class="card"><h2>What Help answers</h2>
+        <label class="row" style="gap:8px"><input type="radio" name="scope" value="all" style="width:auto" ${s.scope === "all" ? "checked" : ""}> <b>Any question</b> <span class="muted">(website questions still only from the guide)</span></label>
+        <label class="row" style="gap:8px;margin-top:6px"><input type="radio" name="scope" value="focused" style="width:auto" ${s.scope === "focused" ? "checked" : ""}> <b>Focused</b> <span class="muted">(only the website and planning tips; saves the free AI quota)</span></label></div>
+        <div class="card"><h2>Instructions for Deadline AI (Help)</h2><p class="muted">Tone and rules for answers. The safety rules (answer website questions only from the guide, never see users' tasks) are always added by the server.</p>
         <textarea id="instr" style="min-height:220px">${esc(s.instructions)}</textarea><div class="row" style="margin-top:8px"><button class="btn primary" id="instrSave">Save</button><button class="btn" id="instrReset">Reset to default</button></div></div>`;
       $("#instrReset").onclick = () => { $("#instr").value = s.default; };
     } else if (tab === "usage") {
@@ -138,6 +141,7 @@ document.addEventListener("click", async e => {
 document.addEventListener("change", async e => {
   const t = e.target;
   try {
+    if (t.name === "scope") { await api("PUT", "/api/admin/settings", { scope: t.value }); return toast("Saved."); }
     if (t.dataset.role) { await api("PATCH", "/api/admin/users/" + t.dataset.role, { role: t.value }); toast("Role saved."); return show(); }
     if (t.id === "kbFile" && t.files[0]) {
       const f = t.files[0]; if (f.size > 2 * 1024 * 1024) return toast("That file is too large (2 MB max).");

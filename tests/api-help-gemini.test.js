@@ -10,7 +10,7 @@ let g, s, a, admin;
 const ask = (c, message, conversationId) => c.post("/api/chat", { message, conversationId });
 before(async () => {
   g = await fakeGemini().start();
-  s = await startServer({ GEMINI_API_KEY: "test-key", GEMINI_BASE_URL: g.url, GEMINI_MODEL: "gemini-3.5-flash-lite", AI_USER_DAILY: "12", GEMINI_RPM: "100" });
+  s = await startServer({ GEMINI_API_KEY: "test-key", GEMINI_BASE_URL: g.url, GEMINI_MODEL: "gemini-3.5-flash-lite", AI_USER_DAILY: "20", GEMINI_RPM: "100" });
   admin = await signup(s.base, "Admin", "admin@example.com"); a = await signup(s.base, "Riya", "riya@example.com");
   for (let k = 0; k < 40; k++) { const o = (await admin.get("/api/admin/overview")).json; if (o.knowledge.embedded === o.knowledge.chunks && o.knowledge.chunks) break; await new Promise(r => setTimeout(r, 100)); }
 });
@@ -42,15 +42,30 @@ test("help: Hinglish and spelling mistakes still find the right part of the guid
   g.seen = []; g.respond = () => ({ text: JSON.stringify({ found: true, kind: "website", answer: "Task ke row par bin button dabaiye.", sources: [1] }) });
   for (const q of ["task kaise delete kare", "how to delte a taks"]) { await ask(a, q); assert.match(g.chats().pop().body.systemInstruction.parts[0].text, /bin \(trash\)/, q); }
 });
-test("help: unknown questions get an honest 'I don't know' and are listed for the admin", async () => {
-  g.respond = () => ({ text: JSON.stringify({ found: false, kind: "other", answer: "", sources: [] }) });
-  const r = await ask(a, "Who won the cricket match yesterday?");
-  assert.equal(r.json.message.found, false); assert.match(r.json.message.text, /don't know/);
-  assert.ok((await admin.get("/api/admin/questions")).json.unanswered.some(x => /cricket/.test(x.question)));
-  // even if the model claims to know a website feature the guide doesn't have, it isn't shown
+test("help: answers any general question with Gemini (default 'answer anything' mode)", async () => {
+  g.seen = []; g.respond = () => ({ text: JSON.stringify({ found: true, kind: "general", answer: "Paris is the capital of France.", sources: [] }) });
+  const r = await ask(a, "What is the capital of France?");
+  assert.equal(r.json.message.found, true); assert.equal(r.json.message.kind, "general"); assert.match(r.json.message.text, /Paris/);
+  assert.match(g.chats().pop().body.systemInstruction.parts[0].text, /any other question/i, "the prompt allows any topic");
+});
+test("help: website features still come only from the guide; the model can't invent one", async () => {
   g.respond = () => ({ text: JSON.stringify({ found: true, kind: "website", answer: "Use the Teleport button.", sources: [] }) });
-  const r2 = await ask(a, "How do I teleport my tasks to Jupiter?");
-  assert.match(r2.json.message.text, /don't know/); assert.doesNotMatch(r2.json.message.text, /Teleport/);
+  const r = await ask(a, "How do I teleport my tasks to Jupiter?");
+  assert.match(r.json.message.text, /don't know/); assert.doesNotMatch(r.json.message.text, /Teleport/);
+  assert.ok((await admin.get("/api/admin/questions")).json.unanswered.some(x => /teleport/i.test(x.question)), "the admin sees it");
+  g.respond = () => ({ text: JSON.stringify({ found: false, kind: "other", answer: "", sources: [] }) });
+  assert.match((await ask(a, "zxqv blorp?")).json.message.text, /don't know/, "if the model can't answer, it says so");
+});
+test("admin: 'focused' mode limits Help to the website and productivity tips", async () => {
+  assert.equal((await admin.get("/api/admin/settings")).json.scope, "all");
+  assert.equal((await admin.put("/api/admin/settings", { scope: "everything" })).status, 400);
+  assert.equal((await admin.put("/api/admin/settings", { scope: "focused" })).status, 200);
+  g.respond = () => ({ text: JSON.stringify({ found: true, kind: "general", answer: "Paris.", sources: [] }) });
+  const sys = (await ask(a, "What is the capital of France?"), g.chats().pop().body.systemInstruction.parts[0].text);
+  assert.match(sys, /Anything else.*set "found" to false/s);
+  g.respond = () => ({ text: JSON.stringify({ found: false, kind: "other", answer: "", sources: [] }) });
+  assert.match((await ask(a, "Who won the cricket match yesterday?")).json.message.text, /don't know/);
+  await admin.put("/api/admin/settings", { scope: "all" });
 });
 test("help: general productivity tips are allowed without the guide", async () => {
   g.respond = () => ({ text: JSON.stringify({ found: true, kind: "general", answer: "Try 25-minute focus blocks with short breaks.", sources: [] }) });
@@ -92,8 +107,8 @@ test("errors: quota (429) pauses AI calls and still shows the guide; bad and emp
 test("limits: each user has a daily AI allowance; after it, answers come from the guide", async () => {
   const c = await signup(s.base, "Kiran", "kiran@example.com");
   g.respond = () => ({ text: JSON.stringify({ found: true, kind: "website", answer: "ok", sources: [1] }) });
-  let last; for (let k = 0; k < 13; k++) last = await ask(c, "How do reminders work?");
-  assert.equal(last.json.message.via, "kb"); assert.match(last.json.message.text, /used your 12 AI answers/);
+  let last; for (let k = 0; k < 21; k++) last = await ask(c, "How do reminders work?");
+  assert.equal(last.json.message.via, "kb"); assert.match(last.json.message.text, /used your 20 AI answers/);
 });
 test("a bad API key is reported clearly", async () => {
   const s2 = await startServer({ GEMINI_API_KEY: "bad-key", GEMINI_BASE_URL: g.url });
