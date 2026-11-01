@@ -1,0 +1,8 @@
+# Vercel only serves the web pages; the backend runs on Render.
+/*
+!index.html
+!admin.html
+!vercel.json
+!build.js
+!src
+!package.json

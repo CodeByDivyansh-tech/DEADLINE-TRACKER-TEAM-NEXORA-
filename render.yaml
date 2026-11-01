@@ -1,0 +1,24 @@
+# Render Blueprint for the backend (Dashboard -> New -> Blueprint -> pick this repo).
+services:
+  - type: web
+    name: deadline-tracker-api
+    runtime: node
+    plan: free            # free: sleeps after 15 min idle and has no persistent disk (see docs/DEPLOY.md)
+    buildCommand: node --version
+    startCommand: node build.js && node server.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: NODE_ENV
+        value: production
+      - key: TRUST_PROXY
+        value: "true"
+      - key: DATA_DIR
+        value: ./data
+      - key: GEMINI_API_KEY
+        sync: false       # paste your key in the Render dashboard; never commit it
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false       # your Vercel address, e.g. https://deadline-tracker.vercel.app

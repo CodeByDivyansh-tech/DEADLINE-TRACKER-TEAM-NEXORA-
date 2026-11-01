@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deadline Tracker · Admin</title>
+<meta name="color-scheme" content="light dark">
+<style>
+:root{--bg:#eef1f8;--surface:#fff;--surface-2:#f1f3fa;--ink:#151a33;--muted:#5d6584;--line:#dfe3ef;--accent:#3340d6;--accent-ink:#fff;--ok:#1f8a4c;--over:#c62f4a;--att:#b7791f;--r:14px;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+@media (prefers-color-scheme:dark){:root{--bg:#0b1020;--surface:#151b2e;--surface-2:#1c2338;--ink:#e8ebf7;--muted:#9aa3c0;--line:#2a3350;--accent:#8a9dff;--accent-ink:#0b1020;--ok:#4cc38a;--over:#ff7a90;--att:#f0b44c}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-size:14.5px;line-height:1.45}
+header{display:flex;align-items:center;gap:12px;padding:14px 22px;background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+header h1{font-size:17px;margin:0}header .sp{flex:1}header a{color:var(--accent)}
+nav{display:flex;gap:4px;flex-wrap:wrap;padding:12px 22px 0}
+nav button{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:7px 14px;font-weight:600;cursor:pointer}
+nav button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+main{padding:16px 22px 60px;max-width:1200px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:14px}
+.card h2{font-size:15px;margin:0 0 10px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.kpi{background:var(--surface-2);border-radius:12px;padding:10px 12px}.kpi span{display:block;font-size:12px;color:var(--muted)}.kpi b{font-size:22px}
+table{width:100%;border-collapse:collapse;font-size:13.5px}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-align:top}th{font-size:12px;color:var(--muted);font-weight:600}
+.btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:9px;padding:6px 12px;font-weight:600;cursor:pointer;font:inherit;font-weight:600}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}.btn.danger{color:var(--over)}
+.btn:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,nav button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input,textarea,select{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:8px 10px;width:100%}
+textarea{min-height:140px;resize:vertical}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.grow{flex:1;min-width:200px}
+.muted{color:var(--muted)}.tag{display:inline-block;font-size:11.5px;padding:2px 8px;border-radius:999px;background:var(--surface-2);color:var(--muted)}
+.tag.ok{color:var(--ok)}.tag.bad{color:var(--over)}
+.msg{padding:10px 12px;border-radius:10px;background:var(--surface-2);margin:8px 0}
+.err{color:var(--over)}.pre{white-space:pre-wrap;font-family:ui-monospace,monospace;font-size:12px}
+label.f{display:grid;gap:4px;font-size:12.5px;color:var(--muted);margin-bottom:8px}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;display:none}
+</style>
+</head>
+<body>
+<header><h1>Deadline Tracker · Admin</h1><span class="sp"></span><span id="who" class="muted"></span><a href="/">Back to the app</a></header>
+<nav role="tablist" aria-label="Admin sections" id="tabs"></nav>
+<main id="main"><p class="muted">Loading…</p></main>
+<div id="toast" role="status" aria-live="polite"></div>
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const when = s => s ? new Date(s).toLocaleString() : "–";
+async function api(method, url, body){
+  const r = await fetch(url, { method, credentials: "same-origin", headers: body === undefined ? {} : { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
+  let j = {}; try { j = await r.json(); } catch (e) {}
+  if (!r.ok) throw new Error(j.error || `Error ${r.status}`);
+  return j;
+}
+function toast(t){ const el = $("#toast"); el.textContent = t; el.style.display = "block"; clearTimeout(toast.t); toast.t = setTimeout(() => el.style.display = "none", 3000); }
+const TABS = [["overview", "Overview"], ["users", "Users"], ["kb", "Knowledge"], ["questions", "Questions"], ["ai", "AI instructions"], ["usage", "API usage"], ["errors", "Errors"]];
+let tab = location.hash.slice(1) || "overview", me = null, editing = null;
+function nav(){ $("#tabs").innerHTML = TABS.map(([k, l]) => `<button role="tab" aria-selected="${k === tab}" data-tab="${k}">${l}</button>`).join(""); }
+async function show(){
+  nav(); const m = $("#main");
+  try {
+    if (tab === "overview") {
+      const o = await api("GET", "/api/admin/overview");
+      const ai = o.ai; const n = s => (ai.last24h.find(x => x.status === s) || { n: 0 }).n;
+      m.innerHTML = `<div class="card"><h2>Overview</h2><div class="kpis">
+        <div class="kpi"><span>Users</span><b>${o.users}</b></div><div class="kpi"><span>Admins</span><b>${o.admins}</b></div><div class="kpi"><span>Tasks (all users)</span><b>${o.tasks}</b></div>
+        <div class="kpi"><span>Knowledge sources</span><b>${o.knowledge.sources}</b></div><div class="kpi"><span>Chunks embedded</span><b>${o.knowledge.embedded}/${o.knowledge.chunks}</b></div>
+        <div class="kpi"><span>Unanswered questions</span><b>${o.questions.unanswered}</b></div><div class="kpi"><span>Ratings 👍 / 👎</span><b>${o.questions.up} / ${o.questions.down}</b></div>
+        <div class="kpi"><span>AI calls today (ok / quota / errors)</span><b>${n("ok")} / ${n("quota")} / ${n("error")}</b></div><div class="kpi"><span>Server errors (24h)</span><b>${o.errors24h}</b></div></div></div>
+        <div class="card"><h2>Google Gemini</h2><p>${ai.configured ? `<span class="tag ok">Connected</span> Model <b>${esc(ai.model)}</b>, embeddings <b>${esc(ai.embedModel)}</b>. Site limits: ${ai.limits.rpm} requests/minute, ${ai.limits.rpd}/day, ${ai.limits.perUserDaily} per user per day.${ai.coolingDownSeconds ? ` <span class="tag bad">Paused ${ai.coolingDownSeconds}s after a quota error</span>` : ""}`
+          : `<span class="tag bad">Off</span> Add <code>GEMINI_API_KEY=…</code> to the <code>.env</code> file and restart the server. Help still answers from the guide.`}</p>
+        <p class="muted">Reminder job last ran: ${when(o.reminders.lastRun)}</p></div>`;
+    } else if (tab === "users") {
+      const { users } = await api("GET", "/api/admin/users");
+      m.innerHTML = `<div class="card"><h2>Users (${users.length})</h2><p class="muted">Admins can change roles and turn accounts off. They can't see anyone's tasks.</p>
+        <table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Tasks</th><th>Time zone</th><th>Joined</th><th>Last login</th><th></th></tr></thead><tbody>
+        ${users.map(u => `<tr><td>${esc(u.name)}${u.id === me.id ? ' <span class="tag">you</span>' : ""}</td><td>${esc(u.email)}</td>
+          <td><select data-role="${u.id}" aria-label="Role for ${esc(u.email)}"><option value="user" ${u.role === "user" ? "selected" : ""}>User</option><option value="admin" ${u.role === "admin" ? "selected" : ""}>Admin</option></select></td>
+          <td>${u.tasks}</td><td>${esc(u.timezone)}</td><td>${when(u.createdAt)}</td><td>${when(u.lastLogin)}</td>
+          <td class="row"><button class="btn" data-dis="${u.id}" data-v="${!u.disabled}">${u.disabled ? "Turn on" : "Turn off"}</button>${u.id !== me.id ? `<button class="btn danger" data-del-user="${u.id}" data-email="${esc(u.email)}">Delete</button>` : ""}</td></tr>`).join("")}
+        </tbody></table></div>`;
+    } else if (tab === "kb") {
+      const { items } = await api("GET", "/api/admin/kb");
+      m.innerHTML = `<div class="card"><h2>${editing ? "Edit" : "Add"} knowledge</h2>
+        <div class="row"><label class="f" style="width:160px">Type<select id="kbKind" ${editing ? "disabled" : ""}><option value="faq">FAQ</option><option value="doc">Documentation</option></select></label>
+        <label class="f grow">Title (for an FAQ, the question)<input id="kbTitle" maxlength="200"></label></div>
+        <label class="f">Text (Markdown headings split a document into sections)<textarea id="kbBody"></textarea></label>
+        <div class="row"><button class="btn primary" id="kbSave">${editing ? "Save changes" : "Add"}</button>${editing ? '<button class="btn" id="kbCancel">Cancel</button>' : ""}
+          <span class="grow"></span><label class="btn" for="kbFile">Upload a document</label><input type="file" id="kbFile" accept=".md,.markdown,.txt,.html,.htm" hidden>
+          <button class="btn" id="kbReindex">Refresh index</button></div>
+        <p class="muted">Only public information belongs here. Uploads: .txt, .md or .html. Each change is chunked and${""} embedded with Gemini (when a key is set) for search.</p></div>
+        <div class="card"><h2>Knowledge sources (${items.length})</h2><table><thead><tr><th>Title</th><th>Type</th><th>Indexed</th><th>Updated</th><th></th></tr></thead><tbody>
+        ${items.map(s => `<tr><td><b>${esc(s.title)}</b><div class="muted">${esc(s.body.slice(0, 140))}${s.body.length > 140 ? "…" : ""}</div></td><td><span class="tag">${s.kind === "faq" ? "FAQ" : "Doc"}</span></td>
+          <td>${s.chunks} chunk${s.chunks === 1 ? "" : "s"}, ${s.embedded} embedded</td><td>${when(s.updatedAt)}</td>
+          <td class="row"><button class="btn" data-edit="${s.id}">Edit</button><button class="btn danger" data-del-kb="${s.id}">Delete</button></td></tr>`).join("")}</tbody></table></div>`;
+      if (editing) { const s = items.find(x => x.id === editing); if (s) { $("#kbKind").value = s.kind; $("#kbTitle").value = s.title; $("#kbBody").value = s.body; } }
+      if (show.prefill) { $("#kbKind").value = "faq"; $("#kbTitle").value = show.prefill.question; $("#kbBody").focus(); }
+    } else if (tab === "questions") {
+      const q = await api("GET", "/api/admin/questions");
+      m.innerHTML = `<div class="card"><h2>Unanswered questions (${q.unanswered.length})</h2><p class="muted">Questions Help couldn't answer from the guide. Answer one as an FAQ so it's covered next time.</p>
+        ${q.unanswered.length ? `<table><tbody>${q.unanswered.map(x => `<tr><td>${esc(x.question)}<div class="muted">${when(x.createdAt)}</div></td><td class="row"><button class="btn primary" data-answer="${x.id}" data-q="${esc(x.question)}">Answer as FAQ</button><button class="btn" data-resolve="${x.id}">Dismiss</button></td></tr>`).join("")}</tbody></table>` : "<p>Nothing waiting.</p>"}</div>
+        <div class="card"><h2>Common questions</h2><table><thead><tr><th>Question</th><th>Asked</th><th>Answered</th></tr></thead><tbody>${q.common.map(x => `<tr><td>${esc(x.question)}</td><td>${x.count}</td><td>${x.answered}</td></tr>`).join("")}</tbody></table></div>
+        <div class="card"><h2>Rated answers</h2>${q.rated.length ? q.rated.map(x => `<div class="msg"><b>${x.rating > 0 ? "👍" : "👎"} ${esc(x.question)}</b><div class="pre">${esc(x.answer || "")}</div><div class="muted">${esc(x.via || "")} · ${when(x.createdAt)}</div></div>`).join("") : "<p>No ratings yet.</p>"}</div>`;
+    } else if (tab === "ai") {
+      const s = await api("GET", "/api/admin/settings");
+      m.innerHTML = `<div class="card"><h2>Instructions for Deadline AI (Help)</h2><p class="muted">Tone and rules for answers. The safety rules (answer website questions only from the guide, never see users' tasks) are always added by the server.</p>
+        <textarea id="instr" style="min-height:220px">${esc(s.instructions)}</textarea><div class="row" style="margin-top:8px"><button class="btn primary" id="instrSave">Save</button><button class="btn" id="instrReset">Reset to default</button></div></div>`;
+      $("#instrReset").onclick = () => { $("#instr").value = s.default; };
+    } else if (tab === "usage") {
+      const u = await api("GET", "/api/admin/usage?days=14");
+      m.innerHTML = `<div class="card"><h2>Gemini usage, last 14 days</h2><table><thead><tr><th>Date</th><th>Chat</th><th>Embeddings</th><th>OK</th><th>Quota</th><th>Our limit</th><th>Errors</th><th>Tokens in / out</th></tr></thead><tbody>
+        ${u.days.map(d => `<tr><td>${d.date}</td><td>${d.chat}</td><td>${d.embed}</td><td>${d.ok}</td><td>${d.quota}</td><td>${d.limited}</td><td>${d.error}</td><td>${d.promptTokens} / ${d.outputTokens}</td></tr>`).join("") || '<tr><td colspan="8">No AI calls yet.</td></tr>'}</tbody></table></div>
+        <div class="card"><h2>Recent calls</h2><table><tbody>${u.recent.map(r => `<tr><td>${when(r.created_at)}</td><td>${esc(r.kind)}</td><td>${esc(r.model)}</td><td><span class="tag ${r.status === "ok" ? "ok" : "bad"}">${esc(r.status)}</span></td><td>${r.latency_ms ?? ""} ms</td><td class="err">${esc(r.error || "")}</td></tr>`).join("")}</tbody></table></div>`;
+    } else if (tab === "errors") {
+      const { errors } = await api("GET", "/api/admin/errors");
+      m.innerHTML = `<div class="card"><h2>Errors (last 100, kept 30 days)</h2>${errors.length ? `<table><tbody>${errors.map(e => `<tr><td>${when(e.created_at)}</td><td><span class="tag">${esc(e.area)}</span></td><td>${esc(e.message)}<div class="pre muted">${esc(e.detail || "")}</div></td></tr>`).join("")}</tbody></table>` : "<p>No errors.</p>"}</div>`;
+    }
+  } catch (e) { m.innerHTML = `<div class="card err">${esc(e.message)}</div>`; }
+}
+document.addEventListener("click", async e => {
+  const t = e.target.closest("button, [data-tab]"); if (!t) return;
+  try {
+    if (t.dataset.tab) { tab = t.dataset.tab; editing = null; show.prefill = null; location.hash = tab; return show(); }
+    if (t.dataset.dis) { await api("PATCH", "/api/admin/users/" + t.dataset.dis, { disabled: t.dataset.v === "true" }); toast("Saved."); return show(); }
+    if (t.dataset.delUser) { if (!confirm(`Delete ${t.dataset.email} and all their data? This can't be undone.`)) return; await api("DELETE", "/api/admin/users/" + t.dataset.delUser); toast("Deleted."); return show(); }
+    if (t.dataset.edit) { editing = t.dataset.edit; show.prefill = null; await show(); return $("#kbTitle").focus(); }
+    if (t.dataset.delKb) { if (!confirm("Delete this knowledge source?")) return; await api("DELETE", "/api/admin/kb/" + t.dataset.delKb); toast("Deleted."); return show(); }
+    if (t.dataset.answer) { tab = "kb"; editing = null; show.prefill = { id: t.dataset.answer, question: t.dataset.q }; location.hash = "kb"; return show(); }
+    if (t.dataset.resolve) { await api("PUT", "/api/admin/questions/" + t.dataset.resolve); toast("Dismissed."); return show(); }
+    if (t.id === "kbCancel") { editing = null; return show(); }
+    if (t.id === "kbSave") {
+      const body = { kind: $("#kbKind").value, title: $("#kbTitle").value, body: $("#kbBody").value };
+      const r = editing ? await api("PUT", "/api/admin/kb/" + editing, body) : await api("POST", "/api/admin/kb", Object.assign(body, show.prefill ? { fromQuestion: show.prefill.id } : {}));
+      toast(r.index && r.index.ok === false ? `Saved. Embedding failed (${r.index.error}); keyword search still works.` : "Saved and indexed."); editing = null; show.prefill = null; return show();
+    }
+    if (t.id === "kbReindex") { t.disabled = true; const r = await api("POST", "/api/admin/kb/reindex", { all: true }); toast(r.ok ? `Index refreshed${r.embedded ? `, ${r.embedded} embedded` : ""}.` : `Re-chunked; embeddings skipped (${r.error || r.skipped}).`); return show(); }
+    if (t.id === "instrSave") { await api("PUT", "/api/admin/settings", { instructions: $("#instr").value }); return toast("Saved."); }
+  } catch (err) { toast(err.message); }
+});
+document.addEventListener("change", async e => {
+  const t = e.target;
+  try {
+    if (t.dataset.role) { await api("PATCH", "/api/admin/users/" + t.dataset.role, { role: t.value }); toast("Role saved."); return show(); }
+    if (t.id === "kbFile" && t.files[0]) {
+      const f = t.files[0]; if (f.size > 2 * 1024 * 1024) return toast("That file is too large (2 MB max).");
+      const r = await api("POST", "/api/admin/kb", { kind: "doc", filename: f.name, body: await f.text() });
+      toast(`Uploaded "${r.item.title}" (${r.item.chunks} chunks).`); return show();
+    }
+  } catch (err) { toast(err.message); show(); }
+});
+(async () => {
+  try { const j = await api("GET", "/api/me"); me = j.user; } catch (e) {}
+  if (!me) { $("#main").innerHTML = `<div class="card">Please <a href="/">log in to Deadline Tracker</a> first, then come back to this page.</div>`; return; }
+  if (me.role !== "admin") { $("#main").innerHTML = `<div class="card">This page is only for admins.</div>`; return; }
+  $("#who").textContent = `${me.name} (${me.email})`;
+  if (!TABS.some(x => x[0] === tab)) tab = "overview";
+  show();
+})();
+</script>
+</body>
+</html>
