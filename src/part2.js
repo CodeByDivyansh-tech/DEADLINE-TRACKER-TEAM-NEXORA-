@@ -133,6 +133,12 @@ function logItem(w, it, text){
   if (w.activity.length > 80) w.activity.length = 80;
 }
 
+// The Deadline Tracker logo (also in logo.svg). Each copy gets its own gradient id.
+let logoN = 0;
+function logoSVG(size){
+  const id = "dtg" + (++logoN);
+  return `<svg class="dt-logo" width="${size}" height="${size}" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4353ff"/><stop offset="1" stop-color="#a855f7"/></linearGradient></defs><rect width="64" height="64" rx="16" fill="url(#${id})"/><circle cx="32" cy="33" r="17" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="5"/><path d="M32 16 A17 17 0 1 1 17.28 24.5" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/><path d="M24.5 33.5 30 39 40.5 27.5" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="32" cy="16" r="4" fill="#ffc94d" stroke="#fff" stroke-width="1.5"/></svg>`;
+}
 function defaultSettings(mode){
   return {
     hoursPerDay: mode === "company" ? 6 : 3,

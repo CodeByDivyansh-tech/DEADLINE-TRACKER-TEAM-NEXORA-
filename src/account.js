@@ -24,7 +24,7 @@ async function checkAccounts(){
 function showWaking(){
   const o = $("#onb"); $("#app").hidden = true; o.hidden = false; o.classList.add("auth");
   if ($("#waking")) return;
-  o.innerHTML = `<div class="onb-card auth-card" id="waking" role="status"><div class="brandline">${IC.planner.replace("<svg", '<svg width="18" height="18"')} Deadline Tracker</div>
+  o.innerHTML = `<div class="onb-card auth-card" id="waking" role="status"><div class="brandline">${logoSVG(26)} Deadline Tracker</div>
     <h1>Starting up…</h1><p class="lead">The server is waking up. This can take up to a minute the first time; the page will continue by itself.</p><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span></div>`;
 }
 function hideWaking(){ const w = $("#waking"); if (w) { $("#onb").innerHTML = ""; $("#onb").hidden = true; } }
@@ -45,7 +45,7 @@ function showAuth(note){
   $("#app").hidden = true; const o = $("#onb"); o.hidden = false; o.classList.add("auth");
   const login = ACCOUNT.mode === "login";
   o.innerHTML = `<div class="onb-card auth-card" role="main">
-    <div class="brandline">${IC.planner.replace("<svg", '<svg width="18" height="18"')} Deadline Tracker</div>
+    <div class="brandline">${logoSVG(26)} Deadline Tracker</div>
     <h1>${login ? "Welcome back." : "Create your account."}</h1>
     <p class="lead">${login ? "Log in to see your tasks and deadlines." : "Your tasks are saved to your account, so you can log in from any browser. Only you can see them."}</p>
     <div class="auth-tabs" role="tablist" aria-label="Log in or create an account">

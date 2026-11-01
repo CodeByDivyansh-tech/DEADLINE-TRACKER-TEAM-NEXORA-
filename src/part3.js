@@ -118,6 +118,7 @@ function renderSide(){
   };
   const link = (r, l) => `<a href="#${r}" data-route="${r}" aria-current="${UI.route === r ? "page" : "false"}" class="${r === "assistant" ? "nav-ai" : ""}">${NAV_ICON[r]}${l}${badge(r)}</a>`;
   $("#side").innerHTML = `
+    <div class="brand">${logoSVG(28)}<span>Deadline Tracker</span></div>
     <button class="ws-btn" type="button" data-act="wsmenu" aria-expanded="${UI.wsMenu}">
       <span class="ws-ico" style="background:${MODE_COLOR[w.mode]}">${esc(initials(w.name))}</span>
       <span style="min-width:0"><span class="wn">${esc(w.name)}</span><span class="wm">${MODE_LABEL[w.mode]} workspace</span></span>

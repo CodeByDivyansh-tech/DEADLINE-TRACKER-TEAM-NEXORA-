@@ -1,3 +1,5 @@
+<p align="center"><img src="logo.svg" width="96" alt="Deadline Tracker logo"></p>
+
 # Deadline Tracker
 
 A planner that tells you **whether you'll finish on time**, not just what's due. For students, teams and personal life.

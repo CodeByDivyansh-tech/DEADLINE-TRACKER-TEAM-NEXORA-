@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Deadline Tracker</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Deadline Tracker"%3E %3Cdefs%3E%3ClinearGradient id="dtg" x1="0" y1="0" x2="1" y2="1"%3E%3Cstop offset="0" stop-color="#4353ff"/%3E%3Cstop offset="1" stop-color="#a855f7"/%3E%3C/linearGradient%3E%3C/defs%3E %3Crect width="64" height="64" rx="16" fill="url%28#dtg%29"/%3E %3Ccircle cx="32" cy="33" r="17" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="5"/%3E %3Cpath d="M32 16 A17 17 0 1 1 17.28 24.5" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/%3E %3Cpath d="M24.5 33.5 30 39 40.5 27.5" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/%3E %3Ccircle cx="32" cy="16" r="4" fill="#ffc94d" stroke="#fff" stroke-width="1.5"/%3E %3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -584,6 +585,12 @@ button.risk:hover{background:color-mix(in srgb,var(--rc) 22%,transparent)}
 /* ---------- Onboarding ---------- */
 .onb{position:fixed;inset:0;z-index:70;background:linear-gradient(155deg,#0d1330 0%,#161c45 55%,#2a1a4a 100%);color:#eef1fb;display:grid;place-items:center;padding:24px;overflow-y:auto}
 .onb::before{content:"";position:fixed;inset:0;background:radial-gradient(circle at 80% 10%,rgba(125,147,255,.22),transparent 45%),radial-gradient(circle at 10% 90%,rgba(255,92,147,.14),transparent 40%);pointer-events:none}
+/* logo */
+.dt-logo{flex:none;display:block;border-radius:24%;box-shadow:0 4px 14px rgba(67,83,255,.28)}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 8px 10px;font-family:var(--font-display);font-weight:700;font-size:16px;letter-spacing:-.01em;color:var(--side-ink)}
+.m-brand{display:none}
+.onb .brandline{font-weight:600}
+@media (max-width:860px){.m-brand{display:flex;align-items:center;margin-right:10px}}
 /* sign up / log in */
 .auth-card{width:min(460px,100%);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:22px;padding:30px;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 30px 80px rgba(0,0,0,.35)}
 .auth-card h1{font-size:clamp(26px,4vw,34px)}
@@ -999,7 +1006,7 @@ body::before{content:"";position:fixed;inset:-10%;z-index:-1;pointer-events:none
   <aside class="side" id="side" aria-label="Workspace and sections"></aside>
   <div class="main">
     <header class="topbar">
-      <div class="crumb"><h1 id="pageTitle">Overview</h1><span id="pageSub"></span></div>
+      <span class="m-brand" title="Deadline Tracker"><svg class="dt-logo" width="30" height="30" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><defs><linearGradient id="dtg-top" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4353ff"/><stop offset="1" stop-color="#a855f7"/></linearGradient></defs> <rect width="64" height="64" rx="16" fill="url(#dtg-top)"/> <circle cx="32" cy="33" r="17" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="5"/> <path d="M32 16 A17 17 0 1 1 17.28 24.5" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/> <path d="M24.5 33.5 30 39 40.5 27.5" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/> <circle cx="32" cy="16" r="4" fill="#ffc94d" stroke="#fff" stroke-width="1.5"/></svg></span><div class="crumb"><h1 id="pageTitle">Overview</h1><span id="pageSub"></span></div>
       <span id="demoTag"></span>
       <label class="gsearch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="gsearch" type="search" placeholder="Search deadlines" aria-label="Search deadlines"></label>
       <button class="iconbtn" id="themeBtn" type="button" aria-label="Switch to dark mode" title="Switch to dark mode"></button>
@@ -1153,6 +1160,12 @@ function logItem(w, it, text){
   if (w.activity.length > 80) w.activity.length = 80;
 }
 
+// The Deadline Tracker logo (also in logo.svg). Each copy gets its own gradient id.
+let logoN = 0;
+function logoSVG(size){
+  const id = "dtg" + (++logoN);
+  return `<svg class="dt-logo" width="${size}" height="${size}" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4353ff"/><stop offset="1" stop-color="#a855f7"/></linearGradient></defs><rect width="64" height="64" rx="16" fill="url(#${id})"/><circle cx="32" cy="33" r="17" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="5"/><path d="M32 16 A17 17 0 1 1 17.28 24.5" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/><path d="M24.5 33.5 30 39 40.5 27.5" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="32" cy="16" r="4" fill="#ffc94d" stroke="#fff" stroke-width="1.5"/></svg>`;
+}
 function defaultSettings(mode){
   return {
     hoursPerDay: mode === "company" ? 6 : 3,
@@ -1847,6 +1860,7 @@ function renderSide(){
   };
   const link = (r, l) => `<a href="#${r}" data-route="${r}" aria-current="${UI.route === r ? "page" : "false"}" class="${r === "assistant" ? "nav-ai" : ""}">${NAV_ICON[r]}${l}${badge(r)}</a>`;
   $("#side").innerHTML = `
+    <div class="brand">${logoSVG(28)}<span>Deadline Tracker</span></div>
     <button class="ws-btn" type="button" data-act="wsmenu" aria-expanded="${UI.wsMenu}">
       <span class="ws-ico" style="background:${MODE_COLOR[w.mode]}">${esc(initials(w.name))}</span>
       <span style="min-width:0"><span class="wn">${esc(w.name)}</span><span class="wm">${MODE_LABEL[w.mode]} workspace</span></span>
@@ -3241,7 +3255,7 @@ async function checkAccounts(){
 function showWaking(){
   const o = $("#onb"); $("#app").hidden = true; o.hidden = false; o.classList.add("auth");
   if ($("#waking")) return;
-  o.innerHTML = `<div class="onb-card auth-card" id="waking" role="status"><div class="brandline">${IC.planner.replace("<svg", '<svg width="18" height="18"')} Deadline Tracker</div>
+  o.innerHTML = `<div class="onb-card auth-card" id="waking" role="status"><div class="brandline">${logoSVG(26)} Deadline Tracker</div>
     <h1>Starting up…</h1><p class="lead">The server is waking up. This can take up to a minute the first time; the page will continue by itself.</p><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span></div>`;
 }
 function hideWaking(){ const w = $("#waking"); if (w) { $("#onb").innerHTML = ""; $("#onb").hidden = true; } }
@@ -3262,7 +3276,7 @@ function showAuth(note){
   $("#app").hidden = true; const o = $("#onb"); o.hidden = false; o.classList.add("auth");
   const login = ACCOUNT.mode === "login";
   o.innerHTML = `<div class="onb-card auth-card" role="main">
-    <div class="brandline">${IC.planner.replace("<svg", '<svg width="18" height="18"')} Deadline Tracker</div>
+    <div class="brandline">${logoSVG(26)} Deadline Tracker</div>
     <h1>${login ? "Welcome back." : "Create your account."}</h1>
     <p class="lead">${login ? "Log in to see your tasks and deadlines." : "Your tasks are saved to your account, so you can log in from any browser. Only you can see them."}</p>
     <div class="auth-tabs" role="tablist" aria-label="Log in or create an account">
@@ -3982,7 +3996,7 @@ function showOnboarding(){
   $("#app").hidden = true; const o = $("#onb"); o.hidden = false; o.classList.remove("auth");
   const dots = `<div class="steps-dots">${[0, 1, 2].map(k => `<i class="${k <= ONB.step ? "on" : ""}"></i>`).join("")}</div>`;
   let inner;
-  if (ONB.step === 0) inner = `<div class="brandline">${IC.planner.replace("<svg", '<svg width="18" height="18"')} Deadline Tracker</div>
+  if (ONB.step === 0) inner = `<div class="brandline">${logoSVG(26)} Deadline Tracker</div>
     <h1>Never miss a deadline.<br>Always know what comes next.</h1>
     <p class="lead">See what's due, what's at risk and what to do first. Works for coursework, team projects and life admin.</p>
     <div class="field" style="max-width:420px"><label for="onb-name">What should we call you?</label><input type="text" id="onb-name" value="${esc(ONB.name)}" placeholder="Your first name" maxlength="40" autocomplete="given-name"></div>

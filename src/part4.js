@@ -417,7 +417,7 @@ function showOnboarding(){
   $("#app").hidden = true; const o = $("#onb"); o.hidden = false; o.classList.remove("auth");
   const dots = `<div class="steps-dots">${[0, 1, 2].map(k => `<i class="${k <= ONB.step ? "on" : ""}"></i>`).join("")}</div>`;
   let inner;
-  if (ONB.step === 0) inner = `<div class="brandline">${IC.planner.replace("<svg", '<svg width="18" height="18"')} Deadline Tracker</div>
+  if (ONB.step === 0) inner = `<div class="brandline">${logoSVG(26)} Deadline Tracker</div>
     <h1>Never miss a deadline.<br>Always know what comes next.</h1>
     <p class="lead">See what's due, what's at risk and what to do first. Works for coursework, team projects and life admin.</p>
     <div class="field" style="max-width:420px"><label for="onb-name">What should we call you?</label><input type="text" id="onb-name" value="${esc(ONB.name)}" placeholder="Your first name" maxlength="40" autocomplete="given-name"></div>

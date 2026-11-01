@@ -168,3 +168,8 @@ Removed: the Anthropic relay (`/api/ai`), its prompt/validation code and tests, 
 - New default: Help answers **any question** with Gemini. Website questions still come only from the help guide (the model can't invent a feature), and tasks are still never sent.
 - Admin → AI instructions → "What Help answers": **Any question** or **Focused** (website + planning tips only, saves the free quota).
 - Tests (api-help-gemini): general question answered; invented website feature blocked and shown to the admin; model can't answer → "I don't know"; focused mode prompt and refusal; invalid scope rejected. Full suite twice: 266 of 266.
+
+## Logo (2 Nov 2026)
+- New logo (`logo.svg`): a countdown ring that is almost full, a check mark, and a gold deadline dot, on the app's blue-violet gradient.
+- Shown as the browser tab icon, on the log-in and setup screens, at the top of the sidebar, in the phone top bar, on the admin page and in the README.
+- Tests (logo.test.js): tab icon, setup screen, sidebar, unique SVG ids, phone top bar with no sideways scrolling, log-in screen, admin page, logo file. Screenshots checked in light, dark and 390px. Full suite twice: 269 of 269.
