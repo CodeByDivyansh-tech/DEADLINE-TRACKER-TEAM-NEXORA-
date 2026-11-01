@@ -5,3 +5,4 @@ data/
 !.env.example
 ai-key.txt
 *.bak
+public/
