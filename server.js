@@ -104,7 +104,9 @@ async function main(){
     return send(res, 200, out || {});
   }
   const PRIVATE = /(^|[\\/])(\.env.*|ai-key\.txt|data|lib|tests|node_modules|knowledge|docs|src|\.git)([\\/]|$)|\.(db|db-wal|db-shm|md|bak|ps1|bat|sh|json|js)$/i;
-  const MIME = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".webmanifest": "application/manifest+json" };
+  const MIME = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".webp": "image/webp", ".ico": "image/x-icon", ".webmanifest": "application/manifest+json" };
+  // The pitch's public libraries (three.js, GSAP) are the only .js files served; all other .js is source code.
+  const PUBLIC_JS = /^pitch-assets[\\/][\w.-]+\.min\.js$/;
   const server = http.createServer(async (req, res) => {
     let url, query = {};
     try { const u = new URL(req.url || "/", "http://x"); url = decodeURIComponent(u.pathname); u.searchParams.forEach((v, k) => { query[k] = v; }); }
@@ -119,12 +121,13 @@ async function main(){
       }
     }
     if (req.method !== "GET" && req.method !== "HEAD") { res.writeHead(405); return res.end(); }
-    const rel = url === "/" ? "index.html" : url === "/admin" ? "admin.html" : url.replace(/^\/+/, "");
+    const rel = url === "/" ? "index.html" : url === "/admin" ? "admin.html" : url === "/pitch" || url === "/pitch/" ? "pitch.html" : url.replace(/^\/+/, "");
     const file = path.resolve(cfg.ROOT, rel);
-    if (!file.startsWith(cfg.ROOT + path.sep) || PRIVATE.test(path.relative(cfg.ROOT, file)) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) { res.writeHead(404, Object.assign({ "Content-Type": "text/plain" }, SECURITY_HEADERS)); return res.end("Not found"); }
-    const type = MIME[path.extname(file).toLowerCase()];   // only the file types the site uses; everything else stays private
+    if (!file.startsWith(cfg.ROOT + path.sep) || (PRIVATE.test(path.relative(cfg.ROOT, file)) && !PUBLIC_JS.test(path.relative(cfg.ROOT, file))) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) { res.writeHead(404, Object.assign({ "Content-Type": "text/plain" }, SECURITY_HEADERS)); return res.end("Not found"); }
+    const pub = PUBLIC_JS.test(path.relative(cfg.ROOT, file));
+    const type = pub ? "text/javascript; charset=utf-8" : MIME[path.extname(file).toLowerCase()];   // only the file types the site uses; everything else stays private
     if (!type) { res.writeHead(404, Object.assign({ "Content-Type": "text/plain" }, SECURITY_HEADERS)); return res.end("Not found"); }
-    res.writeHead(200, Object.assign({ "Content-Type": type, "Cache-Control": "no-store" }, SECURITY_HEADERS, /html/.test(type) ? { "Content-Security-Policy": CSP } : {}));
+    res.writeHead(200, Object.assign({ "Content-Type": type, "Cache-Control": /^pitch-assets[\\/]/.test(path.relative(cfg.ROOT, file)) ? "public, max-age=86400" : "no-store" }, SECURITY_HEADERS, /html/.test(type) ? { "Content-Security-Policy": CSP } : {}));
     fs.createReadStream(file).pipe(res);
   });
 

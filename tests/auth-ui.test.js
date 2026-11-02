@@ -146,3 +146,15 @@ test("Settings: change your password; the old one stops working and the new one 
   });
   assert.deepEqual(r, [401, 200]);
 });
+
+test("design system: the welcome headline is 3D type (depth + word flip) and the app shares the pitch's colour tokens", async () => {
+  const page = await open();
+  const h = await page.evaluate(() => { const h = document.querySelector(".landing h1"); return { words: h.querySelectorAll(".w3d").length, text: h.textContent.replace(/\s+/g, " ").trim(), shadow: getComputedStyle(h).textShadow, anim: getComputedStyle(h.querySelector(".w3d")).animationName, label: h.getAttribute("aria-label") }; });
+  assert.ok(h.words >= 5, "words split for the flip"); assert.equal(h.text, "Never miss a deadline again.");
+  assert.notEqual(h.shadow, "none", "layered depth"); assert.equal(h.anim, "dtWordUp");
+  for (const theme of ["light", "dark"]) {
+    const tok = await page.evaluate(t => { document.documentElement.setAttribute("data-theme", t); const r = getComputedStyle(document.documentElement); return ["--teal", "--amber", "--coral"].map(v => r.getPropertyValue(v).trim()); }, theme);
+    assert.ok(tok.every(Boolean), theme + " tokens: " + tok);
+  }
+  assert.doesNotMatch(require("fs").readFileSync(require("path").join(__dirname, "..", "src", "part1.html"), "utf8"), /#ff9ec4|#c79bff/i, "no leftover pink from the old landing gradient");
+});

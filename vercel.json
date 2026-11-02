@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "echo no install needed",
-  "buildCommand": "node build.js && mkdir -p public && cp index.html admin.html public/",
+  "buildCommand": "node build.js && rm -rf public && mkdir -p public/pitch-assets && cp index.html admin.html pitch.html logo.svg public/ && cp pitch-assets/*.js pitch-assets/*.webp public/pitch-assets/ && cp -r pitch-assets/screens pitch-assets/3d public/pitch-assets/",
   "outputDirectory": "public",
   "rewrites": [
     {
@@ -12,6 +12,14 @@
     {
       "source": "/admin",
       "destination": "/admin.html"
+    },
+    {
+      "source": "/pitch",
+      "destination": "/pitch.html"
+    },
+    {
+      "source": "/pitch/",
+      "destination": "/pitch.html"
     }
   ],
   "headers": [
@@ -41,6 +49,15 @@
         {
           "key": "Permissions-Policy",
           "value": "camera=(), microphone=(), geolocation=()"
+        }
+      ]
+    },
+    {
+      "source": "/pitch-assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=86400, stale-while-revalidate=604800"
         }
       ]
     }

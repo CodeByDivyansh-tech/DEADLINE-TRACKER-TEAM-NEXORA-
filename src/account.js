@@ -53,21 +53,23 @@ function hero3dHTML(){
     <div class="float-card fc-todo" style="--z:85px;--d:-1s"><div class="fc-line done"><i>${IC.check}</i>Read chapter 4</div><div class="fc-line done"><i>${IC.check}</i>Outline slides</div><div class="fc-line"><i></i>Practice talk</div></div>
   </div></div>`;
 }
-function showAuth(note){
+// 3D type (shared with the pitch): each word becomes a span that flips up; [word] gets the amber accent
+function words3d(t){ let w = 0; return t.split(" ").map(x => { const hi = /^\[.*\]/.test(x); const txt = x.replace(/[\[\]]/g, ""); return `<span class="w3d${hi ? " grad" : ""}" style="--w:${w++}">${esc(txt)}</span>`; }).join(" "); }
+function showAuth(note, switching){
   $("#app").hidden = true; const o = $("#onb"); o.hidden = false; o.classList.add("auth");
   const login = ACCOUNT.mode === "login";
   const keep = $("#au-email") ? $("#au-email").value : "";
   o.innerHTML = `<div class="auth-wrap">
   <section class="landing">
     <div class="brandline">${logoSVG(30)} <span>Deadline Tracker</span></div>
-    <h1>Never miss a <span class="grad">deadline</span> again.</h1>
+    <h1${switching ? ' class="still"' : ""}>${words3d("Never miss a [deadline] again.")}</h1>
     <p class="lead">Tell it about your work. It builds your to-do list, shows what's at risk, and reminds you before things are due.</p>
     ${hero3dHTML()}
   </section>
   <div class="onb-card auth-card" role="main">
     <h1>${login ? "Welcome back." : "Create your account."}</h1>
     <p class="lead">${login ? "Log in to see your tasks and deadlines." : "Your tasks are saved to your account, so you can log in from any browser. Only you can see them."}</p>
-    <div class="auth-tabs" role="tablist" aria-label="Log in or create an account">
+    <div class="auth-tabs" role="tablist" aria-label="Log in or create an account" data-v="${login ? "login" : "signup"}"><span class="auth-pill" aria-hidden="true"></span>
       <button type="button" role="tab" data-act="authmode" data-v="login" aria-selected="${login}">Log in</button>
       <button type="button" role="tab" data-act="authmode" data-v="signup" aria-selected="${!login}">Create account</button>
     </div>
@@ -84,13 +86,14 @@ function showAuth(note){
     <p class="auth-foot">${IC.info}<span>Passwords are stored securely as a hash. The AI key stays on the server.</span></p>
   </div>
   <ul class="features">
-    <li><span class="fi" style="--c:#7d93ff">${IC.spark}</span><div><b>Type it the way you'd say it</b><span>"Essay due Fri 5pm" becomes a task with its date.</span></div></li>
+    <li><span class="fi" style="--c:#e8a06a">${IC.spark}</span><div><b>Type it the way you'd say it</b><span>"Essay due Fri 5pm" becomes a task with its date.</span></div></li>
     <li><span class="fi" style="--c:#ff8a5c">${IC.alert}</span><div><b>See what's at risk</b><span>It checks whether the work fits before each deadline.</span></div></li>
     <li><span class="fi" style="--c:#3ecf8e">${IC.bell}</span><div><b>Reminders that arrive</b><span>Even when the app is closed, from your account.</span></div></li>
   </ul>
 </div>`;
   const f = !login ? $("#au-name") : keep ? $("#au-pass") : $("#au-email"); if (f) f.focus();
   heroTilt();
+  if (!switching) MOTION.authIntro();
 }
 // A gentle tilt of the 3D scene that follows the pointer (off with reduced motion and on touch screens).
 function heroTilt(){

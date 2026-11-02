@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NEXORA · Deadline Tracker pitch</title>
+<meta name="description" content="Team NEXORA presents Deadline Tracker: an early-warning planner that tells students whether they will finish on time.">
+<meta name="theme-color" content="#070A14">
+<link rel="icon" type="image/svg+xml" href="logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="pitch-assets/three.min.js" defer></script>
+<style>
+/* NEXORA pitch. One identity with the app (docs/DESIGN-SYSTEM.md): ink, indigo, teal, amber, coral; Bricolage Grotesque + IBM Plex. */
+:root{
+  --ink-0:#070A14; --ink-1:#0C1122; --ink-2:#131A33;
+  --indigo:#7383FF; --indigo-deep:#3349D9; --teal:#2DD4BF; --amber:#FBBF4C; --coral:#FF7A6B;
+  --text:#EEF1FA; --text-2:#B6BED6; --text-3:#8F98B3;
+  --edge:rgba(255,255,255,.11); --edge-hi:rgba(255,255,255,.22);
+  --glass:linear-gradient(160deg,rgba(255,255,255,.085),rgba(255,255,255,.028) 60%);
+  --blur:blur(14px) saturate(140%);
+  --shadow:0 1px 0 rgba(255,255,255,.08) inset,0 22px 50px -24px rgba(0,0,0,.75),0 2px 6px rgba(0,0,0,.25);
+  --display:"Bricolage Grotesque",system-ui,sans-serif; --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --ease:cubic-bezier(.2,.75,.15,1);
+  --rail:236px; --top:64px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--ink-0);color:var(--text);font:400 16px/1.55 var(--body);-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;cursor:pointer}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--amber);outline-offset:3px;border-radius:10px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ---------- backdrop: light pools and a receding floor grid (static, cheap) ---------- */
+.backdrop{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;
+  background:radial-gradient(60vw 50vh at 78% 18%,rgba(51,73,217,.28),transparent 70%),radial-gradient(45vw 45vh at 12% 88%,rgba(45,212,191,.13),transparent 70%),radial-gradient(30vw 30vh at 50% 50%,rgba(251,191,76,.05),transparent 70%),linear-gradient(180deg,var(--ink-1),var(--ink-0) 60%)}
+.backdrop .floor{position:absolute;left:-25%;right:-25%;bottom:-8vh;height:60vh;transform:perspective(600px) rotateX(64deg);transform-origin:50% 100%;
+  background-image:linear-gradient(rgba(115,131,255,.18) 1px,transparent 1px),linear-gradient(90deg,rgba(115,131,255,.18) 1px,transparent 1px);background-size:64px 64px;
+  -webkit-mask-image:linear-gradient(to top,#000,transparent 85%);mask-image:linear-gradient(to top,#000,transparent 85%);opacity:.5}
+
+/* ---------- glass ---------- */
+.glass{position:relative;background:var(--glass);border:1px solid var(--edge);border-radius:20px;-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);box-shadow:var(--shadow);overflow:hidden;isolation:isolate}
+.glass::before{content:"";position:absolute;inset:0 0 auto 0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);opacity:.6;pointer-events:none}
+.glass::after{content:"";position:absolute;top:0;bottom:0;left:-60%;width:40%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.07),transparent);transform:skewX(-18deg);pointer-events:none;opacity:0}
+.lift{transition:transform .35s var(--ease),border-color .35s,box-shadow .35s}
+.lift:hover{transform:translateY(-2px);border-color:rgba(115,131,255,.42);box-shadow:var(--shadow),0 0 0 1px rgba(115,131,255,.12),0 18px 40px -18px rgba(51,73,217,.55)}
+.lift:hover::after{animation:sheen .9s var(--ease) 1}
+@keyframes sheen{from{left:-60%;opacity:1}to{left:130%;opacity:0}}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.glass{background:linear-gradient(160deg,#151c36,#0e1428)}}
+
+/* ---------- frame: top bar, chapter rail, slide area, nav ---------- */
+.top{position:fixed;inset:0 0 auto 0;height:var(--top);z-index:30;display:flex;align-items:center;gap:14px;padding:0 20px;
+  background:linear-gradient(180deg,rgba(7,10,20,.85),rgba(7,10,20,.4));-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,.06)}
+.brand{display:flex;align-items:center;gap:11px;border:0;background:none;padding:4px;border-radius:12px;text-align:left}
+.brand img{width:34px;height:34px;border-radius:9px;box-shadow:0 0 0 1px rgba(255,255,255,.15),0 6px 18px rgba(51,73,217,.45)}
+.brand b{display:block;font:800 16px/1 var(--display);letter-spacing:.14em}
+.brand small{display:block;font:500 10.5px/1.3 var(--mono);color:var(--text-3);letter-spacing:.12em;text-transform:uppercase;margin-top:3px}
+.tools{margin-left:auto;display:flex;gap:8px;align-items:center}
+.tool{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 13px;border-radius:12px;border:1px solid var(--edge);background:rgba(255,255,255,.04);color:var(--text);font:500 13.5px var(--body);text-decoration:none;transition:background .2s,border-color .2s}
+.tool:hover{background:rgba(255,255,255,.09);border-color:var(--edge-hi)}
+.tool svg{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tool[aria-pressed="true"]{border-color:rgba(251,191,76,.6);color:var(--amber)}
+.tool.primary{background:linear-gradient(135deg,#4659ec,#3349d9);border-color:transparent;color:#fff;box-shadow:0 8px 22px -8px rgba(51,73,217,.8)}
+.tool.primary:hover{background:linear-gradient(135deg,#5468ff,#3d52e6)}
+.timer{font-family:var(--mono);font-weight:600;letter-spacing:.04em;min-width:58px}
+#timerBtn.over{color:var(--coral);border-color:rgba(255,122,107,.6)}
+.tool.icon{width:38px;padding:0;justify-content:center}
+
+.rail{position:fixed;left:18px;top:calc(var(--top) + 18px);bottom:18px;width:var(--rail);z-index:20;display:flex;flex-direction:column;padding:16px 10px}
+.rail h2{font:600 10.5px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--text-3);margin:4px 12px 12px}
+.rail ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;position:relative}
+.rail button{width:100%;display:flex;align-items:center;gap:12px;padding:9px 12px;border:0;border-radius:12px;background:none;color:var(--text-2);font:500 14px var(--body);text-align:left;transition:background .2s,color .2s}
+.rail button span{font:600 11px var(--mono);color:var(--text-3);width:20px}
+.rail button:hover{background:rgba(255,255,255,.05);color:var(--text)}
+.rail button[aria-current="step"]{background:linear-gradient(90deg,rgba(115,131,255,.22),rgba(115,131,255,.04));color:#fff;box-shadow:inset 3px 0 0 var(--indigo)}
+.rail button[aria-current="step"] span{color:var(--amber)}
+.rail .meter{margin:auto 12px 4px;height:4px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden}
+.rail .meter i{display:block;height:100%;width:12.5%;background:linear-gradient(90deg,var(--indigo),var(--teal));border-radius:4px;transition:width .6s var(--ease)}
+.rail .hint{margin:10px 12px 0;font:500 11px/1.5 var(--mono);color:var(--text-3)}
+.rail .hint kbd{font:inherit;border:1px solid var(--edge);border-radius:5px;padding:0 5px;color:var(--text-2)}
+
+.stage{position:fixed;inset:var(--top) 0 0 calc(var(--rail) + 36px);z-index:10}
+.slide{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;padding:28px 40px 104px 24px;display:flex;flex-direction:column;
+  opacity:0;visibility:hidden;transform:translate3d(0,24px,0) scale(.985);transition:opacity .6s var(--ease),transform .7s var(--ease),visibility .6s}
+.slide::before{content:"";margin-top:auto}
+.slide::after{content:"";margin-bottom:auto}
+.slide.on{opacity:1;visibility:visible;transform:none}
+.wrap{width:100%;max-width:1240px;margin:0 auto}
+.kicker{display:inline-flex;align-items:center;gap:10px;font:600 12px/1 var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--teal);margin:0 0 16px}
+.kicker::before{content:"";width:22px;height:2px;border-radius:2px;background:currentColor}
+h2.headline{font:700 min(clamp(30px,3.9vw,58px),6.6vh)/1.06 var(--display);letter-spacing:-.025em;margin:0 0 min(26px,2.6vh);max-width:22ch;perspective:900px}
+.lead{font-size:min(18px,2.2vh);color:var(--text-2);max-width:62ch;margin:0 0 min(28px,3vh)}
+.hl{color:var(--amber)}
+.hl-i{color:var(--indigo);text-shadow:0 1px 0 #4858e0,0 2px 0 #3d4bc7,0 3px 0 #3341ad,0 12px 24px rgba(51,73,217,.45)}
+
+/* ---------- 3D typography ---------- */
+.w3d{display:inline-block;transform-origin:50% 100%;backface-visibility:hidden}
+.slide.on .w3d{animation:wordUp .9s var(--ease) both;animation-delay:calc(var(--w) * 60ms + 100ms)}
+@keyframes wordUp{from{opacity:0;transform:translateY(.35em) rotateX(-75deg)}to{opacity:1;transform:none}}
+h2.headline .w3d{transition:transform .35s var(--ease)}
+h2.headline:hover .w3d{transform:translateZ(0)}
+h2.headline .w3d:hover{transform:translateY(-2px) rotateX(10deg)}
+
+.title3d{margin:0;font:800 min(clamp(56px,7.4vw,124px),13vh)/.9 var(--display);letter-spacing:.04em;perspective:1200px;display:flex;justify-content:flex-start}
+.title3d .rig{display:flex;transform-style:preserve-3d;transform:rotateX(var(--rx,10deg)) rotateY(var(--ry,-12deg));transition:transform .5s var(--ease)}
+.title3d .ch{position:relative;display:inline-block;transform-style:preserve-3d}
+.title3d .face{position:relative;display:block;background:linear-gradient(180deg,#ffffff 15%,#cfd6ff 60%,#9aa6ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.title3d .ch:last-child .face{background:linear-gradient(180deg,#fff3d1 10%,var(--amber) 70%);-webkit-background-clip:text;background-clip:text}
+.title3d .layer{position:absolute;inset:0;color:hsl(232 60% calc(36% - var(--d) * 2%));transform:translateZ(calc(var(--d) * -2.2px));pointer-events:none}
+.title3d .ch:last-child .layer{color:hsl(36 80% calc(42% - var(--d) * 2.4%))}
+.slide.on .title3d .ch{animation:chIn 1.1s var(--ease) both;animation-delay:calc(var(--c) * 90ms + 150ms)}
+@keyframes chIn{from{opacity:0;transform:translateZ(-160px) rotateX(-80deg)}to{opacity:1;transform:none}}
+
+/* ---------- slide 1 + 8: hero ---------- */
+.hero{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:24px;align-items:center}
+.tagline{font:500 min(clamp(20px,2vw,28px),3.3vh)/1.35 var(--display);color:var(--text);margin:min(22px,2.2vh) 0 6px;max-width:30ch}
+.tagline em{font-style:normal;color:var(--teal)}
+.byline{font:600 11.5px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--text-3);margin:min(26px,2.8vh) 0 12px}
+.team{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 min(30px,3vh);padding:0;list-style:none}
+.team li{display:flex;align-items:center;gap:10px;padding:7px 14px 7px 7px;border-radius:999px;font:600 13.5px var(--body)}
+.team li i{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font:700 12px var(--display);font-style:normal;color:#0b1020;background:var(--c)}
+.cta{display:inline-flex;align-items:center;gap:12px;height:54px;padding:0 24px;border-radius:16px;border:0;background:linear-gradient(135deg,#5466ff,#3349d9);color:#fff;font:600 16px var(--body);text-decoration:none;
+  box-shadow:0 1px 0 rgba(255,255,255,.3) inset,0 16px 34px -12px rgba(51,73,217,.9);transition:transform .25s var(--ease),box-shadow .25s}
+.cta:hover{transform:translateY(-2px);box-shadow:0 1px 0 rgba(255,255,255,.3) inset,0 22px 40px -12px rgba(51,73,217,1),0 0 0 3px rgba(251,191,76,.35)}
+.cta kbd{font:600 11px var(--mono);padding:3px 7px;border-radius:7px;background:rgba(255,255,255,.18)}
+.cta svg,.ghost svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ghost{display:inline-flex;align-items:center;gap:10px;height:54px;padding:0 20px;border-radius:16px;border:1px solid var(--edge-hi);background:rgba(255,255,255,.04);color:var(--text);font:600 15px var(--body);text-decoration:none;transition:background .2s,border-color .2s}
+.ghost:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.35)}
+.actions{display:flex;flex-wrap:wrap;gap:12px}
+
+/* 3D canvases */
+.stage3d{position:relative;width:100%;aspect-ratio:1/1;max-height:min(66vh,620px);margin:0 auto}
+.stage3d canvas{position:absolute;inset:0;width:100%!important;height:100%!important;display:block}
+.stage3d .still{position:absolute;inset:0;display:none;background:center/contain no-repeat;-webkit-mask:radial-gradient(closest-side,#000 72%,transparent);mask:radial-gradient(closest-side,#000 72%,transparent)}
+/* still pictures of each scene (rendered from the live 3D) for reduced-power machines without graphics acceleration */
+[data-3d=orbit] .still{background-image:url(pitch-assets/3d/orbit.webp)} [data-3d=orbit2] .still{background-image:url(pitch-assets/3d/orbit2.webp)}
+[data-3d=radar] .still{background-image:url(pitch-assets/3d/radar.webp)} [data-3d=week] .still{background-image:url(pitch-assets/3d/week.webp)}
+html.no-webgl .stage3d .still{display:block}
+.stage3d .tag{position:absolute;font:600 11px var(--mono);letter-spacing:.08em;color:var(--text-3);transform:translate(-50%,0);white-space:nowrap;pointer-events:none}
+
+/* ---------- slide 2: problem ---------- */
+.problem{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr);gap:22px;align-items:start}
+.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.card{padding:min(20px,2.2vh) 20px}
+.card .n{font:600 12px var(--mono);color:var(--coral);letter-spacing:.1em}
+.card h3{font:650 17px/1.3 var(--display);margin:8px 0 6px}
+.card p{margin:0;color:var(--text-2);font-size:14.5px}
+.flaw{padding:22px}
+.flaw .label{font:600 11px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--text-3)}
+.flaw p{margin:8px 0 16px;color:var(--text);font-size:15px}
+.flaw .turn{border-top:1px solid var(--edge);padding-top:16px}
+.flaw .turn .label{color:var(--teal)}
+.stat{display:flex;gap:14px;align-items:center;border-top:1px solid var(--edge);padding-top:16px}
+.stat b{font:800 46px/1 var(--display);color:var(--amber)}
+.stat span{font-size:13.5px;color:var(--text-2)}
+
+/* ---------- slide 3: solution ---------- */
+.solution{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.9fr);gap:26px;align-items:center}
+.formula{padding:24px}
+.formula .label{font:600 11px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--indigo)}
+.formula h3{font:700 22px var(--display);margin:8px 0 6px}
+.formula p{color:var(--text-2);font-size:14.5px;margin:0 0 14px}
+.eq{display:flex;align-items:center;gap:16px;padding:16px 18px;border-radius:14px;background:rgba(0,0,0,.28);border:1px solid var(--edge);font:600 min(20px,2.6vh) var(--mono)}
+.eq .frac{display:grid;text-align:center;gap:6px}
+.eq .frac span:first-child{border-bottom:2px solid var(--indigo);padding-bottom:6px;color:var(--text)}
+.eq .frac span:last-child{color:var(--text-2)}
+.rules{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.chip{display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border-radius:999px;font:600 12px var(--mono);border:1px solid}
+.chip::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.c-crit{color:var(--coral);border-color:rgba(255,122,107,.4)} .c-risk{color:var(--amber);border-color:rgba(251,191,76,.4)} .c-ok{color:var(--teal);border-color:rgba(45,212,191,.4)}
+.pillars{display:grid;gap:12px;margin-top:16px}
+.pillar{display:grid;grid-template-columns:34px minmax(0,1fr);gap:12px;padding:14px 16px}
+.pillar span{font:700 13px var(--mono);color:var(--indigo)}
+.pillar h4{margin:0 0 3px;font:650 15.5px var(--display)}
+.pillar p{margin:0;font-size:13.5px;color:var(--text-2)}
+.legend{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;margin-top:6px;font:500 12px var(--mono);color:var(--text-3)}
+
+/* ---------- slide 4: product ---------- */
+.product{display:grid;grid-template-columns:230px minmax(0,1fr);gap:20px;align-items:start}
+.tabs{display:flex;flex-direction:column;gap:6px}
+.tabs button{display:flex;gap:10px;align-items:center;padding:11px 14px;border-radius:14px;border:1px solid transparent;background:none;color:var(--text-2);font:500 14px var(--body);text-align:left;transition:background .2s,color .2s,border-color .2s}
+.tabs button span{font:600 11px var(--mono);color:var(--text-3)}
+.tabs button:hover{background:rgba(255,255,255,.05);color:var(--text)}
+.tabs button[aria-selected="true"]{background:var(--glass);border-color:var(--edge-hi);color:#fff;box-shadow:inset 3px 0 0 var(--amber)}
+.tabs button[aria-selected="true"] span{color:var(--amber)}
+.device{padding:12px;perspective:1600px}
+.device .bar{display:flex;align-items:center;gap:12px;padding:4px 6px 12px}
+.device .bar b{font:650 17px var(--display)}
+.device .bar small{font:600 10.5px var(--mono);letter-spacing:.12em;color:var(--amber);border:1px solid rgba(251,191,76,.35);border-radius:999px;padding:3px 9px}
+.device .bar kbd{margin-left:auto;font:500 11px var(--mono);color:var(--text-3)}
+.screen{border-radius:12px;overflow:hidden;border:1px solid var(--edge);background:#0b0f1e;transform:rotateX(var(--tx,0deg)) rotateY(var(--ty,0deg));transition:transform .4s var(--ease);transform-style:preserve-3d;box-shadow:0 30px 60px -30px rgba(0,0,0,.9)}
+.screen img{display:block;width:100%;height:auto;aspect-ratio:16/10;object-fit:cover;transition:opacity .25s}
+.points{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px}
+.point{padding:12px 14px;border-radius:14px;background:rgba(255,255,255,.035);border:1px solid var(--edge)}
+.point b{display:block;font:600 11px var(--mono);letter-spacing:.08em;color:var(--teal);margin-bottom:4px}
+.point span{font-size:13px;color:var(--text-2)}
+
+/* ---------- slide 5: how it works ---------- */
+.how{display:grid;grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr);gap:26px;align-items:center}
+.steps{display:grid;gap:12px;counter-reset:s}
+.step{display:grid;grid-template-columns:44px minmax(0,1fr);gap:14px;padding:16px 18px}
+.step i{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;font:700 15px var(--mono);font-style:normal;background:linear-gradient(145deg,rgba(115,131,255,.35),rgba(115,131,255,.08));border:1px solid rgba(115,131,255,.4);color:#fff}
+.step h4{margin:2px 0 3px;font:650 16.5px var(--display)}
+.step p{margin:0;font-size:13.8px;color:var(--text-2)}
+.wk-stage{aspect-ratio:4/3}
+
+/* ---------- slide 6: comparison ---------- */
+.compare{padding:6px}
+.compare table{width:100%;border-collapse:collapse;font-size:14.5px}
+.compare th{font:600 11px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--text-3);text-align:left;padding:14px 16px;border-bottom:1px solid var(--edge)}
+.compare th.us{color:var(--amber)}
+.compare td{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.06);vertical-align:top;color:var(--text-2)}
+.compare tr:last-child td{border-bottom:0}
+.compare td:first-child{color:var(--text);font-weight:600}
+.compare td.us{background:linear-gradient(90deg,rgba(45,212,191,.09),rgba(45,212,191,.02));color:var(--text)}
+.no::before{content:"✕ ";color:var(--coral);font-weight:700}
+.yes::before{content:"✓ ";color:var(--teal);font-weight:700}
+
+/* ---------- slide 7: team ---------- */
+.crew{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;perspective:1200px}
+.member{padding:24px 20px;text-align:left;transform-style:preserve-3d;transition:transform .45s var(--ease),border-color .35s,box-shadow .35s}
+.member .av{width:56px;height:56px;border-radius:18px;display:grid;place-items:center;font:800 24px var(--display);color:#0b1020;background:var(--c);box-shadow:0 12px 26px -10px var(--c);transform:translateZ(30px)}
+.member h3{font:750 20px var(--display);letter-spacing:.02em;margin:16px 0 6px;transform:translateZ(20px)}
+.member .role{display:inline-block;font:600 10.5px var(--mono);letter-spacing:.1em;color:var(--c);border:1px solid color-mix(in srgb,var(--c) 45%,transparent);border-radius:999px;padding:3px 9px;margin-bottom:12px}
+.member p{margin:0;font-size:13.8px;color:var(--text-2)}
+
+/* ---------- slide 8: finale ---------- */
+.thanks{font:800 min(clamp(40px,5.4vw,84px),8vh)/1 var(--display);letter-spacing:-.02em;margin:0 0 10px}
+.motto{font:600 12.5px var(--mono);letter-spacing:.2em;color:var(--teal);text-transform:uppercase;margin:0 0 min(26px,3vh)}
+
+/* ---------- nav ---------- */
+.nav{position:fixed;right:22px;bottom:20px;z-index:30;display:flex;align-items:center;gap:8px;padding:7px;border-radius:18px}
+.nav button{height:44px;border-radius:13px;border:1px solid var(--edge);background:rgba(255,255,255,.05);color:var(--text);display:grid;place-items:center;transition:background .2s,border-color .2s}
+.nav button:hover{background:rgba(255,255,255,.1);border-color:var(--edge-hi)}
+.nav .arrow{width:44px}
+.nav .arrow svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.nav #chapterBtn{padding:0 14px;font:600 12.5px var(--mono);letter-spacing:.06em;min-width:96px}
+.menu{position:fixed;right:22px;bottom:84px;z-index:31;min-width:260px;padding:8px;display:none}
+.menu.open{display:block}
+.menu button{width:100%;display:flex;gap:12px;padding:10px 12px;border:0;border-radius:11px;background:none;color:var(--text-2);text-align:left;font:500 14px var(--body)}
+.menu button span{font:600 11px var(--mono);color:var(--text-3);width:20px}
+.menu button:hover,.menu button[aria-current="step"]{background:rgba(255,255,255,.07);color:#fff}
+
+/* ---------- notes drawer, Q&A dialog ---------- */
+.drawer{position:fixed;top:calc(var(--top) + 12px);right:12px;bottom:84px;width:min(420px,calc(100vw - 24px));z-index:40;padding:20px;overflow-y:auto;transform:translateX(110%);transition:transform .45s var(--ease)}
+.drawer.open{transform:none}
+.drawer header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.drawer h2{font:600 12px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--text-3);margin:0}
+.x{width:36px;height:36px;border-radius:11px;border:1px solid var(--edge);background:rgba(255,255,255,.05);font-size:20px;line-height:1}
+.note{padding:14px 16px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid var(--edge);margin-bottom:10px;user-select:text}
+.note .who{display:flex;justify-content:space-between;font:600 11.5px var(--mono);color:var(--teal);margin-bottom:8px}
+.note .who time{color:var(--text-3)}
+.note p{margin:0;font-size:14.5px;line-height:1.6}
+.note h3{font:600 11px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin:0 0 8px}
+.note ul{margin:0;padding-left:18px;color:var(--text-2);font-size:14px}
+.qa{position:fixed;inset:0;z-index:50;display:none;place-items:center;padding:20px;background:rgba(4,6,12,.6);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.qa.open{display:grid}
+.qa .box{width:min(780px,100%);max-height:84vh;overflow-y:auto;padding:26px}
+.qa h2{font:700 24px var(--display);margin:0}
+.qa dl{margin:18px 0 0}
+.qa dt{font:650 16px var(--display);margin:16px 0 6px;color:var(--text)}
+.qa dd{margin:0;color:var(--text-2);font-size:14.8px;user-select:text}
+
+/* ---------- phones and tablets ---------- */
+@media (max-width:1100px){
+  :root{--rail:0px}
+  .rail{display:none}
+  .stage{left:0}
+  .slide{padding:24px 28px 104px}
+  .hero,.solution,.how,.problem{grid-template-columns:minmax(0,1fr)}
+  .hero .stage3d{max-height:42vh;order:-1}
+  .product{grid-template-columns:minmax(0,1fr)}
+  .tabs{flex-direction:row;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+  .tabs button{flex:0 0 auto;white-space:nowrap}
+  .crew{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:640px){
+  :root{--top:58px}
+  .top{padding:0 12px;gap:8px}
+  .brand small,.brand b,.tool .lbl,#fullscreenBtn,.rail .hint{display:none}
+  .tools{gap:6px}
+  .tool{padding:0 10px;height:36px}
+  .slide{padding:20px 16px 100px}
+  .cards,.points{grid-template-columns:minmax(0,1fr)}
+  .crew{grid-template-columns:minmax(0,1fr)}
+  .nav{left:12px;right:12px;bottom:12px;justify-content:space-between}
+  .nav #chapterBtn{flex:1}
+  .menu{left:12px;right:12px;bottom:76px}
+  .title3d{font-size:clamp(52px,17vw,84px)}
+  .compare{background:none;border:0;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;padding:0}
+  .compare thead{display:none}
+  .compare table,.compare tbody,.compare tr,.compare td{display:block;width:100%}
+  .compare tr{display:flex;flex-direction:column;margin-bottom:12px;padding:12px 14px;border-radius:16px;background:linear-gradient(160deg,#151c36,#0e1428);border:1px solid var(--edge)}
+  .compare td{border:0!important;padding:4px 0}
+  .compare td.us{order:1;background:none}
+  .compare td:nth-child(2){order:2} .compare td:nth-child(3){order:3}
+  .compare td:not(:first-child){position:relative;padding-top:20px}
+  .compare td:not(:first-child)::after{content:attr(data-label);position:absolute;left:0;top:4px;font:600 10.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--text-3)}
+}
+html.lite .glass{--blur:blur(10px)}
+/* big judge screens: everything a little larger */
+@media (min-width:1700px) and (min-height:1000px){.stage .wrap{zoom:1.08}}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition-duration:0s!important}
+  .slide{transform:none}
+}
+</style>
+</head>
+<body>
+<div class="backdrop" aria-hidden="true"><div class="floor"></div></div>
+
+<header class="top">
+  <button type="button" class="brand" data-go="0" aria-label="NEXORA, back to the first slide">
+    <img src="pitch-assets/nexora-emblem.webp" alt="" width="34" height="34">
+    <span><b>NEXORA</b><small>Deadline Tracker</small></span>
+  </button>
+  <div class="tools">
+    <button type="button" class="tool" id="timerBtn" aria-pressed="false" title="Start or pause the pitch timer (T)">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/></svg><span class="timer" id="timerDisplay">03:25</span>
+    </button>
+    <button type="button" class="tool icon" id="timerReset" title="Reset the timer" aria-label="Reset the timer"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/></svg></button>
+    <button type="button" class="tool" id="notesBtn" aria-pressed="false" aria-controls="notes" title="Speaker notes (N)"><svg viewBox="0 0 24 24"><path d="M5 3h10l4 4v14H5z"/><path d="M9 11h6M9 15h6"/></svg><span class="lbl">Notes</span></button>
+    <button type="button" class="tool icon" id="fullscreenBtn" title="Full screen (F)" aria-label="Full screen"><svg viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
+    <a class="tool primary" id="launchApp" href="/" target="_blank" rel="noopener" title="Open the live app in a new tab"><span class="lbl">Open the app</span><svg viewBox="0 0 24 24"><path d="M7 17 17 7M8 7h9v9"/></svg></a>
+  </div>
+</header>
+
+<nav class="rail glass" aria-label="Chapters">
+  <h2>Chapters</h2>
+  <ol id="rail"></ol>
+  <div class="meter" aria-hidden="true"><i id="meter"></i></div>
+  <p class="hint"><kbd>→</kbd> <kbd>Space</kbd> next · <kbd>N</kbd> notes · <kbd>F</kbd> full screen</p>
+</nav>
+
+<main class="stage" id="stage">
+  <!-- 1 · Title -->
+  <section class="slide" data-title="Intro" aria-label="Slide 1: Team NEXORA presents Deadline Tracker">
+    <div class="wrap hero">
+      <div>
+        <p class="kicker">Team NEXORA presents</p>
+        <h1 class="title3d" aria-label="NEXORA" data-text="NEXORA"></h1>
+        <p class="tagline">Turning student chaos into <em>organised success.</em></p>
+        <p class="lead" style="margin:0">Deadline Tracker tells you whether you'll finish on time, not just what's due.</p>
+        <p class="byline">Presented by</p>
+        <ul class="team">
+          <li class="glass" style="--c:#7383FF"><i>D</i>Divyansh</li>
+          <li class="glass" style="--c:#2DD4BF"><i>I</i>Ishant</li>
+          <li class="glass" style="--c:#FBBF4C"><i>N</i>Noni Gopal</li>
+          <li class="glass" style="--c:#FF9C8F"><i>A</i>Aashi</li>
+        </ul>
+        <div class="actions"><button type="button" class="cta" id="beginBtn" data-nav="next">Begin the pitch <kbd>Space</kbd></button></div>
+      </div>
+      <div class="stage3d" data-3d="orbit" aria-hidden="true"><span class="still"></span></div>
+    </div>
+  </section>
+
+  <!-- 2 · Problem -->
+  <section class="slide" data-title="The problem" aria-label="Slide 2: The problem">
+    <div class="wrap">
+      <p class="kicker">The problem</p>
+      <h2 class="headline split">Every student has goals. But managing everything <span class="hl">isn't easy.</span></h2>
+      <div class="problem">
+        <div class="cards">
+          <article class="card glass lift"><span class="n">01</span><h3>Missing important deadlines</h3><p>Assignments and labs slip through the cracks when they're scattered across WhatsApp chats, portals and emails.</p></article>
+          <article class="card glass lift"><span class="n">02</span><h3>Late start syndrome</h3><p>Students rarely forget a deadline completely. They start too late, because a 6-hour essay feels invisible until 2 hours before it's due.</p></article>
+          <article class="card glass lift"><span class="n">03</span><h3>The cluster collision trap</h3><p>Three heavy assignments and a midterm land on the same Thursday. The result: all-nighters and burnout.</p></article>
+          <article class="card glass lift"><span class="n">04</span><h3>Losing track of real progress</h3><p>No clear view of whether the current pace will finish the semester's work on time.</p></article>
+        </div>
+        <aside class="flaw glass">
+          <span class="label">The to-do app flaw</span>
+          <p>Standard to-do lists and calendars only turn <b>red</b> when it's already too late. They show <i>what</i> is due, but never warn whether you have enough hours left to finish.</p>
+          <div class="turn"><span class="label">Our realisation</span><p>Students don't need another rigid calendar. They need an early warning built on a simple, explainable risk calculation.</p></div>
+          <div class="stat"><b>82%</b><span>of college students report falling behind because of deadline collisions and unestimated workloads.</span></div>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 · Solution -->
+  <section class="slide" data-title="The solution" aria-label="Slide 3: The solution">
+    <div class="wrap solution">
+      <div>
+        <p class="kicker">Our solution</p>
+        <h2 class="headline split">Meet <span class="hl-i">Deadline Tracker.</span> One workspace. Better control of <span class="hl">academic life.</span></h2>
+        <div class="formula glass">
+          <span class="label">The planning engine</span>
+          <h3>A risk equation you can explain</h3>
+          <p>Instead of an AI guessing, Deadline Tracker compares the work left with the free hours you actually have:</p>
+          <div class="eq"><span>Risk =</span><span class="frac"><span>work hours left</span><span>free hours before the deadline</span></span></div>
+          <div class="rules"><span class="chip c-crit">above 1.0 critical</span><span class="chip c-risk">above 0.6 at risk</span><span class="chip c-ok">otherwise on track</span></div>
+        </div>
+        <div class="pillars">
+          <div class="pillar glass lift"><span>01</span><div><h4>Warns early, with the reason</h4><p>"You have 5h of DBMS lab work left and only 3h free before submission."</p></div></div>
+          <div class="pillar glass lift"><span>02</span><div><h4>Private by design</h4><p>Planning runs on our own server. Tasks and schedules are never sent to an outside AI.</p></div></div>
+          <div class="pillar glass lift"><span>03</span><div><h4>Rescue and recovery</h4><p>When something is overdue, Rescue Mode splits the rest into 25-minute steps and drafts an honest extension request you send yourself.</p></div></div>
+        </div>
+      </div>
+      <div>
+        <div class="stage3d" data-3d="radar" aria-hidden="true"><span class="still"></span></div>
+        <p class="legend"><span>Pillar height = work left</span><span>Closer to the centre = less time</span></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 · Product -->
+  <section class="slide" data-title="The product" aria-label="Slide 4: The real product">
+    <div class="wrap">
+      <p class="kicker">The real product</p>
+      <h2 class="headline split">Seven screens from the <span class="hl-i">working app.</span></h2>
+      <div class="product">
+        <div class="tabs" id="showcaseNav" role="tablist" aria-label="Product screens"></div>
+        <div class="device glass" id="showcaseViewport" role="tabpanel" aria-live="polite">
+          <div class="bar" id="showcaseTitle"><b>Today Dashboard</b><small>CENTRAL COGNITIVE HUB</small><kbd>keys 1–7</kbd></div>
+          <div class="screen" id="screen"><img id="showcaseImg" src="pitch-assets/screens/today_dashboard.webp" alt="Deadline Tracker: Today Dashboard" width="1600" height="1000" decoding="async"></div>
+          <div class="points" id="showcaseBullets"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 · How it works -->
+  <section class="slide" data-title="How it works" aria-label="Slide 5: How it works">
+    <div class="wrap how">
+      <div>
+        <p class="kicker">How it works</p>
+        <h2 class="headline split">From chaos to clarity in <span class="hl">four steps.</span></h2>
+        <div class="steps">
+          <div class="step glass lift"><i>01</i><div><h4>Add tasks</h4><p>Type naturally in one box ("Java lab due Fri 5pm ~4h"), paste from a syllabus, or ask the assistant. No long forms.</p></div></div>
+          <div class="step glass lift"><i>02</i><div><h4>See the risk</h4><p>The radar checks every deadline against your free time and warns you days before a crunch.</p></div></div>
+          <div class="step glass lift"><i>03</i><div><h4>Plan the week</h4><p>The planner spreads big tasks into 25-minute sessions across your days, within your daily limit.</p></div></div>
+          <div class="step glass lift"><i>04</i><div><h4>Track and get reminded</h4><p>Reminders come from the server in your time zone, and reports show your real on-time rate.</p></div></div>
+        </div>
+      </div>
+      <div>
+        <div class="stage3d wk-stage" data-3d="week" aria-hidden="true"><span class="still"></span></div>
+        <p class="legend"><span style="color:var(--coral)">■ over your daily limit</span><span style="color:var(--teal)">■ fits</span><span>glass plane = daily limit</span></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 · Why it matters -->
+  <section class="slide" data-title="Why it matters" aria-label="Slide 6: Why it matters">
+    <div class="wrap">
+      <p class="kicker">Why it matters</p>
+      <h2 class="headline split">More clarity. Better planning. <span class="hl">Real control.</span></h2>
+      <div class="compare glass">
+        <table>
+          <thead><tr><th>What students need</th><th>To-do lists</th><th>General AI tools</th><th class="us">NEXORA Deadline Tracker</th></tr></thead>
+          <tbody>
+            <tr><td>Know if you'll finish on time</td><td class="no">Only shows due dates</td><td class="no">Guesses, no formula</td><td class="us yes">Explainable risk equation</td></tr>
+            <tr><td>Reminders when the app is closed</td><td class="no">Tab must stay open</td><td class="no">No reminder jobs</td><td class="us yes">Server reminders in your time zone</td></tr>
+            <tr><td>Privacy of your schedule</td><td class="no">Ad tracking and sync</td><td class="no">Schedules sent to the model</td><td class="us yes">Planning stays on our server</td></tr>
+            <tr><td>Help when you're already late</td><td class="no">Turns red, adds stress</td><td class="no">Generic motivation</td><td class="us yes">Rescue Mode + extension draft</td></tr>
+            <tr><td>One place for everything</td><td class="no">3–4 separate tools</td><td class="no">Text chat only</td><td class="us yes">Today, radar, calendar, planner and AI</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 · Team -->
+  <section class="slide" data-title="The team" aria-label="Slide 7: Behind NEXORA">
+    <div class="wrap">
+      <p class="kicker">Behind NEXORA</p>
+      <h2 class="headline split">Four builders. One mission: <span class="hl">no more deadline panic.</span></h2>
+      <div class="crew">
+        <article class="member glass" style="--c:#7383FF"><div class="av">D</div><h3>Divyansh</h3><span class="role">TEAM LEAD · FULL-STACK</span><p>Led the architecture, the Node backend, the planning engine, and end-to-end integration.</p></article>
+        <article class="member glass" style="--c:#2DD4BF"><div class="av">I</div><h3>Ishant</h3><span class="role">FRONTEND · WORKFLOWS</span><p>Designed the interface, the Study Planner's focus sessions, the calendar, and the responsive layout.</p></article>
+        <article class="member glass" style="--c:#FBBF4C"><div class="av">N</div><h3>Noni Gopal</h3><span class="role">SYSTEMS · RADAR</span><p>Built the Deadline Radar maths, workload balancing, and saving across workspaces.</p></article>
+        <article class="member glass" style="--c:#FF9C8F"><div class="av">A</div><h3>Aashi</h3><span class="role">AI · QUALITY</span><p>Built the Gemini help pipeline and its grounding, and much of the automated test suite (300+ tests).</p></article>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 · Close -->
+  <section class="slide" data-title="Thank you" aria-label="Slide 8: Thank you">
+    <div class="wrap hero">
+      <div>
+        <p class="kicker">Final vision</p>
+        <h2 class="headline split">Your goals deserve <span class="hl">better organisation.</span></h2>
+        <p class="motto">Plan smarter · stay ahead · deliver on time</p>
+        <p class="thanks">Thank you.</p>
+        <p class="lead">Team NEXORA is ready for the panel's questions.</p>
+        <div class="actions">
+          <a class="cta" href="/" target="_blank" rel="noopener">Open the live app <svg viewBox="0 0 24 24"><path d="M7 17 17 7M8 7h9v9"/></svg></a>
+          <button type="button" class="ghost" data-act="qa" aria-controls="qa"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6M12 17h.01"/></svg>Judges' Q&amp;A</button>
+          <button type="button" class="ghost" data-go="0">Replay</button>
+        </div>
+      </div>
+      <div class="stage3d" data-3d="orbit2" aria-hidden="true"><span class="still"></span></div>
+    </div>
+  </section>
+
+</main>
+
+<div class="nav glass" role="group" aria-label="Slide controls">
+  <button type="button" class="arrow" data-nav="prev" aria-label="Previous slide" title="Previous (←)"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
+  <button type="button" id="chapterBtn" aria-haspopup="menu" aria-expanded="false" aria-controls="chapterMenu" title="Jump to a chapter">01 / 08</button>
+  <button type="button" class="arrow" data-nav="next" aria-label="Next slide" title="Next (→ or Space)"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+</div>
+<div class="menu glass" id="chapterMenu" role="menu" aria-label="Jump to a chapter"></div>
+
+<aside class="drawer glass" id="notes" aria-label="Speaker notes">
+  <header><h2 id="notesTitle">Speaker notes · Slide 01</h2><button type="button" class="x" data-act="notes" aria-label="Close speaker notes">×</button></header>
+  <div id="notesBody"></div>
+</aside>
+
+<div class="qa" id="qa" role="dialog" aria-modal="true" aria-labelledby="qaTitle">
+  <div class="box glass">
+    <header style="display:flex;justify-content:space-between;align-items:center"><h2 id="qaTitle">Questions judges may ask</h2><button type="button" class="x" data-act="qa-close" aria-label="Close questions">×</button></header>
+    <dl id="qaList"></dl>
+  </div>
+</div>
+
+<script>
+/* Slide content and speaker notes, written by Team NEXORA. */
+const SCENES_META = [
+      {
+        id: 0,
+        title: "01 / 08 • CINEMATIC INTRO",
+        watermark: "NEXORA",
+        speaker: "Person 1 (Divyansh)",
+        timing: "0:00 — 0:30",
+        say: "\"Good morning, esteemed judges. We are Team NEXORA, and this is Deadline Tracker — an intelligent academic management system that tells students whether they will finish on time, not just what is due.\"",
+        actions: [
+          "Let the countdown ring fill while you introduce the team.",
+          "Introduce the four team members: Divyansh, Ishant, Noni Gopal, and Aashi.",
+          "Set the tone: professional technology startup, not an ordinary to-do list."
+        ]
+      },
+      {
+        id: 1,
+        title: "02 / 08 • THE PROBLEM",
+        watermark: "01 // CRISIS",
+        speaker: "Person 1 (Divyansh)",
+        timing: "0:30 — 1:00",
+        say: "\"Students rarely miss deadlines because they forgot them completely. We start too late, or multiple major assignments land on the exact same week. Traditional to-do apps only turn RED when you have already failed. By then, it's too late to save your grade.\"",
+        actions: [
+          "Point out the 4 core problems on screen.",
+          "Highlight the 82% statistic: unexpected deadline collision.",
+          "Emphasize the fundamental flaw of passive calendar apps."
+        ]
+      },
+      {
+        id: 2,
+        title: "03 / 08 • THE SOLUTION",
+        watermark: "02 // CLARITY",
+        speaker: "Person 2 (Ishant)",
+        timing: "1:00 — 1:35",
+        say: "\"Our solution is Deadline Tracker. It transforms chaos into mathematical clarity. At its core is our Deterministic Risk Equation: we divide remaining work hours by your actual available study hours. If the ratio exceeds safe limits, we warn you days before you fall behind, explaining the exact reason.\"",
+        actions: [
+          "Walk through the formula while the radar pillars turn amber, then coral, as time runs out.",
+          "Contrast our explainable rules against black-box LLM hallucinations.",
+          "Emphasize privacy: student data never leaves our server."
+        ]
+      },
+      {
+        id: 3,
+        title: "04 / 08 • PRODUCT EXPERIENCE",
+        watermark: "03 // INTERFACE",
+        speaker: "Person 2 (Ishant) & Person 3 (Noni)",
+        timing: "1:35 — 2:15",
+        say: "\"Here is our authentic working product. Today Dashboard gives you one clean box: type 'Java assignment due Friday 5pm ~4h' and it instantly estimates and schedules it. Deadlines Radar maps all upcoming coursework in orbital concentric rings. Study Planner divides big tasks into 25-minute Pomodoro sessions, and Deadline AI assists with grounded help.\"",
+        actions: [
+          "Cycle through features 1 through 7 using hotkeys or clicks.",
+          "Let the judges see the real screens; each one is the live app with sample data.",
+          "Mention Rescue Mode and the extension draft on the Deadlines screen."
+        ]
+      },
+      {
+        id: 4,
+        title: "05 / 08 • HOW IT WORKS",
+        watermark: "04 // PIPELINE",
+        speaker: "Person 3 (Noni Gopal)",
+        timing: "2:15 — 2:35",
+        say: "\"The student workflow is effortless across four steps: Add Tasks naturally without tedious form fields; let the Radar calculate capacity; follow the Study Planner's 25-minute focus intervals; and track genuine completion with background server notifications.\"",
+        actions: [
+          "Point at the week of blocks: overloaded days get rebalanced so everything fits.",
+          "Emphasize speed: seconds to capture, guaranteed execution."
+        ]
+      },
+      {
+        id: 5,
+        title: "06 / 08 • WHY IT MATTERS",
+        watermark: "05 // THE EDGE",
+        speaker: "Person 4 (Aashi)",
+        timing: "2:35 — 2:55",
+        say: "\"Why does Deadline Tracker win? Standard apps only track due dates; we predict completion certainty. Standard apps stop when the tab closes; our Node server cron runs in the student's exact time zone. Generic AI leaks private data to external models; our planning engine is completely private and self-contained.\"",
+        actions: [
+          "Point out the green checkmarks against traditional competitors.",
+          "Emphasize our 300+ passing automated tests."
+        ]
+      },
+      {
+        id: 6,
+        title: "07 / 08 • BEHIND NEXORA",
+        watermark: "06 // SQUAD",
+        speaker: "Person 4 (Aashi)",
+        timing: "2:55 — 3:10",
+        say: "\"Behind NEXORA is a dedicated engineering team: Divyansh on lead full-stack architecture; Ishant on user experience and Study Planner; Noni Gopal on radar algorithms and persistence; and myself on AI grounding, RAG embeddings, and automated testing.\"",
+        actions: [
+          "Present the four team cards with pride.",
+          "Demonstrate team synergy and balanced engineering responsibilities."
+        ]
+      },
+      {
+        id: 7,
+        title: "08 / 08 • FINAL IMPACT & VISION",
+        watermark: "NEXORA",
+        speaker: "Divyansh (Team Lead)",
+        timing: "3:10 — 3:25",
+        say: "\"Your goals deserve better organization. Plan smarter, stay ahead, and deliver on time with NEXORA Deadline Tracker. Thank you, judges. We are now eager to answer your questions.\"",
+        actions: [
+          "Click 'Explore Live Application' or open 'Judges Defense Q&A' if asked.",
+          "Stand confidently ready for panel questions."
+        ]
+      }
+    ];
+
+    const SHOWCASE_DATA = [
+      {
+        title: "Today Dashboard",
+        badge: "CENTRAL COGNITIVE HUB",
+        img: "pitch-assets/screens/today_dashboard.webp",
+        bullets: [
+          { b: "NATURAL LANGUAGE QUICK ADD", s: "Type 'Java lab due Fri 5pm ~4h' to automatically extract title, deadline, and estimated hours." },
+          { b: "ONE-BOX COGNITIVE CLARITY", s: "Answers one vital question: 'What should I do right now?' with clear priority badges." },
+          { b: "NEXT DEADLINES WIDGET", s: "Visual progress bars and one-click percentage updates (0%, 25%, 50%, 75%, Done)." }
+        ]
+      },
+      {
+        title: "Deadlines & Risk Radar",
+        badge: "MATHEMATICAL EARLY WARNING",
+        img: "pitch-assets/screens/deadlines_radar.webp",
+        bullets: [
+          { b: "ORBITAL CONCENTRIC RADAR", s: "Concentric blips at 1d, 7d, 14d, and 21d showing proximity to crisis." },
+          { b: "5-TIER RISK SYSTEM", s: "Categorized into Overdue, Critical, At Risk, Needs Attention, and On Track." },
+          { b: "RESCUE MODE & EXTENSION DRAFT", s: "Automatically splits remaining hours into steps and drafts an extension email." }
+        ]
+      },
+      {
+        title: "Academic Calendar",
+        badge: "UNIFIED WORKLOAD TIMELINE",
+        img: "pitch-assets/screens/calendar_view.webp",
+        bullets: [
+          { b: "MONTH & WEEK WORKSPACE", s: "Full visual overview of assignments, exams, and milestones color-coded by subject." },
+          { b: "COLLISION DETECTION", s: "Instantly surfaces clustered submission days before you commit to extra study hours." },
+          { b: "LOCAL TIMEZONE ENGINE", s: "Dates and moments render precisely in the student's exact local time (Asia/Kolkata)." }
+        ]
+      },
+      {
+        title: "Study Planner & Focus Sessions",
+        badge: "POMODORO WORKLOAD ALLOCATION",
+        img: "pitch-assets/screens/study_planner.webp",
+        bullets: [
+          { b: "25-MINUTE FOCUS SESSIONS", s: "Interactive Pomodoro timer that logs finished focus minutes toward project progress." },
+          { b: "AUTOMATED 7-DAY DISTRIBUTION", s: "Distributes heavy coursework across days (maximum 2h per task per day)." },
+          { b: "CAPACITY BOTTLENECK ALERTS", s: "Explicitly warns: 'Java group project is 8h short before Thursday submission'." }
+        ]
+      },
+      {
+        title: "Exams Management Hub",
+        badge: "SYLLABUS & REVISION RECOVERY",
+        img: "pitch-assets/screens/exams_view.webp",
+        bullets: [
+          { b: "EXAM COUNTDOWN TIMERS", s: "Day-by-day countdowns preventing unexpected exam panics." },
+          { b: "TOPIC & CHAPTER CHECKLISTS", s: "Break heavy subjects into topics and track how much of each is done." },
+          { b: "REVISION PACING", s: "Schedules revision passes alongside ongoing weekly assignment deliverables." }
+        ]
+      },
+      {
+        title: "Deadline AI (Dual-Engine)",
+        badge: "100% PRIVATE IN-HOUSE PLANNING",
+        img: "pitch-assets/screens/deadline_ai_assistant.webp",
+        bullets: [
+          { b: "PRIVATE 'MY PLAN' ENGINE", s: "Plans tomorrow entirely on our server; student schedules are NEVER sent to third-party LLMs." },
+          { b: "GROUNDED GEMINI RAG HELP", s: "Google Gemini answers app questions strictly from our verified help guide with citations." },
+          { b: "APPROVAL BEFORE SAVE", s: "AI suggestions are presented as interactive checklists; nothing is saved without confirmation." }
+        ]
+      },
+      {
+        title: "Reports & Velocity Analytics",
+        badge: "UNVARNISHED PERFORMANCE DATA",
+        img: "pitch-assets/screens/reports_analytics.webp",
+        bullets: [
+          { b: "REAL ON-TIME DELIVERY RATE", s: "Calculates true percentage of assignments completed before the due hour." },
+          { b: "WEEKLY STUDY VELOCITY", s: "Analyzes actual focus hours completed vs. projected workload." },
+          { b: "ZERO FAKE METRICS", s: "Derived strictly from authentic student task completions, not fabricated statistics." }
+        ]
+      }
+    ];
+
+const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const LITE = !/[?&]quality=high/.test(location.search) && (innerWidth < 768 || (navigator.deviceMemory && navigator.deviceMemory <= 2) || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2));
+if (LITE) document.documentElement.classList.add('lite');
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const SCRIPT_SECONDS = (() => { const m = SCENES_META[SCENES_META.length - 1].timing.match(/(\d+):(\d+)\s*$/); return m ? +m[1] * 60 + +m[2] : 205; })();
+const QA = [
+  ["Why didn't you use ChatGPT or another AI for planning?", "Students' schedules and tasks shouldn't go to an outside AI that may train on them. My Plan runs our own rule engine on our server. Google Gemini is used only for the Help guide, answering from our help pages."],
+  ["What's the maths behind the radar?", "Risk = work hours left ÷ free study hours before the deadline. Above 1.0 is critical, above 0.6 is at risk. Students see exactly how many hours short they are, days ahead."],
+  ["What if a student is already late?", "Rescue Mode splits the remaining work into 25-minute steps, makes a catch-up plan, and drafts an honest extension request for the student to send."],
+  ["Do reminders work when the laptop is closed?", "Yes. The server checks every minute in each student's own time zone. On our free hosting the server sleeps after 15 minutes without visits; reminders due during that time arrive when it wakes."],
+  ["How do you know it works?", "More than 300 automated tests run in a real browser and against the real server: accounts, privacy between users, the planning engine, time zones, reminders, the AI limits and the phone layout. All of them pass."]
+];
+
+/* ================= 3D: shared stage ================= */
+const PAL = { indigo: 0x7383ff, deep: 0x3349d9, teal: 0x2dd4bf, amber: 0xfbbf4c, coral: 0xff7a6b, ink: 0x0c1122 };
+let webgl = null;
+function hasWebGL() {
+  if (webgl !== null) return webgl;
+  try {
+    const c = document.createElement('canvas'), gl = window.THREE && (c.getContext('webgl2') || c.getContext('webgl'));
+    webgl = !!gl;
+    // no graphics acceleration (software renderer): live 3D would freeze the page for seconds, so show the still pictures
+    if (gl && !/[?&]gl=force/.test(location.search)) { const ext = gl.getExtension('WEBGL_debug_renderer_info'); const name = ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : '';
+      if (/swiftshader|llvmpipe|softpipe|software|microsoft basic render/i.test(name)) { webgl = false; document.documentElement.dataset.gl = 'software'; } }
+  } catch (e) { webgl = false; }
+  if (!webgl) document.documentElement.classList.add('no-webgl');
+  return webgl;
+}
+function makeStage(host, build) {
+  const renderer = new THREE.WebGLRenderer({ antialias: !LITE, alpha: true, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, LITE ? 1.25 : 2));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.NoToneMapping;
+  renderer.shadowMap.enabled = !LITE; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  host.appendChild(renderer.domElement);
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 100);
+  // soft studio reflections: a tiny scene of glowing panels baked into an environment map
+  const pm = new THREE.PMREMGenerator(renderer);
+  const room = new THREE.Scene();
+  const panel = (c, i, x, y, z, w, h) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: c, side: THREE.DoubleSide })); m.material.color.multiplyScalar(i); m.position.set(x, y, z); m.lookAt(0, 0, 0); room.add(m); };
+  panel(0xffffff, 3, 0, 6, 2, 8, 3); panel(PAL.indigo, 2.2, -6, 1, 1, 3, 6); panel(PAL.teal, 1.4, 6, 0, -1, 3, 5); panel(PAL.amber, 1.2, 0, -2, 6, 6, 1.5);
+  scene.environment = pm.fromScene(room, 0.04).texture; pm.dispose();
+  const st = { renderer, scene, camera, host, running: false, frames: 0, t0: performance.now(), pointer: { x: 0, y: 0 }, update: null, still: null };
+  build(st);
+  const size = () => { const r = host.getBoundingClientRect(); if (!r.width) return; renderer.setSize(r.width, r.height, false); camera.aspect = r.width / r.height; camera.updateProjectionMatrix(); if (!st.running) draw(st.lastT || 0); };
+  new ResizeObserver(size).observe(host); size();
+  host.addEventListener('pointermove', e => { const r = host.getBoundingClientRect(); st.pointer.x = (e.clientX - r.left) / r.width - .5; st.pointer.y = (e.clientY - r.top) / r.height - .5; });
+  // adaptive quality: if frames are slow (weak or no GPU), drop resolution, shadows and frame rate so the page stays responsive
+  st.cost = 0; st.economy = false;
+  function draw(t) { st.lastT = t; st.update(t, st); const a = performance.now(); renderer.render(scene, camera); const c = performance.now() - a; st.frames++;
+    st.cost = st.frames < 3 ? c : st.cost * 0.8 + c * 0.2; }
+  // judged by the real gap between frames (it includes GPU time, which render() timing doesn't)
+  st.gap = 16; st.slowFrames = 0;
+  st.economize = () => { if (st.economy) return; st.economy = true; renderer.setPixelRatio(0.75); renderer.shadowMap.enabled = false; scene.traverse(o => { if (o.material) o.material.needsUpdate = true; }); size(); };
+  st.draw = draw;
+  st.start = () => { if (REDUCE) { draw(st.still); return; } if (st.running) return; st.running = true; st.t0 = performance.now() - (st.lastT || 0) * 1000; let last = 0;
+    let prevNow = 0;
+    const loop = now => { if (!st.running) return; requestAnimationFrame(loop); if (document.hidden) { prevNow = 0; return; }
+      if (prevNow) { st.gap = st.gap * 0.85 + (now - prevNow) * 0.15; if (st.gap > 45 && ++st.slowFrames > 10) st.economize(); }
+      prevNow = now;
+      const gap = st.economy ? 100 : LITE ? 32 : 0; if (now - last < gap) return; last = now; draw((now - st.t0) / 1000); };
+    requestAnimationFrame(loop); };
+  st.stop = () => { st.running = false; };
+  return st;
+}
+const ease = t => 1 - Math.pow(1 - Math.min(Math.max(t, 0), 1), 3);
+function floor(scene, r, opacity) {
+  const f = new THREE.Mesh(new THREE.CircleGeometry(r, 64), new THREE.ShadowMaterial({ opacity }));
+  f.rotation.x = -Math.PI / 2; f.receiveShadow = true; scene.add(f); return f;
+}
+function lights(scene, keyPos) {
+  scene.add(new THREE.HemisphereLight(0x9fb0ff, 0x0a0e1a, 0.42));
+  const key = new THREE.SpotLight(0xffffff, 1.45, 40, Math.PI / 5, 0.6, 1.2); key.position.set(...keyPos); key.castShadow = true;
+  key.shadow.mapSize.set(1024, 1024); key.shadow.bias = -0.0005; key.shadow.radius = 4; scene.add(key);
+  const rim = new THREE.DirectionalLight(PAL.teal, 0.8); rim.position.set(-6, 3, -6); scene.add(rim);
+  return key;
+}
+
+/* 1 · COUNTDOWN ORBIT: chrome ring fills to the gold deadline dot; task tiles orbit and cast shadows */
+function buildOrbit(complete) {
+  return st => {
+    const { scene, camera } = st; camera.position.set(0, 2.9, 11.2); camera.lookAt(0, 1.2, 0);
+    lights(scene, [3, 9, 6]); floor(scene, 7, 0.38);
+    const grid = new THREE.PolarGridHelper(5.5, 12, 6, 64, 0x3a4680, 0x232b52); grid.material.transparent = true; grid.material.opacity = 0.35; grid.position.y = 0.002; scene.add(grid);
+    const g = new THREE.Group(); g.position.y = 1.55; scene.add(g);
+    const R = 1.75;
+    const track = new THREE.Mesh(new THREE.TorusGeometry(R, 0.1, 32, 180), new THREE.MeshPhysicalMaterial({ color: 0x1a2148, metalness: 0.7, roughness: 0.45, clearcoat: 0.6, clearcoatRoughness: 0.3, envMapIntensity: 0.35 }));
+    track.castShadow = true; g.add(track);
+    // the filling arc: a tube along the circle whose drawRange grows from the top, clockwise (like the logo)
+    const pts = []; for (let i = 0; i <= 240; i++) { const a = Math.PI / 2 - (i / 240) * Math.PI * 2; pts.push(new THREE.Vector3(Math.cos(a) * R, Math.sin(a) * R, 0)); }
+    const tube = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 240, 0.15, 20, false);
+    const arcMat = new THREE.MeshPhysicalMaterial({ color: complete ? PAL.teal : PAL.indigo, emissive: complete ? 0x0e8a7a : 0x3246e0, emissiveIntensity: 0.75, envMapIntensity: 0.45, metalness: 0.55, roughness: 0.22, clearcoat: 1 });
+    const arc = new THREE.Mesh(tube, arcMat); arc.castShadow = true; g.add(arc);
+    const perSeg = 20 * 6;
+    const dot = new THREE.Mesh(new THREE.SphereGeometry(0.24, 40, 40), new THREE.MeshPhysicalMaterial({ color: PAL.amber, emissive: 0x8a5a00, emissiveIntensity: 1.1, metalness: 0.3, roughness: 0.2, clearcoat: 1 }));
+    dot.castShadow = true; g.add(dot);
+    const glow = new THREE.PointLight(PAL.amber, 1.4, 6); dot.add(glow);
+    // check mark (closing slide): two rounded strokes that draw in once the ring is full
+    let check = null;
+    if (complete) {
+      const cp = [new THREE.Vector3(-0.62, 0.02, 0), new THREE.Vector3(-0.15, -0.45, 0), new THREE.Vector3(0.72, 0.55, 0)];
+      const cg = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(cp, false, 'catmullrom', 0.02), 60, 0.11, 16, false);
+      check = new THREE.Mesh(cg, new THREE.MeshPhysicalMaterial({ color: 0xffffff, emissive: 0x334455, metalness: 0.2, roughness: 0.25, clearcoat: 1 })); check.castShadow = true; g.add(check);
+    }
+    // orbiting task tiles: frosted glass cards with a coloured status edge
+    const tiles = [];
+    const tileGeo = new THREE.BoxGeometry(0.78, 0.48, 0.05);
+    [PAL.teal, PAL.amber, PAL.coral, PAL.indigo, PAL.teal, PAL.amber].forEach((c, i) => {
+      const t = new THREE.Group();
+      const body = new THREE.Mesh(tileGeo, new THREE.MeshPhysicalMaterial({ color: 0xdfe6ff, metalness: 0, roughness: 0.18, transmission: LITE ? 0 : 0.6, transparent: true, opacity: LITE ? 0.85 : 1, clearcoat: 1 }));
+      body.castShadow = true; t.add(body);
+      const edge = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.48, 0.06), new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.7 })); edge.position.x = -0.39; t.add(edge);
+      const line = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.05, 0.055), new THREE.MeshStandardMaterial({ color: 0x8a95c0 })); line.position.set(0.02, 0.08, 0); t.add(line);
+      const line2 = line.clone(); line2.scale.x = 0.6; line2.position.set(-0.06, -0.06, 0); t.add(line2);
+      t.userData = { r: 2.55 + (i % 3) * 0.35, speed: 0.22 + (i % 2) * 0.09, phase: i * 1.05, tilt: (i % 3 - 1) * 0.28, y: 1.2 + (i % 3) * 0.35 };
+      scene.add(t); tiles.push(t);
+    });
+    const target = complete ? 1 : 0.72;
+    st.still = 30;
+    st.update = (time, s) => {
+      const p = target * ease(time / 2.6);
+      const segs = Math.max(1, Math.round(p * 240));
+      tube.setDrawRange(0, segs * perSeg);
+      const pt = pts[segs]; dot.position.set(pt.x, pt.y, 0);
+      if (check) { const k = ease((time - 2.4) / 0.9); check.scale.setScalar(Math.max(0.001, k)); }
+      g.rotation.y = Math.sin(time * 0.35) * 0.25 + s.pointer.x * 0.6;
+      g.rotation.x = -s.pointer.y * 0.3;
+      dot.scale.setScalar(1 + Math.sin(time * 3) * 0.06);
+      tiles.forEach(t => { const u = t.userData, a = u.phase + time * u.speed; t.position.set(Math.cos(a) * u.r, u.y + Math.sin(a * 2) * 0.15 + Math.sin(a) * u.tilt * 2, Math.sin(a) * u.r * 0.55); t.lookAt(camera.position.x, t.position.y, camera.position.z); t.rotation.z = Math.sin(a) * 0.12; });
+    };
+  };
+}
+
+/* 2 · RISK RADAR: tasks are pillars (height = work left) drifting toward the centre as time passes; colour follows risk; the sweep makes them pulse */
+function buildRadar(st) {
+  const { scene, camera } = st; camera.position.set(0, 7.2, 7.6); camera.lookAt(0, 0, 0.3);
+  lights(scene, [4, 10, 5]);
+  const disc = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 4.3, 0.18, 72), new THREE.MeshStandardMaterial({ color: 0x0f1530, metalness: 0.55, roughness: 0.38 }));
+  disc.position.y = -0.09; disc.receiveShadow = true; scene.add(disc);
+  [1, 2, 3, 4].forEach((r, i) => { const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 0.012, 8, 160), new THREE.MeshBasicMaterial({ color: i === 0 ? PAL.coral : 0x5c6bd6, transparent: true, opacity: i === 0 ? 0.8 : 0.5 })); ring.rotation.x = Math.PI / 2; ring.position.y = 0.012; scene.add(ring); });
+  for (let k = 0; k < 4; k++) { const sp = new THREE.Mesh(new THREE.BoxGeometry(8.2, 0.004, 0.012), new THREE.MeshBasicMaterial({ color: 0x3a4680, transparent: true, opacity: 0.5 })); sp.rotation.y = k * Math.PI / 4; sp.position.y = 0.012; scene.add(sp); }
+  // sweep: a translucent wedge fading behind its leading edge
+  const sweepGeo = new THREE.CircleGeometry(4.15, 48, 0, 0.75);
+  const cols = []; const pos = sweepGeo.attributes.position;
+  for (let i = 0; i < pos.count; i++) { const a = Math.atan2(pos.getY(i), pos.getX(i)); const k = i === 0 ? 0.6 : Math.max(0, a / 0.75); cols.push(0.18 * k, 0.83 * k, 0.75 * k); }
+  sweepGeo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+  const sweep = new THREE.Mesh(sweepGeo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+  sweep.rotation.x = -Math.PI / 2; sweep.position.y = 0.02; scene.add(sweep);
+  const core = new THREE.Mesh(new THREE.SphereGeometry(0.16, 24, 24), new THREE.MeshStandardMaterial({ color: PAL.coral, emissive: PAL.coral, emissiveIntensity: 1.2 })); core.position.y = 0.16; scene.add(core);
+  const cGood = new THREE.Color(0x14b8a6), cMid = new THREE.Color(0xf5a524), cBad = new THREE.Color(0xf0533f);
+  const blips = [];
+  const geo = new THREE.CylinderGeometry(0.16, 0.16, 1, 28); geo.translate(0, 0.5, 0);
+  for (let i = 0; i < 9; i++) {
+    const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: PAL.teal, emissive: PAL.teal, emissiveIntensity: 0.25, metalness: 0.1, roughness: 0.34, envMapIntensity: 0.3 }));
+    m.castShadow = true; m.receiveShadow = true;
+    m.userData = { a: (i / 9) * Math.PI * 2 + (i % 2) * 0.3, r0: 1.4 + ((i * 37) % 26) / 10, work: 0.5 + ((i * 53) % 17) / 10, speed: 0.05 + (i % 3) * 0.025 };
+    scene.add(m); blips.push(m);
+  }
+  st.still = 14;
+  st.update = (time, s) => {
+    const sw = (time * 1.1) % (Math.PI * 2); sweep.rotation.z = sw;
+    blips.forEach(b => {
+      const u = b.userData; let r = u.r0 - ((time * u.speed) % 3.2); if (r < 0.35) r += 3.2;   // time passes: tasks move in, then a new week begins
+      b.position.set(Math.cos(u.a) * r, 0, -Math.sin(u.a) * r);
+      const k = Math.min(1, Math.max(0, (4 - r) / 3.6));
+      const col = k < 0.55 ? cGood.clone().lerp(cMid, k / 0.55) : cMid.clone().lerp(cBad, (k - 0.55) / 0.45);
+      b.material.color.copy(col); b.material.emissive.copy(col);
+      let d = ((u.a - sw) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2); d = Math.min(d, Math.PI * 2 - d);
+      const pulse = Math.max(0, 1 - d / 0.35);
+      b.material.emissiveIntensity = 0.25 + pulse * 1.1;
+      b.scale.set(1 + pulse * 0.25, u.work * (0.7 + k * 0.6), 1 + pulse * 0.25);
+    });
+    core.scale.setScalar(1 + Math.sin(time * 4) * 0.12);
+    scene.rotation.y = s.pointer.x * 0.5; camera.position.y = 7.2 - s.pointer.y * 1.2; camera.lookAt(0, 0, 0.3);
+  };
+}
+
+/* 3 · WEEK REBALANCE: hour blocks for each day; days above the glass capacity plane glow coral, then the extra blocks fly to free days and turn teal */
+function buildWeek(st) {
+  const { scene, camera } = st; camera.position.set(3.4, 5.4, 8.6); camera.lookAt(0, 1.4, 0);
+  lights(scene, [5, 11, 7]); floor(scene, 9, 0.35);
+  const base = new THREE.Mesh(new THREE.BoxGeometry(9.2, 0.16, 2.2), new THREE.MeshStandardMaterial({ color: 0x10163a, metalness: 0.5, roughness: 0.4 }));
+  base.position.y = -0.08; base.receiveShadow = true; scene.add(base);
+  const CAP = 4, start = [2, 6, 1, 7, 2, 1, 0];
+  const plan = [];   // final plan: move extra hours from Tue (1) and Thu (3) to free days, never past the day they're due
+  const counts = start.slice();
+  [[1, 0], [1, 0], [3, 2], [3, 2], [3, 2]].forEach(([from, to]) => plan.push({ from, to }));
+  const block = new THREE.BoxGeometry(0.82, 0.42, 0.82);
+  const cOk = new THREE.Color(0x14b8a6), cOver = new THREE.Color(0xf0533f), cBase = new THREE.Color(0x3d52e6);
+  const x = d => (d - 3) * 1.25;
+  const cubes = [];
+  start.forEach((n, d) => { for (let h = 0; h < n; h++) {
+    const m = new THREE.Mesh(block, new THREE.MeshStandardMaterial({ color: 0x3d52e6, emissive: 0x000000, metalness: 0.05, roughness: 0.36, envMapIntensity: 0.3 }));
+    m.castShadow = true; m.receiveShadow = true; m.userData = { d, h, order: cubes.length }; scene.add(m); cubes.push(m);
+  } });
+  const capPlane = new THREE.Mesh(new THREE.BoxGeometry(9.4, 0.02, 2.4), new THREE.MeshPhysicalMaterial({ color: 0x9fb0ff, transparent: true, opacity: 0.16, roughness: 0.05, metalness: 0, transmission: LITE ? 0 : 0.4, clearcoat: 1, depthWrite: false }));
+  capPlane.position.y = CAP * 0.44 + 0.02; scene.add(capPlane);
+  const capEdge = new THREE.LineSegments(new THREE.EdgesGeometry(capPlane.geometry), new THREE.LineBasicMaterial({ color: 0xb7c2ff, transparent: true, opacity: 0.6 })); capEdge.position.copy(capPlane.position); scene.add(capEdge);
+  // work out where every block ends up
+  const target = cubes.map(c => ({ d: c.userData.d, h: c.userData.h }));
+  plan.forEach(({ from, to }) => {
+    const top = cubes.filter((c, i) => target[i].d === from).sort((a, b) => target[b.userData.order].h - target[a.userData.order].h)[0];
+    const i = top.userData.order; counts[from]--; target[i] = { d: to, h: counts[to]++ }; top.userData.moves = true;
+  });
+  // day labels follow the columns on screen
+  const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(t => { const e = document.createElement('span'); e.className = 'tag'; e.textContent = t; st.host.appendChild(e); return e; });
+  const v = new THREE.Vector3();
+  const CYCLE = 11;
+  st.still = 8.5;
+  st.update = (time, s) => {
+    const t = REDUCE ? 8.5 : time % CYCLE;
+    cubes.forEach((c, idx) => {
+      const u = c.userData, from = { d: u.d, h: u.h }, to = target[idx];
+      const drop = ease((t - u.order * 0.06) / 0.5);
+      let px = x(from.d), py = from.h * 0.44 + 0.22 + (1 - drop) * 3, k = 0;
+      if (u.moves) { k = ease((t - 4.2 - (u.order % 5) * 0.25) / 1.1); px = x(from.d) + (x(to.d) - x(from.d)) * k; py = (from.h + (to.h - from.h) * k) * 0.44 + 0.22 + Math.sin(k * Math.PI) * 1.6; }
+      c.position.set(px, py, 0);
+      c.material.opacity = 1;
+      const dayCount = t < 4.2 ? start[from.d] : null;
+      const over = u.moves ? k < 1 && t > 2.2 : (t > 2.2 && t < 5.4 && start[from.d] > CAP && from.h >= CAP);
+      const col = over ? cOver : (t > 5.6 ? cOk : cBase);
+      c.material.color.lerp(col, 0.12); c.material.emissive.copy(over ? cOver : col).multiplyScalar(over ? 0.45 + 0.2 * Math.sin(time * 6) : 0.22);
+      if (dayCount === null) {}
+    });
+    capPlane.material.opacity = 0.12 + (t > 2.2 && t < 5.4 ? 0.1 : 0);
+    scene.rotation.y = -0.18 + s.pointer.x * 0.45; camera.position.y = 5.4 - s.pointer.y * 1.4; camera.lookAt(0, 1.4, 0);
+    scene.updateMatrixWorld();
+    const rect = s.host.getBoundingClientRect();
+    labels.forEach((e, d) => { v.set(x(d), 0.02, 1.2).applyMatrix4(scene.matrixWorld).project(camera); e.style.left = ((v.x + 1) / 2 * 100) + '%'; e.style.top = ((1 - v.y) / 2 * rect.height) + 'px'; });
+  };
+}
+
+const BUILDERS = { orbit: buildOrbit(false), orbit2: buildOrbit(true), radar: buildRadar, week: buildWeek };
+const STAGES = {};
+function stageFor(slide) {
+  const host = slide.querySelector('[data-3d]'); if (!host || !hasWebGL()) return null;
+  const key = host.dataset['3d'];
+  if (!STAGES[key]) { try { STAGES[key] = makeStage(host, BUILDERS[key]); } catch (e) { console.info('3D scene off:', e.message); document.documentElement.classList.add('no-webgl'); webgl = false; return null; } }
+  return STAGES[key];
+}
+
+/* ================= 3D type ================= */
+function buildTitle3D() {
+  $$('.title3d').forEach(h => {
+    const txt = h.dataset.text, rig = document.createElement('span'); rig.className = 'rig'; rig.setAttribute('aria-hidden', 'true');
+    [...txt].forEach((ch, c) => {
+      const s = document.createElement('span'); s.className = 'ch'; s.style.setProperty('--c', c);
+      for (let d = 12; d >= 1; d--) { const l = document.createElement('span'); l.className = 'layer'; l.style.setProperty('--d', d); l.textContent = ch; s.appendChild(l); }
+      const f = document.createElement('span'); f.className = 'face'; f.textContent = ch; s.appendChild(f);
+      rig.appendChild(s);
+    });
+    h.appendChild(rig);
+    if (!REDUCE) h.closest('.slide').addEventListener('pointermove', e => { rig.style.setProperty('--ry', (-12 + (e.clientX / innerWidth - .5) * 16).toFixed(1) + 'deg'); rig.style.setProperty('--rx', (10 - (e.clientY / innerHeight - .5) * 10).toFixed(1) + 'deg'); });
+  });
+  // headings: each word becomes a 3D card that flips up once per slide
+  $$('h2.split').forEach(h => {
+    let w = 0;
+    const walk = node => [...node.childNodes].forEach(n => {
+      if (n.nodeType === 3) { const frag = document.createDocumentFragment(); n.textContent.split(/(\s+)/).forEach(p => { if (!p) return; if (/^\s+$/.test(p)) { frag.appendChild(document.createTextNode(p)); return; } const s = document.createElement('span'); s.className = 'w3d'; s.style.setProperty('--w', w++); s.textContent = p; frag.appendChild(s); }); n.replaceWith(frag); }
+      else if (n.nodeType === 1) walk(n);
+    });
+    walk(h);
+  });
+}
+
+/* ================= slides ================= */
+let cur = -1;
+const slides = () => $$('.slide');
+function buildChrome() {
+  const rail = $('#rail'), menu = $('#chapterMenu');
+  slides().forEach((s, i) => {
+    const label = String(i + 1).padStart(2, '0');
+    const li = document.createElement('li'); const b = document.createElement('button'); b.type = 'button'; b.dataset.go = i;
+    b.innerHTML = '<span></span>'; b.firstChild.textContent = label; b.append(s.dataset.title); li.appendChild(b); rail.appendChild(li);
+    const m = document.createElement('button'); m.type = 'button'; m.setAttribute('role', 'menuitem'); m.dataset.go = i; m.innerHTML = '<span></span>'; m.firstChild.textContent = label; m.append(s.dataset.title); menu.appendChild(m);
+  });
+  const heads = $$('.compare thead th').map(th => th.textContent.trim());
+  $$('.compare tbody tr').forEach(tr => [...tr.children].forEach((td, i) => td.setAttribute('data-label', heads[i])));
+  const nav = $('#showcaseNav');
+  SHOWCASE_DATA.forEach((d, i) => { const b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'tab'); b.dataset.showcase = i; b.setAttribute('aria-selected', String(i === 0)); b.innerHTML = '<span></span>'; b.firstChild.textContent = String(i + 1).padStart(2, '0'); b.append(d.title); nav.appendChild(b); });
+  const dl = $('#qaList'); QA.forEach(([q, a]) => { const dt = document.createElement('dt'); dt.textContent = q; const dd = document.createElement('dd'); dd.textContent = a; dl.append(dt, dd); });
+}
+function go(i, opts = {}) {
+  const all = slides(); i = Math.max(0, Math.min(all.length - 1, i | 0));
+  if (i === cur && !opts.force) return;
+  const prev = all[cur];
+  if (prev) { prev.classList.remove('on'); const ps = prev.querySelector('[data-3d]'); if (ps && STAGES[ps.dataset['3d']]) STAGES[ps.dataset['3d']].stop(); }
+  cur = i; const s = all[i];
+  s.classList.add('on'); s.scrollTop = 0;
+  all.forEach((x, k) => { x.inert = k !== i; x.setAttribute('aria-hidden', String(k !== i)); });
+  const label = String(i + 1).padStart(2, '0') + ' / ' + String(all.length).padStart(2, '0');
+  $('#chapterBtn').textContent = label; $('#chapterBtn').setAttribute('aria-label', 'Slide ' + (i + 1) + ' of ' + all.length + ': ' + s.dataset.title + '. Jump to a chapter');
+  $$('[data-go]').forEach(b => { if (b.closest('#rail,#chapterMenu')) b.setAttribute('aria-current', +b.dataset.go === i ? 'step' : 'false'); });
+  $('#meter').style.width = ((i + 1) / all.length * 100) + '%';
+  document.title = 'NEXORA · ' + s.dataset.title;
+  if (location.hash !== '#slide-' + (i + 1)) history.replaceState(null, '', '#slide-' + (i + 1));
+  notes(i);
+  // build the 3D scene after the slide's text has painted, so the page is usable at once
+  const run = () => { if (cur !== i) return; const st = stageFor(s); if (st) { st.t0 = performance.now(); st.lastT = 0; st.start(); } };
+  if (opts.defer3d) requestAnimationFrame(() => setTimeout(run, 30)); else run();
+}
+const next = () => go(cur + 1), prev = () => go(cur - 1);
+const fromHash = () => { const m = location.hash.match(/^#slide-(\d+)$/); return m ? +m[1] - 1 : 0; };
+
+function showcase(i) {
+  const d = SHOWCASE_DATA[i]; if (!d) return;
+  $$('#showcaseNav button').forEach((b, k) => b.setAttribute('aria-selected', String(k === i)));
+  const bar = $('#showcaseTitle'); bar.innerHTML = '';
+  const b = document.createElement('b'); b.textContent = d.title; const sm = document.createElement('small'); sm.textContent = d.badge; const kb = document.createElement('kbd'); kb.textContent = 'keys 1–7'; bar.append(b, sm, kb);
+  const img = $('#showcaseImg'); img.style.opacity = '0';
+  const swap = () => { img.src = d.img; img.alt = 'Deadline Tracker: ' + d.title; img.style.opacity = '1'; };
+  REDUCE ? swap() : setTimeout(swap, 140);
+  const pts = $('#showcaseBullets'); pts.innerHTML = '';
+  d.bullets.forEach(x => { const p = document.createElement('div'); p.className = 'point'; const bb = document.createElement('b'); bb.textContent = x.b; const sp = document.createElement('span'); sp.textContent = x.s; p.append(bb, sp); pts.appendChild(p); });
+}
+
+function notes(i) {
+  const m = SCENES_META[i]; $('#notesTitle').textContent = 'Speaker notes · Slide ' + String(i + 1).padStart(2, '0');
+  const body = $('#notesBody'); body.innerHTML = '';
+  const a = document.createElement('div'); a.className = 'note';
+  const who = document.createElement('div'); who.className = 'who'; const w = document.createElement('span'); w.textContent = m.speaker; const t = document.createElement('time'); t.textContent = m.timing; who.append(w, t);
+  const p = document.createElement('p'); p.textContent = m.say; a.append(who, p);
+  const b = document.createElement('div'); b.className = 'note'; const h = document.createElement('h3'); h.textContent = 'On screen'; const ul = document.createElement('ul');
+  m.actions.forEach(x => { const li = document.createElement('li'); li.textContent = x; ul.appendChild(li); }); b.append(h, ul);
+  body.append(a, b);
+}
+function toggleNotes(force) { const o = $('#notes').classList.toggle('open', force); $('#notesBtn').setAttribute('aria-pressed', String(o)); }
+let qaReturn = null;
+function openQA() { qaReturn = document.activeElement; $('#qa').classList.add('open'); $('#qa .x').focus(); }
+function closeQA() { if (!$('#qa').classList.contains('open')) return; $('#qa').classList.remove('open'); if (qaReturn) qaReturn.focus(); }
+function menu(open) { $('#chapterMenu').classList.toggle('open', open); $('#chapterBtn').setAttribute('aria-expanded', String(open)); if (open) ($('#chapterMenu [aria-current=step]') || $('#chapterMenu button')).focus(); }
+
+/* timer: counts down the script's length, keeps counting in coral when over */
+let left = SCRIPT_SECONDS, tick = null;
+function showTime() { const a = Math.abs(left), s = String(Math.floor(a / 60)).padStart(2, '0') + ':' + String(a % 60).padStart(2, '0'); $('#timerDisplay').textContent = (left < 0 ? '+' : '') + s; $('#timerBtn').classList.toggle('over', left < 0); $('#timerBtn').setAttribute('aria-label', 'Pitch timer, ' + (left < 0 ? s + ' over' : s + ' left')); }
+function toggleTimer() { if (tick) { clearInterval(tick); tick = null; } else tick = setInterval(() => { left--; showTime(); }, 1000); $('#timerBtn').setAttribute('aria-pressed', String(!!tick)); }
+function fullscreen() { const el = document.documentElement; if (!document.fullscreenElement) { const r = el.requestFullscreen || el.webkitRequestFullscreen; if (r) Promise.resolve(r.call(el)).catch(() => {}); } else if (document.exitFullscreen) document.exitFullscreen(); }
+
+addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if ($('#qa').classList.contains('open') && e.key !== 'Escape') return;
+  const k = e.key;
+  if (k === ' ' || k === 'ArrowRight' || k === 'PageDown') { e.preventDefault(); next(); }
+  else if (k === 'ArrowLeft' || k === 'PageUp' || k === 'Backspace') { e.preventDefault(); prev(); }
+  else if (k === 'Home') { e.preventDefault(); go(0); }
+  else if (k === 'End') { e.preventDefault(); go(slides().length - 1); }
+  else if (k === 'f' || k === 'F') { e.preventDefault(); fullscreen(); }
+  else if (k === 'n' || k === 'N') { e.preventDefault(); toggleNotes(); }
+  else if (k === 't' || k === 'T') { e.preventDefault(); toggleTimer(); }
+  else if (k === 'q' || k === 'Q') { e.preventDefault(); openQA(); }
+  else if (k === 'Escape') { closeQA(); toggleNotes(false); menu(false); }
+  else if (cur === 3 && k >= '1' && k <= '7') showcase(+k - 1);
+});
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-go],[data-nav],[data-showcase],[data-act],#chapterBtn');
+  if (!t) { if (!e.target.closest('#chapterMenu')) menu(false); if (e.target.id === 'qa') closeQA(); return; }
+  if (t.id === 'chapterBtn') return menu(!$('#chapterMenu').classList.contains('open'));
+  if (t.dataset.go != null) { go(+t.dataset.go); menu(false); return; }
+  if (t.dataset.nav) return t.dataset.nav === 'prev' ? prev() : next();
+  if (t.dataset.showcase != null) return showcase(+t.dataset.showcase);
+  if (t.dataset.act === 'qa') openQA(); else if (t.dataset.act === 'qa-close') closeQA(); else if (t.dataset.act === 'notes') toggleNotes(false);
+});
+let touch0 = null;
+addEventListener('touchstart', e => { const t = e.changedTouches[0]; touch0 = e.target.closest('.compare, .tabs, #notes, #qa, #chapterMenu, .stage3d') ? null : { x: t.screenX, y: t.screenY }; }, { passive: true });
+addEventListener('touchend', e => { if (!touch0) return; const t = e.changedTouches[0], dx = t.screenX - touch0.x, dy = t.screenY - touch0.y; touch0 = null; if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return; dx < 0 ? next() : prev(); }, { passive: true });
+// product screen tilts a little toward the pointer
+document.addEventListener('pointermove', e => { if (REDUCE || cur !== 3) return; const sc = $('#screen'), r = sc.getBoundingClientRect(); if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) { sc.style.setProperty('--tx', '0deg'); sc.style.setProperty('--ty', '0deg'); return; }
+  sc.style.setProperty('--ty', (((e.clientX - r.left) / r.width - .5) * 6).toFixed(2) + 'deg'); sc.style.setProperty('--tx', (-((e.clientY - r.top) / r.height - .5) * 5).toFixed(2) + 'deg'); }, { passive: true });
+// team cards turn toward the pointer
+document.addEventListener('pointermove', e => { if (REDUCE || cur !== 6) return; const c = e.target.closest('.member'); $$('.member').forEach(m => { if (m !== c) m.style.transform = ''; }); if (!c) return; const r = c.getBoundingClientRect(); c.style.transform = `rotateY(${((e.clientX - r.left) / r.width - .5) * 14}deg) rotateX(${-((e.clientY - r.top) / r.height - .5) * 12}deg) translateZ(8px)`; }, { passive: true });
+
+window.NEXORA = { ready: false, warm: false, current: () => cur, go: i => go(i), scriptSeconds: SCRIPT_SECONDS,
+  stages: () => Object.entries(STAGES).map(([k, s]) => ({ id: k, running: s.running, frames: s.frames, economy: s.economy, costMs: Math.round(s.cost), objects: s.scene.children.length, triangles: s.renderer.info.render.triangles })),
+  animating: () => Object.values(STAGES).some(s => s.running) };
+function boot() {
+  buildChrome(); buildTitle3D(); showcase(0); showTime();
+  $('#timerBtn').addEventListener('click', toggleTimer);
+  $('#timerReset').addEventListener('click', () => { left = SCRIPT_SECONDS; showTime(); });
+  $('#notesBtn').addEventListener('click', () => toggleNotes());
+  $('#fullscreenBtn').addEventListener('click', fullscreen);
+  hasWebGL();
+  go(Math.max(0, Math.min(slides().length - 1, fromHash())), { force: true, defer3d: true });
+  addEventListener('hashchange', () => go(fromHash()));
+  window.NEXORA.ready = true;
+  (window.requestIdleCallback || setTimeout)(() => SHOWCASE_DATA.forEach(d => { const i = new Image(); i.decoding = 'async'; i.src = d.img; }), { timeout: 3000 });
+  // warm-up: prepare the other 3D scenes (build + compile shaders + one still frame) in idle time, one at a time,
+  // so changing slides never stutters in front of the judges
+  const todo = slides().filter(sl => sl.querySelector('[data-3d]'));
+  const warmNext = () => {
+    if (!hasWebGL() || !todo.length || /[?&]warm=0/.test(location.search)) { window.NEXORA.warm = true; return; }
+    const sl = todo.shift(), st = stageFor(sl);
+    if (st && !st.running) { st.renderer.compile(st.scene, st.camera); st.draw(st.still); }
+    (window.requestIdleCallback || setTimeout)(warmNext, { timeout: 1500 });
+  };
+  setTimeout(() => (window.requestIdleCallback || setTimeout)(warmNext, { timeout: 1500 }), 600);
+}
+document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', boot) : boot();
+</script>
+</body>
+</html>

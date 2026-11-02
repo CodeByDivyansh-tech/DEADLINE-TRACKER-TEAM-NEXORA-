@@ -87,11 +87,11 @@ function render(opts = {}){
   const aid = ae && ae.id, selS = ae && ae.selectionStart, selE = ae && ae.selectionEnd;
   const w = W(); const now = Date.now();
   CTX = { w, now, R: radar(w, now) };
-  renderSide(); renderTop(); renderBnav();
+  MOTION.railShell(); renderSide(); renderTop(); renderBnav();
   const drawerHasFocus = $("#drawer").contains(document.activeElement);
   $("#viewInner").innerHTML = VIEWS[UI.route] ? VIEWS[UI.route]() : VIEWS.overview();
   $("#viewInner").style.animation = UI.animate ? "" : "none";
-  if (UI.animate) { countUp(); UI.animate = false; }
+  if (UI.animate) { countUp(); MOTION.view($("#viewInner")); UI.animate = false; }
   if (!(opts.soft && drawerHasFocus)) renderDrawer();
   renderFocusMini();
   if (UI.route === "assistant") scrollChat();
@@ -116,19 +116,20 @@ function renderSide(){
     if (r === "deadlines" || r === "mywork") { const n = w.items.filter(i => !isDone(i) && (r !== "mywork" || i.assignee === viewerId(w)) && ["overdue", "critical"].includes(levelOf(R, i))).length; return n ? `<span class="badge">${n}</span>` : ""; }
     return "";
   };
-  const link = (r, l) => `<a href="#${r}" data-route="${r}" aria-current="${UI.route === r ? "page" : "false"}" class="${r === "assistant" ? "nav-ai" : ""}">${NAV_ICON[r]}${l}${badge(r)}</a>`;
+  const rail = MOTION.isRail();
+  const link = (r, l) => `<a href="#${r}" data-route="${r}" data-flip="nav-${r}" aria-current="${UI.route === r ? "page" : "false"}" class="${r === "assistant" ? "nav-ai" : ""}"${rail ? ` title="${esc(l)}"` : ""}>${NAV_ICON[r]}<span class="lbl">${l}</span>${badge(r)}</a>`;
   $("#side").innerHTML = `
-    <div class="brand">${logoSVG(28)}<span>Deadline Tracker</span></div>
-    <button class="ws-btn" type="button" data-act="wsmenu" aria-expanded="${UI.wsMenu}">
+    <div class="brand" data-flip="brand">${logoSVG(28)}<span class="lbl">Deadline Tracker</span></div>
+    <button class="ws-btn" type="button" data-act="wsmenu" data-flip="ws" aria-expanded="${UI.wsMenu}"${rail ? ` title="${esc(w.name)} · switch workspace"` : ""}>
       <span class="ws-ico" style="background:${MODE_COLOR[w.mode]}">${esc(initials(w.name))}</span>
-      <span style="min-width:0"><span class="wn">${esc(w.name)}</span><span class="wm">${MODE_LABEL[w.mode]} workspace</span></span>
+      <span class="lbl" style="min-width:0"><span class="wn">${esc(w.name)}</span><span class="wm">${MODE_LABEL[w.mode]} workspace</span></span>
       <span class="chev">${IC.chev}</span>
     </button>
-    ${UI.wsMenu ? `<div class="ws-menu">${state.workspaces.map(x => `<button type="button" data-act="wsswitch" data-ws="${x.id}" aria-current="${x.id === w.id}"><span class="ws-ico" style="background:${MODE_COLOR[x.mode]}">${esc(initials(x.name))}</span><span>${esc(x.name)}<br><small style="color:var(--side-muted)">${MODE_LABEL[x.mode]}</small></span></button>`).join("")}
+    ${UI.wsMenu && !rail ? `<div class="ws-menu">${state.workspaces.map(x => `<button type="button" data-act="wsswitch" data-ws="${x.id}" aria-current="${x.id === w.id}"><span class="ws-ico" style="background:${MODE_COLOR[x.mode]}">${esc(initials(x.name))}</span><span>${esc(x.name)}<br><small style="color:var(--side-muted)">${MODE_LABEL[x.mode]}</small></span></button>`).join("")}
       <button type="button" data-act="wsnew"><span class="ws-ico" style="background:var(--side-hover)">${IC.plus}</span>New workspace</button></div>` : ""}
     <nav class="nav" aria-label="Sections">
       ${nav.filter(x => !x[2]).map(([r, l]) => link(r, l)).join("")}
-      <details class="nav-more"${nav.some(x => x[2] && x[0] === UI.route) || UI.navMore ? " open" : ""}><summary>${IC.more}More</summary>${nav.filter(x => x[2]).map(([r, l]) => link(r, l)).join("")}</details>
+      <details class="nav-more"${nav.some(x => x[2] && x[0] === UI.route) || UI.navMore ? " open" : ""}><summary data-flip="more"${rail ? ` title="More"` : ""}>${IC.more}<span class="lbl">More</span></summary>${nav.filter(x => x[2]).map(([r, l]) => link(r, l)).join("")}</details>
     </nav>
     <div class="side-foot">
       ${w.mode === "company" ? `<div class="viewas"><label for="viewAs">Viewing as (prototype role switch)</label>
