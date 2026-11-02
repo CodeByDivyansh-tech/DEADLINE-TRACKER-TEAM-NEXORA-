@@ -112,3 +112,16 @@ test("the Add box with @name assigns the right person (manager only)", async () 
   await page.press("#qaText", "Enter");
   assert.equal((await itemByTitle(page, "Write release notes")).assignee, "k");
 });
+
+test("workload: member cards keep their contents inside, badges keep their size, cards line up (bug: % and badges spilled out)", async () => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await go(page, "workload");
+  const bad = await page.$$eval(".member", cards => cards.flatMap(c => { const cr = c.getBoundingClientRect();
+    return [...c.querySelectorAll("*")].filter(e => { const r = e.getBoundingClientRect(); return r.width && (r.right > cr.right + 1 || r.left < cr.left - 1); }).map(e => `${c.querySelector("b").textContent}: ${e.tagName}.${e.className}`); }));
+  assert.deepEqual(bad, [], "nothing sticks out of a card");
+  const badges = await page.$$eval(".member .badge, .member [class*=risk-badge], .member li button > :not(:first-child)", xs => xs.map(x => x.scrollWidth <= x.clientWidth + 1));
+  assert.ok(badges.length && badges.every(Boolean), "badges aren't clipped");
+  const tops = await page.$$eval(".member .mh", xs => xs.map(x => Math.round(x.getBoundingClientRect().top)));
+  const rows = {}; tops.forEach(t => { rows[t] = 1; });
+  assert.ok(Object.keys(rows).length <= Math.ceil(tops.length / 2), "card headers in a row line up: " + tops.join(","));
+});
