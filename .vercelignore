@@ -2,12 +2,7 @@
 /*
 !index.html
 !admin.html
-!pitch.html
-!pitch-assets/
-!pitch-assets/**
 !vercel.json
 !build.js
-!build-public.js
-!logo.svg
 !src
 !package.json
