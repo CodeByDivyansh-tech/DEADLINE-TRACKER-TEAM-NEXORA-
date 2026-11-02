@@ -122,7 +122,8 @@ async function main(){
     const rel = url === "/" ? "index.html" : url === "/admin" ? "admin.html" : url.replace(/^\/+/, "");
     const file = path.resolve(cfg.ROOT, rel);
     if (!file.startsWith(cfg.ROOT + path.sep) || PRIVATE.test(path.relative(cfg.ROOT, file)) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) { res.writeHead(404, Object.assign({ "Content-Type": "text/plain" }, SECURITY_HEADERS)); return res.end("Not found"); }
-    const type = MIME[path.extname(file).toLowerCase()] || "application/octet-stream";
+    const type = MIME[path.extname(file).toLowerCase()];   // only the file types the site uses; everything else stays private
+    if (!type) { res.writeHead(404, Object.assign({ "Content-Type": "text/plain" }, SECURITY_HEADERS)); return res.end("Not found"); }
     res.writeHead(200, Object.assign({ "Content-Type": type, "Cache-Control": "no-store" }, SECURITY_HEADERS, /html/.test(type) ? { "Content-Security-Policy": CSP } : {}));
     fs.createReadStream(file).pipe(res);
   });

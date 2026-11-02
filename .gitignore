@@ -4,5 +4,8 @@ data/
 .env.*
 !.env.example
 ai-key.txt
+telegram-token.txt
+*-token.txt
+*-key.txt
 *.bak
 public/
