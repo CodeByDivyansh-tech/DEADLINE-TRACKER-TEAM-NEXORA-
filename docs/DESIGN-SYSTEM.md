@@ -31,3 +31,28 @@ Three different 3D scenes, each with one job:
 3. **Week Rebalance** (how-it-works slide): a week of hour blocks. Overloaded days glow coral above a glass capacity plane, then the extra blocks fly to free days and turn teal. It shows what the planner does.
 
 Each scene starts only when its slide is shown, pauses when it isn't, renders one still frame with reduced motion, and is replaced by a still illustration without WebGL.
+
+## App palette: Ivory & Copper (Nov 2026, branch `gsap-panels`)
+The app moved away from indigo on navy ("black and blue") to a warm palette. The pitch still uses the indigo palette above until it is brought in line.
+
+| Role | Light | Dark (espresso) |
+|---|---|---|
+| Background | `#F6F1E7` ivory | `#15110D` espresso |
+| Surface | `#FFFDF9` | `#231C15` |
+| Text / secondary / quiet | `#1F1A14` / `#463D33` / `#6A5E4F` | `#F3EBDF` / `#D8CCBC` / `#AB9D8A` |
+| Primary (copper) | `#A4501C`, white text | `#E9A36E`, dark text |
+| Progress (emerald) | `#23715D` | `#5CC6A4` |
+| Deadline (gold) | `#9A6A00` | `#FBBF4C` |
+| Risk (coral) | `#C2412D` | `#FF7A6B` |
+
+The logo keeps its shape; its tile is now copper (`#C8723A` → `#8C4115`) with the gold deadline dot. Group colours for new subjects avoid blue and violet. Tests check that no blue or violet colour is left in the app's code.
+
+## Signature motion: the travelling edge (GSAP, `src/motion.js`)
+A panel keeps its full box while its visible edge moves (`clip-path`), and what is attached to that edge moves in the same timeline. Each place uses it differently:
+1. **Sidebar rail** (the arrow handle on the sidebar edge): the sidebar stays 248 px wide while its edge slides to 76 px; the page and the handle glide with the edge, the arrow turns over, items that shift follow by x/y, and labels slide back in one after another when it opens. Remembered per browser.
+2. **Deadline AI window:** opens as a circle growing out of its button and closes back into it; header, tabs and the input arrive in turn.
+3. **Heads-up panel:** unfolds downward (height and clip together, so nothing jumps), rows drop into place in 3D, the chevron turns.
+4. **Section cards:** when you change section, cards rise and unfold from their top edge; cards further down do the same when scrolled into view (IntersectionObserver, no extra plugin).
+5. **Log-in tabs:** the pill slides under the chosen tab and the form is revealed from that side.
+
+GSAP runs on its own clock only while something moves (no idle loop). With reduced motion, or without GSAP, every change is instant.

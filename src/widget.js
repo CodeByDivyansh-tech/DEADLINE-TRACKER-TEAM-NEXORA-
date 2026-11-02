@@ -68,7 +68,7 @@ function renderWidget(){
   if (!show || UI.route === "assistant") { box.hidden = true; DW.open = false; }
   btn.setAttribute("aria-expanded", DW.open);
   document.body.classList.toggle("dw-on", DW.open);
-  if (!DW.open) { box.hidden = true; return; }
+  if (!DW.open) { if (!DW.closing) box.hidden = true; return; }
   box.hidden = false;
   const help = DW.tab === "help";
   $("#dwTabHelp").setAttribute("aria-selected", help); $("#dwTabPlan").setAttribute("aria-selected", !help);
@@ -94,12 +94,19 @@ function renderWidget(){
   if (document.activeElement !== inp && inp.value !== DW.draft[DW.tab]) inp.value = DW.draft[DW.tab];
 }
 function openWidget(tab){
+  const fresh = !DW.open; DW.closing = false;
   DW.open = true; if (tab) DW.tab = tab; DW.scroll = true; renderWidget();
+  if (fresh) MOTION.dwOpen($("#dw"), $("#dwBtn"));
   setTimeout(() => { const i = $("#dwInput"); if (i && !i.disabled) i.focus(); }, 60);
   if (ACCOUNT.on && !DW.helpLoaded) loadHelpHistory();
   if (ACCOUNT.on && !DW.sugg) apiJSON("GET", "/api/help/suggestions").then(r => { if (r.ok && r.json.help && r.json.help.length) { DW.sugg = r.json.help.concat(["Task kaise delete kare?"]).slice(0, 5); if (DW.tab === "help") renderWidget(); } }).catch(() => {});
 }
-function closeWidget(){ DW.open = false; renderWidget(); const b = $("#dwBtn"); if (b && !b.hidden) b.focus(); }
+// Closing folds the window back into its button first (instant with reduced motion).
+function closeWidget(){
+  if (!DW.open) return;
+  DW.open = false; DW.closing = true; renderWidget();
+  MOTION.dwClose($("#dw"), $("#dwBtn"), () => { if (!DW.closing) return; DW.closing = false; renderWidget(); const b = $("#dwBtn"); if (b && !b.hidden) b.focus(); });
+}
 
 async function sendHelp(text, opts = {}){
   text = String(text || "").trim(); if (!text || DW.busy) return;

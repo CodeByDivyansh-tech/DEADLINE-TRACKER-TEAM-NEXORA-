@@ -10,6 +10,8 @@
 !build-public.js
 !logo.svg
 !src
+!vendor
+!vendor/**
 !package.json
 # originals kept in the repo; the pitch uses the WebP versions
 pitch-assets/**/*.png

@@ -206,3 +206,29 @@ The earlier pitch (made with Antigravity) was replaced by an original one built 
 Performance found and fixed: building the title scene blocked the page for ~9 s on software graphics (ready at 10.5 s, now 0.67 s); slide changes stuttered while shaders compiled (now prepared in idle time); weak GPUs get lower resolution, no shadows and a frame cap automatically.
 Manual: screenshots of every slide at 1920×1080, 1366×768, 820×1180 and 390×844; the still-picture fallback; the app's welcome page and Home in light, dark and phone.
 Not covered: real GPU frame rates (this machine has none; 3D was checked with software WebGL), Safari and Firefox, a screen reader walkthrough.
+
+## Signature GSAP motion and warm palette (3 Nov 2026, branch `gsap-panels`)
+**Result: 321 of 321 tests pass, two full runs in a row** (10 new tests in `tests/motion.test.js`).
+
+Reference: an Instagram clip of a GSAP sidebar where the panel keeps its wide box while its edge travels (`clip-path`), the page, handle and arrow move with it, shifted items follow by y, and labels fade back in with a stagger. Built as our own version in five places, each with its own motion (see `docs/DESIGN-SYSTEM.md`).
+
+What was tested (written first, run red: 0 of 10 passed):
+- GSAP is inlined by the build; no script from another site; it drives the motion.
+- Sidebar rail, mid-animation: the edge is part-way, the sidebar stays 248 px wide, the page and handle are still moving, the arrow is turning. At the end: 76 px rail, handle on the edge, no leftover transforms, labels hidden visually but still in the link text and as tooltips, links work, the choice is remembered after a reload.
+- Opening the rail: labels come back one after another; nothing stays clipped.
+- Deadline AI window: a circle centred on its button grows to the full window; closing shrinks it back while the state changes at once.
+- Heads-up panel: height and clip grow together, the chevron turns, folding back leaves no jump.
+- Changing section: cards unfold from their top edge, then nothing is left clipped or moved.
+- Reduced motion: every change is instant, no clip or movement.
+- Phone (390 px): no rail handle, no sideways scrolling, the AI window opens.
+- Log-in tabs: the pill slides under the chosen tab; the form is revealed from that side.
+- Palette: copper accent and warm background in both themes; no blue or violet colour left in the app's code.
+
+Found and fixed along the way:
+- The calendar drag test started a drag while the new card reveal was still moving. The shared `settle` helper now also waits for GSAP reveals (cards are marked while they move), which is what it was meant to do.
+- GSAP's own clock uses `Date.now`, which the tests freeze. GSAP now runs on `performance.now()` and only while something is moving, so it works the same in tests and for users and never runs an idle loop.
+- Switching log-in tabs replayed the headline's word animation; it now stays still.
+
+Screenshots checked: light and dark (Today, heads-up open, rail mid-move and finished, Deadlines, AI window mid-open and open, log-in and sign-up switch), and 390 px phone (Today, AI window, log-in).
+
+Not covered: real GPUs, Safari and Firefox (tests use Chromium only); how the motion feels at low frame rates on old phones. The `/pitch` page still uses the indigo palette.
