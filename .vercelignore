@@ -11,3 +11,5 @@
 !logo.svg
 !src
 !package.json
+# originals kept in the repo; the pitch uses the WebP versions
+pitch-assets/**/*.png
