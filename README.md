@@ -23,6 +23,8 @@ node server.js
 Open the link it prints and create an account (the first account is the admin).
 To turn on Gemini for Help, put a free key from https://aistudio.google.com/apikey in `.env` as `GEMINI_API_KEY=...` and restart.
 
+Team guides: [Handbook](docs/DEADLINE_TRACKER_TEAM_HANDBOOK.md) ([PDF](docs/DEADLINE_TRACKER_TEAM_HANDBOOK.pdf)) · [Quick reference](docs/DEADLINE_TRACKER_QUICK_REFERENCE.md) · [Demo script](docs/DEADLINE_TRACKER_DEMO_SCRIPT.md)
+
 More: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [docs/API.md](docs/API.md) · [docs/DEPLOY.md](docs/DEPLOY.md)
 
 ## Tests
