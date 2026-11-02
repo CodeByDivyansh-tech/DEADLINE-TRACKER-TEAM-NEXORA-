@@ -15,6 +15,7 @@
   --bg:#eef1f8; --surface:#ffffff; --surface-2:rgba(226,231,244,.72); --surface-3:#d9dfee;
   --ink:#10152a; --ink-2:#384058; --muted:#5a6480; --line:rgba(30,40,80,.11);
   --accent:#3349d9; --accent-ink:#ffffff;
+  --teal:#0f8f80; --amber:#9a6a00; --coral:#c2412d;   /* shared with the pitch (docs/DESIGN-SYSTEM.md): progress, deadline, risk */
   --side-bg:rgba(255,255,255,.55); --side-ink:#1d2440; --side-muted:#5f6886; --side-hover:rgba(51,73,217,.07); --side-active:rgba(51,73,217,.13); --side-active-ink:#2337b8;
   --ok:#1b8f58; --att:#a87a00; --risk:#d4600a; --crit:#cf2f68; --over:#bf281b;
   --glass:rgba(255,255,255,.62); --glass-strong:rgba(255,255,255,.9); --glass-line:rgba(255,255,255,.9); --glass-edge:rgba(24,33,77,.09);
@@ -35,6 +36,7 @@
     --bg:#080c18; --surface:#151b2e; --surface-2:rgba(255,255,255,.06); --surface-3:rgba(255,255,255,.13);
     --ink:#eaedf7; --ink-2:#c6cbdd; --muted:#97a0b8; --line:rgba(255,255,255,.09);
     --accent:#8a9dff; --accent-ink:#0a0e1c;
+    --teal:#2dd4bf; --amber:#fbbf4c; --coral:#ff7a6b;
     --side-bg:rgba(14,19,34,.62); --side-ink:#d7dcee; --side-muted:#8891ab; --side-hover:rgba(255,255,255,.05); --side-active:rgba(138,157,255,.16); --side-active-ink:#ffffff;
     --ok:#3ccf8e; --att:#e6bb3c; --risk:#ff9a3d; --crit:#ff5c93; --over:#ff6b5e;
     --glass:rgba(22,28,48,.58); --glass-strong:rgba(17,22,38,.92); --glass-line:rgba(255,255,255,.07); --glass-edge:rgba(255,255,255,.07);
@@ -50,6 +52,7 @@
   --bg:#080c18; --surface:#151b2e; --surface-2:rgba(255,255,255,.06); --surface-3:rgba(255,255,255,.13);
   --ink:#eaedf7; --ink-2:#c6cbdd; --muted:#97a0b8; --line:rgba(255,255,255,.09);
   --accent:#8a9dff; --accent-ink:#0a0e1c;
+  --teal:#2dd4bf; --amber:#fbbf4c; --coral:#ff7a6b;
   --side-bg:rgba(14,19,34,.62); --side-ink:#d7dcee; --side-muted:#8891ab; --side-hover:rgba(255,255,255,.05); --side-active:rgba(138,157,255,.16); --side-active-ink:#ffffff;
   --ok:#3ccf8e; --att:#e6bb3c; --risk:#ff9a3d; --crit:#ff5c93; --over:#ff6b5e;
   --glass:rgba(22,28,48,.58); --glass-strong:rgba(17,22,38,.92); --glass-line:rgba(255,255,255,.07); --glass-edge:rgba(255,255,255,.07);
@@ -601,7 +604,11 @@ button.risk:hover{background:color-mix(in srgb,var(--rc) 22%,transparent)}
 .landing{grid-area:landing;display:grid;gap:16px;align-content:start;padding-top:8px;min-width:0}
 .landing .brandline{font-size:15px;color:#dfe4fb;font-weight:700;font-family:var(--font-display)}
 .landing h1{font-size:clamp(34px,5.4vw,62px);line-height:1.02;letter-spacing:-.025em;margin:0;max-width:13ch}
-.landing h1 .grad{background:linear-gradient(100deg,#9fb0ff 0%,#c79bff 50%,#ff9ec4 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.landing h1{perspective:900px;text-shadow:0 1px 0 #5563c9,0 2px 0 #4552b4,0 3px 0 #38449c,0 4px 0 #2c3683,0 12px 26px rgba(3,5,18,.6)}
+.landing h1 .grad{color:#fbbf4c;text-shadow:0 1px 0 #b98417,0 2px 0 #9d6e10,0 3px 0 #82590b,0 4px 0 #684506,0 12px 26px rgba(40,25,0,.55)}
+/* 3D type, shared with the pitch: words flip up once */
+.w3d{display:inline-block;transform-origin:50% 100%;animation:dtWordUp .9s cubic-bezier(.2,.75,.15,1) both;animation-delay:calc(var(--w) * 60ms + 120ms)}
+@keyframes dtWordUp{from{opacity:0;transform:translateY(.35em) rotateX(-75deg)}to{opacity:1;transform:none}}
 .landing p.lead{font-size:clamp(15px,1.5vw,18px);color:#c3cae4;max-width:44ch;margin:0}
 .features{grid-area:features;list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;min-width:0}
 .features li{display:flex;gap:10px;align-items:flex-start;padding:14px;border-radius:16px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.1);transition:transform .2s,background .2s,border-color .2s}
@@ -831,7 +838,12 @@ body::before{content:"";position:fixed;inset:-10%;z-index:-1;pointer-events:none
 @media (max-width:1180px){.hero:has(.wk-stats){grid-template-columns:minmax(0,1fr)}.wk-stats{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media (max-width:560px){.wk-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.wk{padding:10px 12px}.wk b{font-size:22px}}
 /* Home cards: soft depth */
-.grid-2 > .card{box-shadow:var(--shadow);transition:box-shadow .25s}
+.card{box-shadow:inset 0 1px 0 var(--glass-line)}
+.grid-2 > .card{box-shadow:inset 0 1px 0 var(--glass-line),var(--shadow);transition:box-shadow .25s;position:relative;overflow:hidden}
+.grid-2 > .card::after,.wk::after{content:"";position:absolute;top:0;bottom:0;left:-60%;width:40%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.12),transparent);transform:skewX(-18deg);pointer-events:none;opacity:0}
+.grid-2 > .card:hover::after,.wk:hover::after{animation:dtSheen .9s cubic-bezier(.2,.75,.15,1) 1}
+@keyframes dtSheen{from{left:-60%;opacity:1}to{left:130%;opacity:0}}
+.wk{position:relative;overflow:hidden}
 .grid-2 > .card:hover{box-shadow:var(--shadow),0 18px 40px rgba(17,22,42,.08)}
 .nd-main{border-radius:10px;transition:background .15s}
 .nd-main:hover{background:var(--surface-2)}
@@ -3424,6 +3436,8 @@ function hero3dHTML(){
     <div class="float-card fc-todo" style="--z:85px;--d:-1s"><div class="fc-line done"><i>${IC.check}</i>Read chapter 4</div><div class="fc-line done"><i>${IC.check}</i>Outline slides</div><div class="fc-line"><i></i>Practice talk</div></div>
   </div></div>`;
 }
+// 3D type (shared with the pitch): each word becomes a span that flips up; [word] gets the amber accent
+function words3d(t){ let w = 0; return t.split(" ").map(x => { const hi = /^\[.*\]/.test(x); const txt = x.replace(/[\[\]]/g, ""); return `<span class="w3d${hi ? " grad" : ""}" style="--w:${w++}">${esc(txt)}</span>`; }).join(" "); }
 function showAuth(note){
   $("#app").hidden = true; const o = $("#onb"); o.hidden = false; o.classList.add("auth");
   const login = ACCOUNT.mode === "login";
@@ -3431,7 +3445,7 @@ function showAuth(note){
   o.innerHTML = `<div class="auth-wrap">
   <section class="landing">
     <div class="brandline">${logoSVG(30)} <span>Deadline Tracker</span></div>
-    <h1>Never miss a <span class="grad">deadline</span> again.</h1>
+    <h1>${words3d("Never miss a [deadline] again.")}</h1>
     <p class="lead">Tell it about your work. It builds your to-do list, shows what's at risk, and reminds you before things are due.</p>
     ${hero3dHTML()}
   </section>

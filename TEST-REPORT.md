@@ -189,3 +189,20 @@ Test-first throughout; every bug below had a failing test before the fix. Full s
 
 Manual checks: screenshots of the welcome page (desktop, tablet, phone, sign-up error), Home (light, dark, phone; student and manager), Workload, Needs attention and Reports; a sweep of every page for student, manager, employee and personal at 1440 and 390 px (no browser errors, no sideways scrolling).
 Not covered: real Neon (the workspace can't reach neon.tech; tests use a fake with Neon's request/response format), real Render/Vercel after deploy (not deployed yet), real Gemini, screen-reader walkthrough, Safari/Firefox (tests run Chromium only).
+
+## Original NEXORA pitch and shared design system (2 Nov 2026, branch `original-redesign`)
+The earlier pitch (made with Antigravity) was replaced by an original one built on the app's own identity (`docs/DESIGN-SYSTEM.md`). The team's slide text and speaker notes were kept; wrong claims were corrected (4 problems, not 5; no "confidence rings"; 300+ tests, not 269; the reminder answer now mentions the free-hosting sleep).
+
+| Area | Test file | What is checked |
+|---|---|---|
+| 3D scenes | pitch | three different scenes (Countdown Orbit, Risk Radar, Week Rebalance) plus the finished ring on the closing slide; the 3D waits until the text has painted; the others are prepared in idle time; only the visible one runs; week day labels follow the columns |
+| 3D type | pitch, auth-ui | NEXORA title: 6 letters with 12 depth layers each, read as one word; slide headings flip in word by word; the app's welcome headline uses the same 3D type |
+| Controls | pitch | Begin, next/previous, arrows, Space, Home/End, chapter rail, chapter menu, logo, keyboard focus, hidden slides inert, stays on the last slide; #slide-N links and refresh; 7 product tabs and keys 1–7, all pictures load; notes follow the slide; judges' Q&A (button, Q, Esc); timer matches the script (3:25), pauses and resets; full screen; app links open safely |
+| Phone | pitch | controls on screen and ≥36 px; every slide starts at its heading; comparison as cards with our answer first; no sideways scroll; swipes, but not inside the table, tabs or a 3D scene |
+| Fallbacks | pitch | reduced motion: one still frame, no loops, instant changes; no graphics acceleration (software WebGL): still pictures rendered from the real scenes, no freezing; no WebGL at all: same stills |
+| Glass, contrast, budget | pitch | 14 px blur, solid fallback without blur support; text on glass ≥ 4.5:1; pitch.html < 140 KB, first load < 2 MB, three.js once from a cached file, WebP pictures; nothing left of the earlier deck (GSAP, Cinzel, pink) |
+| Design tokens | auth-ui | teal, amber and coral tokens in light and dark; the old pink landing gradient is gone |
+
+Performance found and fixed: building the title scene blocked the page for ~9 s on software graphics (ready at 10.5 s, now 0.67 s); slide changes stuttered while shaders compiled (now prepared in idle time); weak GPUs get lower resolution, no shadows and a frame cap automatically.
+Manual: screenshots of every slide at 1920×1080, 1366×768, 820×1180 and 390×844; the still-picture fallback; the app's welcome page and Home in light, dark and phone.
+Not covered: real GPU frame rates (this machine has none; 3D was checked with software WebGL), Safari and Firefox, a screen reader walkthrough.

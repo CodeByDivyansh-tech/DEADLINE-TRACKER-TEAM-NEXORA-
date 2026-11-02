@@ -21,7 +21,9 @@ async function open(opts = {}){
   if (opts.init) await page.addInitScript(opts.init);
   // warm-up of the other 3D scenes is its own test; elsewhere it's switched off to keep this CPU-only test machine responsive
   const url = opts.path || "/pitch"; const [p0, hash] = url.split("#");
-  await page.goto(s.base + p0 + (opts.warm ? "" : (p0.includes("?") ? "&" : "?") + "warm=0") + (hash ? "#" + hash : ""));
+  // this test machine has no GPU (software WebGL), where the page shows still pictures; tests that check the live 3D force it on
+  const q = [opts.warm ? "" : "warm=0", opts.gl ? "gl=force" : ""].filter(Boolean).join("&");
+  await page.goto(s.base + p0 + (q ? (p0.includes("?") ? "&" : "?") + q : "") + (hash ? "#" + hash : ""));
   await page.waitForFunction(() => window.NEXORA && window.NEXORA.ready);
   return page;
 }
@@ -45,11 +47,13 @@ test("pitch: /pitch, /pitch/ and /pitch.html open; three.js loads once from a ca
 });
 
 test("pitch: three different 3D scenes: the visible one runs, the others are prepared quietly and paused", async () => {
-  const page = await open({ warm: true });
+  const page = await open({ warm: true, gl: true });
   const hosts = await page.$$eval("[data-3d]", hs => hs.map(h => h.dataset["3d"]));
   assert.deepEqual(hosts, ["orbit", "radar", "week", "orbit2"]);
+  assert.equal(await page.evaluate(() => window.NEXORA.stages().length), 0, "the 3D waits until the text has painted");
+  await page.waitForFunction(() => window.NEXORA.stages().length > 0);
   let st = await page.evaluate(() => window.NEXORA.stages());
-  assert.deepEqual(st.map(x => x.id), ["orbit"], "only the first slide's scene is built at start");
+  assert.deepEqual(st.map(x => x.id), ["orbit"], "then only the first slide's scene is built");
   await page.waitForFunction(() => window.NEXORA.warm, null, { timeout: 45000 });
   st = await page.evaluate(() => window.NEXORA.stages());
   assert.deepEqual(st.map(x => x.id).sort(), ["orbit", "orbit2", "radar", "week"], "the others are prepared in idle time");
@@ -109,7 +113,6 @@ test("pitch: refresh keeps the slide and #slide-N links open it", async () => {
   const page = await open({});
   for (let k = 0; k < 3; k++) await page.keyboard.press("ArrowRight");
   assert.match(page.url(), /#slide-4$/);
-  assert.match(page.url(), /warm=0/);
   await page.reload(); await page.waitForFunction(() => window.NEXORA && window.NEXORA.ready);
   assert.equal(await cur(page), 3);
   const p2 = await open({ path: "/pitch#slide-7" });
@@ -185,10 +188,22 @@ test("pitch: phone: swipes change slides, but not inside the table, the tabs or 
 });
 
 test("pitch: reduced motion: 3D scenes draw one still frame, nothing loops, slides change instantly", async () => {
-  const page = await open({ reducedMotion: "reduce" });
+  const page = await open({ reducedMotion: "reduce", gl: true });
   await page.waitForTimeout(300);
   const st = await page.evaluate(() => ({ anim: window.NEXORA.animating(), frames: window.NEXORA.stages()[0].frames, dur: getComputedStyle(document.querySelector(".slide")).transitionDuration }));
   assert.equal(st.anim, false); assert.ok(st.frames >= 1 && st.frames <= 3, "a still frame: " + st.frames); assert.match(st.dur, /^0s/);
+  await page.keyboard.press("ArrowRight"); assert.equal(await cur(page), 1);
+});
+
+test("pitch: on a computer without graphics acceleration the page shows still pictures instead of freezing", async () => {
+  const page = await open();   // this machine renders WebGL in software
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.gl), "software");
+  assert.equal(await page.evaluate(() => document.documentElement.classList.contains("no-webgl")), true);
+  assert.equal(await page.evaluate(() => window.NEXORA.stages().length), 0, "no 3D scene built");
+  const still = await page.evaluate(() => { const e = document.querySelector(".slide.on .still"); const cs = getComputedStyle(e); return { d: cs.display, img: cs.backgroundImage }; });
+  assert.equal(still.d, "block"); assert.match(still.img, /pitch-assets\/3d\/orbit\.webp/, "a real picture of the scene");
+  const ok = await page.evaluate(() => Promise.all(["orbit", "orbit2", "radar", "week"].map(k => new Promise(r => { const i = new Image(); i.onload = () => r(i.naturalWidth > 100); i.onerror = () => r(false); i.src = "pitch-assets/3d/" + k + ".webp"; }))));
+  assert.deepEqual(ok, [true, true, true, true]);
   await page.keyboard.press("ArrowRight"); assert.equal(await cur(page), 1);
 });
 

@@ -53,6 +53,8 @@ function hero3dHTML(){
     <div class="float-card fc-todo" style="--z:85px;--d:-1s"><div class="fc-line done"><i>${IC.check}</i>Read chapter 4</div><div class="fc-line done"><i>${IC.check}</i>Outline slides</div><div class="fc-line"><i></i>Practice talk</div></div>
   </div></div>`;
 }
+// 3D type (shared with the pitch): each word becomes a span that flips up; [word] gets the amber accent
+function words3d(t){ let w = 0; return t.split(" ").map(x => { const hi = /^\[.*\]/.test(x); const txt = x.replace(/[\[\]]/g, ""); return `<span class="w3d${hi ? " grad" : ""}" style="--w:${w++}">${esc(txt)}</span>`; }).join(" "); }
 function showAuth(note){
   $("#app").hidden = true; const o = $("#onb"); o.hidden = false; o.classList.add("auth");
   const login = ACCOUNT.mode === "login";
@@ -60,7 +62,7 @@ function showAuth(note){
   o.innerHTML = `<div class="auth-wrap">
   <section class="landing">
     <div class="brandline">${logoSVG(30)} <span>Deadline Tracker</span></div>
-    <h1>Never miss a <span class="grad">deadline</span> again.</h1>
+    <h1>${words3d("Never miss a [deadline] again.")}</h1>
     <p class="lead">Tell it about your work. It builds your to-do list, shows what's at risk, and reminds you before things are due.</p>
     ${hero3dHTML()}
   </section>

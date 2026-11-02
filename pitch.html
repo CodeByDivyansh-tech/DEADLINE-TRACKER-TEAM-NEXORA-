@@ -132,7 +132,10 @@ h2.headline .w3d:hover{transform:translateY(-2px) rotateX(10deg)}
 /* 3D canvases */
 .stage3d{position:relative;width:100%;aspect-ratio:1/1;max-height:min(66vh,620px);margin:0 auto}
 .stage3d canvas{position:absolute;inset:0;width:100%!important;height:100%!important;display:block}
-.stage3d .still{position:absolute;inset:8%;border-radius:50%;display:none;background:radial-gradient(circle at 50% 50%,transparent 52%,rgba(115,131,255,.6) 53%,rgba(115,131,255,.6) 57%,transparent 58%),conic-gradient(from 0deg,var(--indigo) 0 72%,transparent 72%);-webkit-mask:radial-gradient(circle,transparent 50%,#000 51%,#000 58%,transparent 59%);mask:radial-gradient(circle,transparent 50%,#000 51%,#000 58%,transparent 59%)}
+.stage3d .still{position:absolute;inset:0;display:none;background:center/contain no-repeat;-webkit-mask:radial-gradient(closest-side,#000 72%,transparent);mask:radial-gradient(closest-side,#000 72%,transparent)}
+/* still pictures of each scene (rendered from the live 3D) for reduced-power machines without graphics acceleration */
+[data-3d=orbit] .still{background-image:url(pitch-assets/3d/orbit.webp)} [data-3d=orbit2] .still{background-image:url(pitch-assets/3d/orbit2.webp)}
+[data-3d=radar] .still{background-image:url(pitch-assets/3d/radar.webp)} [data-3d=week] .still{background-image:url(pitch-assets/3d/week.webp)}
 html.no-webgl .stage3d .still{display:block}
 .stage3d .tag{position:absolute;font:600 11px var(--mono);letter-spacing:.08em;color:var(--text-3);transform:translate(-50%,0);white-space:nowrap;pointer-events:none}
 
@@ -706,7 +709,13 @@ const PAL = { indigo: 0x7383ff, deep: 0x3349d9, teal: 0x2dd4bf, amber: 0xfbbf4c,
 let webgl = null;
 function hasWebGL() {
   if (webgl !== null) return webgl;
-  try { const c = document.createElement('canvas'); webgl = !!(window.THREE && (c.getContext('webgl2') || c.getContext('webgl'))); } catch (e) { webgl = false; }
+  try {
+    const c = document.createElement('canvas'), gl = window.THREE && (c.getContext('webgl2') || c.getContext('webgl'));
+    webgl = !!gl;
+    // no graphics acceleration (software renderer): live 3D would freeze the page for seconds, so show the still pictures
+    if (gl && !/[?&]gl=force/.test(location.search)) { const ext = gl.getExtension('WEBGL_debug_renderer_info'); const name = ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : '';
+      if (/swiftshader|llvmpipe|softpipe|software|microsoft basic render/i.test(name)) { webgl = false; document.documentElement.dataset.gl = 'software'; } }
+  } catch (e) { webgl = false; }
   if (!webgl) document.documentElement.classList.add('no-webgl');
   return webgl;
 }
@@ -980,7 +989,9 @@ function go(i, opts = {}) {
   document.title = 'NEXORA · ' + s.dataset.title;
   if (location.hash !== '#slide-' + (i + 1)) history.replaceState(null, '', '#slide-' + (i + 1));
   notes(i);
-  const st = stageFor(s); if (st) { st.t0 = performance.now(); st.lastT = 0; st.start(); }
+  // build the 3D scene after the slide's text has painted, so the page is usable at once
+  const run = () => { if (cur !== i) return; const st = stageFor(s); if (st) { st.t0 = performance.now(); st.lastT = 0; st.start(); } };
+  if (opts.defer3d) requestAnimationFrame(() => setTimeout(run, 30)); else run();
 }
 const next = () => go(cur + 1), prev = () => go(cur - 1);
 const fromHash = () => { const m = location.hash.match(/^#slide-(\d+)$/); return m ? +m[1] - 1 : 0; };
@@ -1062,7 +1073,7 @@ function boot() {
   $('#notesBtn').addEventListener('click', () => toggleNotes());
   $('#fullscreenBtn').addEventListener('click', fullscreen);
   hasWebGL();
-  go(Math.max(0, Math.min(slides().length - 1, fromHash())), { force: true });
+  go(Math.max(0, Math.min(slides().length - 1, fromHash())), { force: true, defer3d: true });
   addEventListener('hashchange', () => go(fromHash()));
   window.NEXORA.ready = true;
   (window.requestIdleCallback || setTimeout)(() => SHOWCASE_DATA.forEach(d => { const i = new Image(); i.decoding = 'async'; i.src = d.img; }), { timeout: 3000 });
