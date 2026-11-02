@@ -19,8 +19,9 @@ function isForToday(i, t){
   return !isDone(i) || (!!i.doneAt && ymd(i.doneAt) === t);
 }
 function todayTodos(w, now){ const t = todayKey(now); return myTasks(w).filter(i => isForToday(i, t)); }
+// counts exactly what the Today list shows, including unfinished work carried over from earlier days
 function todayProgress(w, now){
-  const t = todayKey(now); const list = myTasks(w).filter(i => dayOf(i) === t || dueDay(i) === t);
+  const list = todayTodos(w, now);
   return { done: list.filter(isDone).length, total: list.length };
 }
 const timeOf = it => it.time || (it.due && !it.plan ? it.due.slice(11, 16) : "");

@@ -66,7 +66,7 @@ test("A1 old data: deadline views, radar and Today all use the merged model", as
   assert.ok(today.includes("Fee payment"), "a deadline due today is on today's list");
   assert.ok(today.includes("Physics viva"), "unfinished from yesterday is carried over");
   assert.ok(!today.includes("Old DBMS assignment"), "due Monday, not today");
-  assert.match(await page.textContent("#todoProgress"), /0 of 2 done/);
+  assert.match(await page.textContent("#todoProgress"), new RegExp(`^0 of ${today.length} done`), "the count matches the list, carried-over work included");
 });
 
 test("A1 old data: the very first format (v1) is still brought over", async () => {

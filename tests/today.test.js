@@ -29,9 +29,9 @@ test("A4: today's tasks show progress, and the count matches the list", async ()
   const rows = await page.locator("#todayCard .todo").count();
   const open_ = await page.locator("#todayCard .todo:not(.done)").count();
   assert.ok(rows >= 2);
-  assert.match(await page.textContent("#todayCard"), /0 of 2 done/);
+  assert.match(await page.textContent("#todoProgress"), new RegExp(`^0 of ${rows} done`));
   await page.locator("#todayCard .todo", { hasText: "Call teammate" }).locator(".tcheck").click();
-  assert.match(await page.textContent("#todayCard"), /1 of 2 done/);
+  assert.match(await page.textContent("#todoProgress"), new RegExp(`^1 of ${rows} done`));
   assert.equal(await page.locator("#todayCard .todo:not(.done)").count(), open_ - 1);
 });
 
@@ -80,4 +80,33 @@ test("A4 (company): a manager's Home is the same calm Today view", async () => {
   assert.equal(await page.locator("#todayCard").count(), 1);
   assert.equal(await page.locator("#nextDl").count(), 1);
   for (const sel of [".stat", ".radar", ".proj", ".wl-row", ".feed"]) assert.equal(await page.locator(`#viewInner ${sel}`).count(), 0, `${sel} is not on Home`);
+});
+
+test("Home: a slim row of real numbers in the greeting panel (due this week, at risk, overdue, done in 7 days)", async () => {
+  await open();
+  const shown = await page.$$eval(".hero .wk-stats .wk", xs => xs.map(x => ({ n: Number(x.querySelector("b").textContent), l: x.querySelector("span").textContent.trim(), route: x.getAttribute("data-route") })));
+  assert.deepEqual(shown.map(x => x.l), ["Due this week", "At risk", "Overdue", "Done in 7 days"]);
+  const expect = await page.evaluate(() => {
+    const T = window.__DT_TEST__, w = T.W(), now = Date.now(), R = T.radar(w, now);
+    const open = w.items.filter(i => i.status !== "done" && i.due);
+    return [open.filter(i => { const t = new Date(i.due).getTime(); return t >= now && t < now + 7 * 864e5; }).length,
+      open.filter(i => ["risk", "critical"].includes(T.levelOf(R, i))).length,
+      open.filter(i => new Date(i.due).getTime() < now).length,
+      w.items.filter(i => i.status === "done" && i.doneAt && now - new Date(i.doneAt).getTime() <= 7 * 864e5).length];
+  });
+  assert.deepEqual(shown.map(x => x.n), expect);
+  assert.ok(expect[0] > 0 && expect[2] > 0, "sample data gives non-zero numbers");
+  assert.ok(shown.every(x => x.route === "deadlines"), "each number opens the deadline list");
+  assert.ok((await page.locator("#viewInner > *").count()) <= 4, "still a calm Home: no extra blocks");
+  await page.click(".hero .wk-stats .wk >> nth=2");
+  await page.waitForFunction(() => location.hash === "#deadlines");
+});
+
+test("manager Home: the 'needs your attention' bar looks like a card and the Add box example text isn't cut off", async () => {
+  await open({ mode: "company" });
+  await page.setViewportSize({ width: 1440, height: 900 }); await page.waitForTimeout(100);
+  const bar = await page.$eval("#attnLine", e => { const c = getComputedStyle(e); return { pad: parseFloat(c.paddingLeft), border: c.borderTopWidth, bg: c.backgroundColor, h: e.getBoundingClientRect().height }; });
+  assert.ok(bar.pad >= 12, `padding ${bar.pad}`); assert.notEqual(bar.border, "0px"); assert.notEqual(bar.bg, "rgba(0, 0, 0, 0)"); assert.ok(bar.h >= 44, `height ${bar.h}`);
+  const m = await page.$eval("#addText", e => ({ sh: e.scrollHeight, ch: e.clientHeight }));
+  assert.ok(m.sh <= m.ch + 1, `placeholder fits: ${m.sh} vs ${m.ch}`);
 });

@@ -40,12 +40,31 @@ function signedOut(){
   ACCOUNT.user = null; clearInterval(ACCOUNT.poll); showAuth("You were signed out. Please log in again.");
 }
 
-/* ---------- sign up / log in screen ---------- */
+/* ---------- welcome page: sign up / log in ---------- */
+const EYE = svg('<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>');
+const EYE_OFF = svg('<path d="M3 3l18 18"/><path d="M10.6 6.1A10.6 10.6 0 0 1 12 6c6.4 0 10 6 10 6a17 17 0 0 1-3.2 3.9M6.5 7.6A16.7 16.7 0 0 0 2 12s3.6 7 10 7a9.8 9.8 0 0 0 4.4-1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>');
+// Decorative 3D scene. The sample cards are illustrations, clearly not the visitor's data.
+function hero3dHTML(){
+  return `<div class="hero3d" aria-hidden="true"><div class="scene">
+    <div class="glow"></div>
+    <div class="float-card fc-task" style="--z:60px;--d:0s"><span class="fc-dot" style="--c:#ff8a5c"></span><div><b>Lab report</b><small>Due Friday · 5:00 PM</small></div><span class="fc-chip risk">At risk</span></div>
+    <div class="float-card fc-ring" style="--z:110px;--d:-2s"><svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="18" class="trk"/><circle cx="22" cy="22" r="18" class="val" style="stroke-dasharray:113;stroke-dashoffset:36"/></svg><div><b>68%</b><small>This week</small></div></div>
+    <div class="float-card fc-rem" style="--z:30px;--d:-4s">${IC.bell}<div><b>Reminder</b><small>Essay draft · in 1 hour</small></div></div>
+    <div class="float-card fc-todo" style="--z:85px;--d:-1s"><div class="fc-line done"><i>${IC.check}</i>Read chapter 4</div><div class="fc-line done"><i>${IC.check}</i>Outline slides</div><div class="fc-line"><i></i>Practice talk</div></div>
+  </div></div>`;
+}
 function showAuth(note){
   $("#app").hidden = true; const o = $("#onb"); o.hidden = false; o.classList.add("auth");
   const login = ACCOUNT.mode === "login";
-  o.innerHTML = `<div class="onb-card auth-card" role="main">
-    <div class="brandline">${logoSVG(26)} Deadline Tracker</div>
+  const keep = $("#au-email") ? $("#au-email").value : "";
+  o.innerHTML = `<div class="auth-wrap">
+  <section class="landing">
+    <div class="brandline">${logoSVG(30)} <span>Deadline Tracker</span></div>
+    <h1>Never miss a <span class="grad">deadline</span> again.</h1>
+    <p class="lead">Tell it about your work. It builds your to-do list, shows what's at risk, and reminds you before things are due.</p>
+    ${hero3dHTML()}
+  </section>
+  <div class="onb-card auth-card" role="main">
     <h1>${login ? "Welcome back." : "Create your account."}</h1>
     <p class="lead">${login ? "Log in to see your tasks and deadlines." : "Your tasks are saved to your account, so you can log in from any browser. Only you can see them."}</p>
     <div class="auth-tabs" role="tablist" aria-label="Log in or create an account">
@@ -54,28 +73,84 @@ function showAuth(note){
     </div>
     <form id="authForm" class="auth-form" novalidate>
       ${login ? "" : `<div class="field"><label for="au-name">Your name</label><input type="text" id="au-name" autocomplete="name" maxlength="80" required></div>`}
-      <div class="field"><label for="au-email">Email</label><input type="email" id="au-email" autocomplete="email" maxlength="200" required></div>
-      <div class="field"><label for="au-pass">Password</label><input type="password" id="au-pass" autocomplete="${login ? "current-password" : "new-password"}" minlength="8" maxlength="200" required>
-        ${login ? "" : `<span class="hint">At least 8 characters.</span>`}</div>
+      <div class="field"><label for="au-email">Email</label><input type="email" id="au-email" autocomplete="email" inputmode="email" maxlength="200" required value="${esc(keep)}"></div>
+      <div class="field"><label for="au-pass">Password</label>
+        <div class="pw-wrap"><input type="password" id="au-pass" autocomplete="${login ? "current-password" : "new-password"}" minlength="8" maxlength="200" required ${login ? "" : `aria-describedby="au-pass-hint"`}>
+        <button type="button" class="pw-eye" id="au-pass-toggle" data-act="pwtoggle" aria-controls="au-pass" aria-pressed="false" aria-label="Show password">${EYE}</button></div>
+        ${login ? "" : `<span class="hint" id="au-pass-hint">At least 8 characters.</span>`}</div>
       <p class="auth-err" id="authErr" role="alert" ${note ? "" : "hidden"}>${esc(note || "")}</p>
       <button class="btn primary" type="submit" id="authGo">${login ? "Log in" : "Create account"}</button>
     </form>
     <p class="auth-foot">${IC.info}<span>Passwords are stored securely as a hash. The AI key stays on the server.</span></p>
-  </div>`;
-  const f = $(login ? "#au-email" : "#au-name"); if (f) f.focus();
+  </div>
+  <ul class="features">
+    <li><span class="fi" style="--c:#7d93ff">${IC.spark}</span><div><b>Type it the way you'd say it</b><span>"Essay due Fri 5pm" becomes a task with its date.</span></div></li>
+    <li><span class="fi" style="--c:#ff8a5c">${IC.alert}</span><div><b>See what's at risk</b><span>It checks whether the work fits before each deadline.</span></div></li>
+    <li><span class="fi" style="--c:#3ecf8e">${IC.bell}</span><div><b>Reminders that arrive</b><span>Even when the app is closed, from your account.</span></div></li>
+  </ul>
+</div>`;
+  const f = !login ? $("#au-name") : keep ? $("#au-pass") : $("#au-email"); if (f) f.focus();
+  heroTilt();
+}
+// A gentle tilt of the 3D scene that follows the pointer (off with reduced motion and on touch screens).
+function heroTilt(){
+  const sc = $(".hero3d .scene"), wrap = $(".auth-wrap");
+  if (!sc || !wrap || matchMedia("(prefers-reduced-motion: reduce)").matches || !matchMedia("(hover: hover)").matches) return;
+  let raf = 0;
+  wrap.addEventListener("pointermove", e => {
+    if (raf) return;
+    raf = requestAnimationFrame(() => { raf = 0;
+      const x = e.clientX / innerWidth - .5, y = e.clientY / innerHeight - .5;
+      sc.style.setProperty("--ry", (-16 + x * 10).toFixed(2) + "deg"); sc.style.setProperty("--rx", (12 - y * 8).toFixed(2) + "deg"); });
+  });
+}
+function togglePw(btn){
+  const inp = $("#" + btn.getAttribute("aria-controls")); if (!inp) return;
+  const show = inp.type === "password"; inp.type = show ? "text" : "password";
+  btn.setAttribute("aria-pressed", String(show)); btn.setAttribute("aria-label", show ? "Hide password" : "Show password");
+  btn.innerHTML = show ? EYE_OFF : EYE; inp.focus();
+}
+const EMAIL_OK = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function authFail(msg, field){
+  const err = $("#authErr"); err.textContent = msg; err.hidden = false;
+  ["#au-name", "#au-email", "#au-pass"].forEach(id => { const el = $(id); if (el) { el.removeAttribute("aria-invalid"); if (el.getAttribute("aria-errormessage")) el.removeAttribute("aria-errormessage"); } });
+  const el = field && $(field); if (el) { el.setAttribute("aria-invalid", "true"); el.setAttribute("aria-errormessage", "authErr"); el.focus(); }
 }
 async function submitAuth(){
   const login = ACCOUNT.mode === "login";
-  const body = { email: $("#au-email").value, password: $("#au-pass").value, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone };
-  if (!login) body.name = $("#au-name").value;
+  const name = login ? "" : $("#au-name").value.trim(), email = $("#au-email").value.trim(), password = $("#au-pass").value;
+  // checks before sending (the server checks again)
+  if (!login && !name) return authFail("Please enter your name.", "#au-name");
+  if (!email) return authFail("Please enter your email.", "#au-email");
+  if (!EMAIL_OK.test(email)) return authFail("Please enter a valid email address, like name@example.com.", "#au-email");
+  if (!password) return authFail("Please enter your password.", "#au-pass");
+  if (!login && password.length < 8) return authFail("Use at least 8 characters for your password.", "#au-pass");
+  const body = { email, password, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone };
+  if (!login) body.name = name;
   const err = $("#authErr"), go = $("#authGo");
-  go.disabled = true; err.hidden = true;
+  go.disabled = true; go.classList.add("busy"); err.hidden = true;
   let r;
   try { r = await apiJSON("POST", login ? "/api/auth/login" : "/api/auth/signup", body); }
-  catch (e) { r = { ok: false, json: { error: "Couldn't reach the server. Is it still running?" } }; }
-  go.disabled = false;
-  if (!r.ok) { err.textContent = r.json.error || "Something went wrong. Try again."; err.hidden = false; const bad = { name: "#au-name", email: "#au-email", password: "#au-pass" }[r.json.code]; if (bad && $(bad)) $(bad).focus(); return; }
+  catch (e) { r = { ok: false, json: { error: "Couldn't reach the server. Check your connection and try again." } }; }
+  go.disabled = false; go.classList.remove("busy");
+  if (!r.ok) {
+    const code = r.json.code, field = { name: "#au-name", email: "#au-email", exists: "#au-email", password: "#au-pass", wrong: "#au-pass" }[r.json.field || code] || (code === "wrong" ? "#au-pass" : null);
+    if (code === "wrong") $("#au-pass").value = "";
+    return authFail(r.json.error || "Something went wrong. Try again.", field);
+  }
   location.reload();
+}
+async function changePassword(){
+  const cur = $("#pw-cur").value, next = $("#pw-new").value, err = $("#pwErr"), go = $("#pwSave");
+  const fail = (m, f) => { err.textContent = m; err.hidden = false; ["#pw-cur", "#pw-new"].forEach(x => $(x).removeAttribute("aria-invalid")); if (f) { $(f).setAttribute("aria-invalid", "true"); $(f).focus(); } };
+  if (!cur) return fail("Please enter your current password.", "#pw-cur");
+  if (next.length < 8) return fail("Use at least 8 characters for the new password.", "#pw-new");
+  if (next === cur) return fail("The new password is the same as the current one.", "#pw-new");
+  go.disabled = true; err.hidden = true;
+  let r; try { r = await apiJSON("POST", "/api/profile/password", { currentPassword: cur, newPassword: next }); } catch (e) { r = { ok: false, json: { error: "Couldn't reach the server. Try again." } }; }
+  go.disabled = false;
+  if (!r.ok) return fail(r.json.error || "Couldn't change the password.", r.json.field === "currentPassword" ? "#pw-cur" : r.json.field === "newPassword" ? "#pw-new" : null);
+  UI.pwOpen = false; render(); toast("Password changed. Other devices were signed out.");
 }
 async function logout(){
   // send any change that's still waiting to be saved before the session ends

@@ -591,21 +591,108 @@ button.risk:hover{background:color-mix(in srgb,var(--rc) 22%,transparent)}
 .m-brand{display:none}
 .onb .brandline{font-weight:600}
 @media (max-width:860px){.m-brand{display:flex;align-items:center;margin-right:10px}}
-/* sign up / log in */
-.auth-card{width:min(460px,100%);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:22px;padding:30px;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 30px 80px rgba(0,0,0,.35)}
-.auth-card h1{font-size:clamp(26px,4vw,34px)}
-.auth-card p.lead{font-size:15px}
-.auth-tabs{display:grid;grid-template-columns:1fr 1fr;background:rgba(255,255,255,.07);border-radius:12px;padding:4px;gap:4px}
-.auth-tabs button{border:0;background:transparent;color:#c9cfe6;border-radius:9px;padding:9px;font-weight:600}
-.auth-tabs button[aria-selected="true"]{background:#fff;color:#11162a}
+/* ---------- welcome page: landing + sign up / log in ---------- */
+.onb.auth{place-items:start center;padding:clamp(18px,4vw,48px)}
+.onb.auth::after{content:"";position:fixed;inset:0;pointer-events:none;background:radial-gradient(600px 400px at 70% 40%,rgba(125,147,255,.16),transparent 70%);z-index:0}
+.auth-wrap{position:relative;z-index:1;width:min(1180px,100%);display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,460px);grid-template-areas:"landing card" "features card";column-gap:clamp(28px,5vw,72px);row-gap:20px;align-items:start;margin:auto 0}
+.landing{grid-area:landing;display:grid;gap:16px;align-content:start;padding-top:8px;min-width:0}
+.landing .brandline{font-size:15px;color:#dfe4fb;font-weight:700;font-family:var(--font-display)}
+.landing h1{font-size:clamp(34px,5.4vw,62px);line-height:1.02;letter-spacing:-.025em;margin:0;max-width:13ch}
+.landing h1 .grad{background:linear-gradient(100deg,#9fb0ff 0%,#c79bff 50%,#ff9ec4 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.landing p.lead{font-size:clamp(15px,1.5vw,18px);color:#c3cae4;max-width:44ch;margin:0}
+.features{grid-area:features;list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;min-width:0}
+.features li{display:flex;gap:10px;align-items:flex-start;padding:14px;border-radius:16px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.1);transition:transform .2s,background .2s,border-color .2s}
+.features li:hover{transform:translateY(-2px);background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.2)}
+.features .fi{flex:none;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:color-mix(in srgb,var(--c) 22%,transparent);color:var(--c);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--c) 40%,transparent)}
+.features .fi svg{width:18px;height:18px}
+.features b{display:block;font-size:14px;color:#fff;margin-bottom:2px}
+.features span{font-size:12.5px;color:#b3bbd8;line-height:1.4}
+/* 3D scene */
+.hero3d{position:relative;height:clamp(270px,30vw,340px);perspective:1100px;margin-top:28px}
+.hero3d .scene{--rx:12deg;--ry:-16deg;position:absolute;inset:0;transform-style:preserve-3d;transform:rotateX(var(--rx)) rotateY(var(--ry));transition:transform .6s cubic-bezier(.2,.7,.2,1)}
+.hero3d .glow{position:absolute;left:18%;top:12%;width:62%;height:76%;border-radius:50%;background:radial-gradient(circle,rgba(125,147,255,.55),rgba(199,155,255,.18) 45%,transparent 70%);filter:blur(30px);transform:translateZ(-80px)}
+.float-card{position:absolute;display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:18px;color:#eef1fb;
+  background:linear-gradient(145deg,rgba(255,255,255,.16),rgba(255,255,255,.05));border:1px solid rgba(255,255,255,.22);
+  box-shadow:0 24px 50px rgba(5,8,30,.45),inset 0 1px 0 rgba(255,255,255,.25);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  transform:translate3d(0,0,var(--z));animation:dtFloat 7s ease-in-out var(--d) infinite;will-change:transform}
+@keyframes dtFloat{0%,100%{transform:translate3d(0,0,var(--z))}50%{transform:translate3d(0,-12px,var(--z))}}
+.float-card b{display:block;font-size:14px}
+.float-card small{display:block;font-size:12px;color:#c3cae4}
+.fc-task{left:4%;top:4%;width:min(300px,64%)}
+.fc-dot{width:10px;height:10px;border-radius:50%;background:var(--c);box-shadow:0 0 12px var(--c);flex:none}
+.fc-chip{margin-left:auto;font-size:11px;font-weight:700;padding:4px 8px;border-radius:999px}
+.fc-chip.risk{background:rgba(255,138,92,.2);color:#ffc3a8;border:1px solid rgba(255,138,92,.45)}
+.fc-ring{right:8%;top:16%}
+.fc-ring svg{width:44px;height:44px;transform:rotate(-90deg)}
+.fc-ring circle{fill:none;stroke-width:5}
+.fc-ring .trk{stroke:rgba(255,255,255,.15)}
+.fc-ring .val{stroke:#9fb0ff;stroke-linecap:round}
+.fc-ring b{font-size:20px;font-family:var(--font-display)}
+.fc-rem{left:14%;bottom:6%}
+.fc-rem > svg{width:22px;height:22px;color:#ffd27a;flex:none}
+.fc-todo{right:2%;bottom:16%;display:grid;gap:7px;min-width:190px}
+.fc-line{display:flex;align-items:center;gap:8px;font-size:13px}
+.fc-line i{width:18px;height:18px;border-radius:6px;border:1.5px solid rgba(255,255,255,.4);display:grid;place-items:center;flex:none}
+.fc-line.done{color:#b3bbd8;text-decoration:line-through}
+.fc-line.done i{background:#3ecf8e;border-color:#3ecf8e;color:#0d1330}
+.fc-line i svg{width:12px;height:12px;stroke-width:3}
+/* glass panel */
+.auth-card{grid-area:card;width:100%;position:relative;align-self:start;margin-top:clamp(0px,4vw,40px);
+  background:linear-gradient(160deg,rgba(255,255,255,.12),rgba(255,255,255,.04));border:1px solid rgba(255,255,255,.18);border-radius:24px;padding:clamp(22px,3vw,34px);
+  backdrop-filter:blur(22px) saturate(140%);-webkit-backdrop-filter:blur(22px) saturate(140%);box-shadow:0 40px 90px rgba(3,6,25,.5),inset 0 1px 0 rgba(255,255,255,.22);animation:fadeUp .35s ease both}
+.auth-card::before{content:"";position:absolute;inset:-1px;border-radius:inherit;padding:1px;background:linear-gradient(140deg,rgba(159,176,255,.7),transparent 40%,transparent 60%,rgba(255,158,196,.5));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+.onb .auth-card h1{font-size:clamp(24px,3vw,32px);margin:0}
+.auth-card p.lead{font-size:15px;margin:0}
+.auth-tabs{display:grid;grid-template-columns:1fr 1fr;background:rgba(5,8,30,.35);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:4px;gap:4px}
+.auth-tabs button{border:0;background:transparent;color:#c9cfe6;border-radius:10px;padding:10px;font-weight:600;min-height:42px;transition:background .2s,color .2s}
+.auth-tabs button:hover{color:#fff}
+.auth-tabs button[aria-selected="true"]{background:#fff;color:#11162a;box-shadow:0 4px 14px rgba(0,0,0,.25)}
 .auth-form{display:grid;gap:14px}
-.onb input[type=email],.onb input[type=password]{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);color:#fff;font-size:16px;padding:12px 14px;width:100%;border-radius:12px}
+.auth-form label{color:#dfe4fb;font-weight:600;font-size:13.5px}
+.onb input[type=email],.onb input[type=password],.onb .auth-form input[type=text]{background:rgba(5,8,30,.35);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:16px;padding:12px 14px;width:100%;border-radius:12px;min-height:46px;transition:border-color .2s,box-shadow .2s}
+.onb .auth-form input:hover{border-color:rgba(255,255,255,.34)}
+.onb .auth-form input:focus-visible{outline:none;border-color:#9fb0ff;box-shadow:0 0 0 3px rgba(159,176,255,.35)}
+.onb .auth-form input[aria-invalid="true"]{border-color:#ff8fa3;box-shadow:0 0 0 3px rgba(255,120,140,.25)}
 .onb input:focus-visible{outline:2px solid #9fb0ff;outline-offset:1px}
-.auth-form .hint{font-size:12.5px;color:#aab3d0}
-.auth-form .btn.primary{width:100%;padding:12px}
-.auth-err{margin:0;background:rgba(255,92,120,.14);border:1px solid rgba(255,120,140,.4);color:#ffd6dd;border-radius:10px;padding:9px 12px;font-size:14px}
-.auth-foot{display:flex;gap:8px;align-items:flex-start;color:#aab3d0;font-size:12.5px;margin:0}
+.pw-wrap{position:relative}
+.pw-wrap input{padding-right:52px !important}
+.pw-eye{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:44px;height:40px;border:0;border-radius:10px;background:transparent;color:#c3cae4;display:grid;place-items:center;cursor:pointer}
+.pw-eye:hover{color:#fff;background:rgba(255,255,255,.08)}
+.pw-eye:focus-visible{outline:2px solid #9fb0ff}
+.pw-eye svg{width:20px;height:20px}
+.auth-form .hint{font-size:12.5px;color:#b3bbd8}
+.onb .auth-form .btn.primary{width:100%;padding:13px;min-height:48px;font-size:15.5px;border:0;color:#fff;background:linear-gradient(100deg,#4453e8,#7a4cf0);box-shadow:0 12px 30px rgba(91,108,255,.4);transition:transform .15s,box-shadow .2s,filter .2s}
+.onb .auth-form .btn.primary:hover{transform:translateY(-1px);box-shadow:0 16px 36px rgba(91,108,255,.5);filter:brightness(1.06)}
+.auth-form .btn.primary:active{transform:translateY(0)}
+.auth-form .btn.primary.busy{opacity:.75;cursor:progress}
+.auth-err{margin:0;background:rgba(255,92,120,.14);border:1px solid rgba(255,120,140,.45);color:#ffd6dd;border-radius:10px;padding:9px 12px;font-size:14px;animation:fadeUp .2s ease both}
+.auth-foot{display:flex;gap:8px;align-items:flex-start;color:#b3bbd8;font-size:12.5px;margin:0}
 .auth-foot svg{width:15px;height:15px;flex:none;margin-top:1px}
+#waking.auth-card{width:min(460px,100%);margin:auto}
+@media (max-width:980px){
+  .auth-wrap{grid-template-columns:minmax(0,1fr);grid-template-areas:"landing" "card" "features";max-width:560px}
+  .auth-card{margin-top:0}
+  .landing h1{max-width:none}
+  .hero3d{display:none}
+  .features{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:520px){
+  .landing{gap:10px}
+  .landing h1{font-size:32px}
+  .landing p.lead{font-size:15px}
+}
+@media (prefers-reduced-motion: reduce){
+  .float-card{animation:none}
+  .hero3d .scene{transition:none}
+  .auth-card,.auth-err{animation:none}
+  .features li,.auth-form .btn.primary{transition:none}
+}
+.pw-box{display:grid;gap:12px;margin-top:12px;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--surface-2)}
+.pw-box h4{margin:0;font-size:15px}
+.pw-box .pw-eye{color:var(--muted)}
+.pw-box .pw-eye:hover{color:var(--ink);background:var(--surface)}
+.pw-box .hint{font-size:12.5px;color:var(--muted)}
+.pw-box .auth-err{background:color-mix(in srgb,var(--crit,#e5484d) 10%,transparent);border-color:color-mix(in srgb,var(--crit,#e5484d) 45%,transparent);color:var(--ink)}
 .linkish{border:0;background:none;padding:0;color:inherit;text-decoration:underline;font:inherit;cursor:pointer}
 .acct-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2)}
 .acct-row > span{flex:1;min-width:200px;font-size:14px}
@@ -670,6 +757,12 @@ body::before{content:"";position:fixed;inset:-10%;z-index:-1;pointer-events:none
 .item:hover{background:var(--surface-2)}
 .hello .today{font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:4px}
 .heads-sum{display:flex;align-items:center;gap:10px;width:100%;border:0;background:transparent;padding:0;text-align:left;font-weight:600;font-size:14.5px;color:var(--ink)}
+.card.attn-line{padding:14px 18px;min-height:52px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);cursor:pointer;transition:border-color .2s,box-shadow .2s,transform .2s}
+.card.attn-line:hover{border-color:color-mix(in srgb,var(--risk) 45%,var(--line));transform:translateY(-1px)}
+.card.attn-line:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.attn-line .warn{color:var(--risk)}
+.attn-line .chev{margin-left:auto;display:grid;place-items:center}
+.attn-line .chev svg{width:18px;height:18px}
 .heads-sum svg{width:18px;height:18px;flex:none}
 .heads-sum .warn{color:var(--risk)}
 .heads-sum .chev{margin-left:auto;color:var(--muted);transition:transform .2s}
@@ -717,6 +810,28 @@ body::before{content:"";position:fixed;inset:-10%;z-index:-1;pointer-events:none
   -webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--glass-edge);box-shadow:var(--glass-shadow),inset 0 1px 0 var(--glass-line)}
 .hero::after{content:"";position:absolute;width:420px;height:420px;right:-140px;top:-220px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,#c86bfa 28%,transparent),transparent 65%);pointer-events:none}
 .hero-main{display:grid;gap:6px;min-width:0;position:relative;z-index:1;grid-template-columns:minmax(0,1fr)}
+.hero::before{content:"";position:absolute;width:300px;height:300px;left:-120px;bottom:-200px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--accent) 22%,transparent),transparent 65%);pointer-events:none}
+.hero:has(.wk-stats){grid-template-columns:minmax(0,1fr) auto}
+/* this week's numbers: small glass tiles with a little depth */
+.wk-stats{position:relative;z-index:1;display:grid;grid-template-columns:repeat(2,minmax(112px,1fr));gap:10px;perspective:800px}
+.wk{display:grid;gap:2px;padding:12px 14px;border-radius:14px;text-decoration:none;color:var(--ink);
+  background:linear-gradient(150deg,color-mix(in srgb,var(--surface) 88%,transparent),color-mix(in srgb,var(--surface) 60%,transparent));
+  border:1px solid var(--glass-edge);box-shadow:0 1px 0 var(--glass-line) inset,0 8px 22px rgba(17,22,42,.08);
+  transition:transform .2s cubic-bezier(.2,.7,.2,1),box-shadow .2s,border-color .2s}
+.wk:hover{transform:translateY(-2px) rotateX(4deg);box-shadow:0 1px 0 var(--glass-line) inset,0 14px 30px rgba(17,22,42,.14);border-color:color-mix(in srgb,var(--kc) 45%,var(--glass-edge))}
+.wk:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wk b{font-size:26px;line-height:1;font-family:var(--font-display);color:var(--kc)}
+.wk span{font-size:12.5px;color:var(--muted);font-weight:600}
+.wk.zero b{color:var(--muted)}
+.k-week{--kc:var(--accent)}.k-risk{--kc:var(--risk)}.k-over{--kc:var(--over)}.k-done{--kc:var(--ok)}
+[data-theme="dark"] .wk{box-shadow:0 1px 0 var(--glass-line) inset,0 8px 22px rgba(0,0,0,.3)}
+@media (max-width:1180px){.hero:has(.wk-stats){grid-template-columns:minmax(0,1fr)}.wk-stats{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (max-width:560px){.wk-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.wk{padding:10px 12px}.wk b{font-size:22px}}
+/* Home cards: soft depth */
+.grid-2 > .card{box-shadow:var(--shadow);transition:box-shadow .25s}
+.grid-2 > .card:hover{box-shadow:var(--shadow),0 18px 40px rgba(17,22,42,.08)}
+.nd-main{border-radius:10px;transition:background .15s}
+.nd-main:hover{background:var(--surface-2)}
 .hero h2{font-size:30px}
 .hero-ask{display:flex;gap:8px;align-items:center;margin-top:12px;padding:6px 6px 6px 12px;border-radius:14px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);max-width:680px;transition:box-shadow .2s,border-color .2s}
 .hero-ask:focus-within{border-color:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 18%,transparent),var(--shadow)}
@@ -818,6 +933,7 @@ body::before{content:"";position:fixed;inset:-10%;z-index:-1;pointer-events:none
 .ab-ico{display:flex;padding-top:10px}.ab-ico svg{width:18px;height:18px;color:var(--accent)}
 .ab-input{flex:1;width:0;min-width:0;border:0;background:transparent;padding:9px 4px;font-size:15px;line-height:1.4;box-shadow:none;resize:none;font-family:inherit;color:var(--ink);overflow:hidden}
 .ab-input:focus{box-shadow:none;outline:none}
+@media (min-width:861px){.ab-input:placeholder-shown{white-space:nowrap;text-overflow:ellipsis}}
 .ab-btns{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 .ab-hint{font-size:12.5px;color:var(--muted);margin:6px 4px 0;line-height:1.5;overflow-wrap:anywhere}
 .ab-hint b{color:var(--ink);font-weight:600}
@@ -825,7 +941,7 @@ body::before{content:"";position:fixed;inset:-10%;z-index:-1;pointer-events:none
 .ab-warn{color:var(--att);font-weight:600}.ab-n{font-weight:600;color:var(--ink)}.ab-sep{opacity:.5}
 .hero .addbox{margin-top:12px;max-width:720px}
 .modal .addbox{box-shadow:none}
-@media (max-width:860px){.addbox{flex-wrap:wrap}.ab-input{flex-basis:calc(100% - 40px)}.ab-btns{width:100%}.ab-btns .btn{flex:1}}
+@media (max-width:860px){.addbox{flex-wrap:wrap}.ab-input{flex-basis:calc(100% - 40px)}.ab-input:placeholder-shown{min-height:calc(2.8em + 18px)}.ab-btns{width:100%}.ab-btns .btn{flex:1}}
 .ev.task,.wcard.task{background:transparent;border:1px dashed color-mix(in srgb,var(--c) 55%,transparent);border-left:3px solid var(--c)}
 .todo-bar{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .todo-bar .cnt{font-family:var(--font-mono);font-size:11px;background:var(--surface-3);border-radius:999px;padding:0 6px;margin-left:2px}
@@ -2020,10 +2136,25 @@ function headsHTML(w){
       <div class="row-flex">${c.kind === "over" && canManage(w) ? `<button class="btn xs" type="button" data-route="workload">Open workload</button>` : `<button class="btn xs" type="button" data-route="planner">Open planner</button>`}
       ${c.kind === "short" ? `<button class="btn xs" type="button" data-act="rescue" data-id="${c.ids[0]}">Rescue mode</button>` : ""}</div></div></div>`).join("")}</div>` : ""}</section>`;
 }
-function helloHTML(name){
+// Four plain numbers for the week, from your own deadlines (in a team workspace: the ones assigned to you).
+function weekStats(w, now, R){
+  const mine = w.items.filter(i => w.mode !== "company" || i.assignee === viewerId(w));
+  const open = mine.filter(i => !isDone(i) && i.due), t = i => new Date(i.due).getTime();
+  return { week: open.filter(i => t(i) >= now && t(i) < now + 7 * 864e5).length,
+    risk: open.filter(i => ["risk", "critical"].includes(levelOf(R, i))).length,
+    over: open.filter(i => t(i) < now).length,
+    done: mine.filter(i => isDone(i) && i.doneAt && now - new Date(i.doneAt).getTime() <= 7 * 864e5).length };
+}
+function weekStatsHTML(w){
+  const S = weekStats(w, CTX.now, CTX.R), r = listRoute();
+  const tile = (n, label, cls) => `<a class="wk ${cls}${n ? "" : " zero"}" href="#${r}" data-route="${r}"><b>${n}</b><span>${label}</span></a>`;
+  return `<nav class="wk-stats" aria-label="This week">${tile(S.week, "Due this week", "k-week")}${tile(S.risk, "At risk", "k-risk")}${tile(S.over, "Overdue", "k-over")}${tile(S.done, "Done in 7 days", "k-done")}</nav>`;
+}
+function helloHTML(name, w){
   return `<div class="hello hero">
     <div class="hero-main"><p class="today">${esc(new Date(CTX.now).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" }))}</p><h2>${greeting()}, ${esc((name || "there").split(" ")[0])}</h2>
       ${addBoxHTML("addText")}</div>
+    ${w ? weekStatsHTML(w) : ""}
   </div>`;
 }
 // Today's tasks: planned for today, due today, or unfinished from an earlier day.
@@ -2054,7 +2185,7 @@ function radarCard(w, items, sub){ return `<section class="card"><div class="car
 function todayView(w){
   const me = memberOf(w, viewerId(w));
   const n = w.mode === "company" && canManage(w) ? attentionCount(attentionOf(w, CTX.now)) : 0;
-  return `${helloHTML(w.mode === "company" && me ? me.name : state.user.name)}
+  return `${helloHTML(w.mode === "company" && me ? me.name : state.user.name, w)}
     ${w.mode === "company" && canManage(w) ? (n ? `<button class="card heads-sum attn-line" id="attnLine" type="button" data-route="approvals"><span class="warn">${IC.alert}</span>${n} thing${n === 1 ? "" : "s"} need${n === 1 ? "s" : ""} your attention<span class="chev">${IC.forward}</span></button>` : "") : headsHTML(w)}
     <div class="grid-2">${todayCard(w)}${nextDlHTML(w)}</div>`;
 }
@@ -2465,7 +2596,12 @@ function settingsHTML(w, s, gw, mgr, days){
         <div class="field"><label for="pf-ws">Workspace name</label><input type="text" id="pf-ws" value="${esc(w.name)}" maxlength="60" ${mgr ? "" : "disabled"}></div></div>
         <p class="muted" style="font-size:13px">${MODE_LABEL[w.mode]} workspace · created ${fmtDate(w.createdAt, { day: "numeric", month: "short", year: "numeric" })}. You belong to ${state.workspaces.length} workspace${state.workspaces.length > 1 ? "s" : ""}; switch from the top of the sidebar.</p>
         <div class="row-flex">${w.demo ? `<button class="btn sm" type="button" data-act="cleardemo">Clear sample data</button>` : ""}<button class="btn sm" type="button" data-act="wsnew">${IC.plus}New workspace</button>${state.workspaces.length > 1 && mgr ? `<button class="btn sm danger" type="button" data-act="wsdelete">Delete this workspace</button>` : ""}</div>
-      ${ACCOUNT.user ? `<div class="acct-row">${IC.check}<span>Signed in as <b>${esc(ACCOUNT.user.email)}</b>${ACCOUNT.user.role === "admin" ? " · admin" : ""}</span>${ACCOUNT.user.role === "admin" ? `<a class="btn sm" href="/admin" target="_blank" rel="noopener">Open admin</a>` : ""}<button class="btn sm" type="button" data-act="logout">Log out</button></div>` : ""}
+      ${ACCOUNT.user ? `<div class="acct-row">${IC.check}<span>Signed in as <b>${esc(ACCOUNT.user.email)}</b>${ACCOUNT.user.role === "admin" ? " · admin" : ""}</span>${ACCOUNT.user.role === "admin" ? `<a class="btn sm" href="/admin" target="_blank" rel="noopener">Open admin</a>` : ""}<button class="btn sm" type="button" data-act="pwopen" aria-expanded="${!!UI.pwOpen}" aria-controls="pwBox">Change password</button><button class="btn sm" type="button" data-act="logout">Log out</button></div>
+      ${UI.pwOpen ? `<form class="pw-box" id="pwBox" novalidate><h4>Change password</h4>
+        <div class="f2"><div class="field"><label for="pw-cur">Current password</label><div class="pw-wrap"><input type="password" id="pw-cur" autocomplete="current-password" maxlength="200"><button type="button" class="pw-eye" data-act="pwtoggle" aria-controls="pw-cur" aria-pressed="false" aria-label="Show password">${EYE}</button></div></div>
+        <div class="field"><label for="pw-new">New password</label><div class="pw-wrap"><input type="password" id="pw-new" autocomplete="new-password" maxlength="200" aria-describedby="pw-hint"><button type="button" class="pw-eye" data-act="pwtoggle" aria-controls="pw-new" aria-pressed="false" aria-label="Show password">${EYE}</button></div><span class="hint" id="pw-hint">At least 8 characters. Other devices will be signed out.</span></div></div>
+        <p class="auth-err" id="pwErr" role="alert" hidden></p>
+        <div class="row-flex"><button class="btn sm primary" type="submit" id="pwSave">Save new password</button><button class="btn sm" type="button" data-act="pwopen">Cancel</button></div></form>` : ""}` : ""}
       </section>
       <section class="card set-sec" id="s-avail"><h3>Availability</h3><p>Used by the planner and the radar to judge whether work fits before each deadline.</p>
         <div class="field"><label for="pf-hpd">${w.mode === "company" ? "Focus hours per working day (your default)" : "Study hours per day"}</label><div class="range"><input type="range" id="pf-hpd" min="0.5" max="10" step="0.5" value="${s.hoursPerDay}"><output id="pf-hpd-o">${fmtH(s.hoursPerDay)}</output></div></div>
@@ -2534,8 +2670,9 @@ function isForToday(i, t){
   return !isDone(i) || (!!i.doneAt && ymd(i.doneAt) === t);
 }
 function todayTodos(w, now){ const t = todayKey(now); return myTasks(w).filter(i => isForToday(i, t)); }
+// counts exactly what the Today list shows, including unfinished work carried over from earlier days
 function todayProgress(w, now){
-  const t = todayKey(now); const list = myTasks(w).filter(i => dayOf(i) === t || dueDay(i) === t);
+  const list = todayTodos(w, now);
   return { done: list.filter(isDone).length, total: list.length };
 }
 const timeOf = it => it.time || (it.due && !it.plan ? it.due.slice(11, 16) : "");
@@ -3221,8 +3358,8 @@ document.addEventListener("click", e => {
       else if (msg.serverId) applyServerProposal(msg, true);
       else { msg.proposal.status = "discarded"; save(); render(); }
       break; }
-    case "airetry": case "airules": { const box = a.closest("[data-msg]"); const chat = chatOf(w); const k = chat.findIndex(m => m.id === (box && box.dataset.msg)); const msg = chat[k];
-      if (!msg) break; chat.splice(k, 1); sendToAssistant(msg.retry, { retry: true, rules: a.dataset.act === "airules" }); break; }
+    case "airetry": { const box = a.closest("[data-msg]"); const chat = chatOf(w); const k = chat.findIndex(m => m.id === (box && box.dataset.msg)); const msg = chat[k];
+      if (!msg) break; chat.splice(k, 1); sendToAssistant(msg.retry, { retry: true }); break; }
     case "aiclear": { const before = chatOf(w).slice(); w.chat = []; save(); render(); toast("Started a new chat. Your tasks are unchanged.", () => { w.chat = before; save(); render(); }); break; }
     case "aiadd": openQuickAdd(); break;
     case "aitoday": UI.todoTab = "today"; setRoute("overview"); break;
@@ -3271,12 +3408,31 @@ function signedOut(){
   ACCOUNT.user = null; clearInterval(ACCOUNT.poll); showAuth("You were signed out. Please log in again.");
 }
 
-/* ---------- sign up / log in screen ---------- */
+/* ---------- welcome page: sign up / log in ---------- */
+const EYE = svg('<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>');
+const EYE_OFF = svg('<path d="M3 3l18 18"/><path d="M10.6 6.1A10.6 10.6 0 0 1 12 6c6.4 0 10 6 10 6a17 17 0 0 1-3.2 3.9M6.5 7.6A16.7 16.7 0 0 0 2 12s3.6 7 10 7a9.8 9.8 0 0 0 4.4-1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>');
+// Decorative 3D scene. The sample cards are illustrations, clearly not the visitor's data.
+function hero3dHTML(){
+  return `<div class="hero3d" aria-hidden="true"><div class="scene">
+    <div class="glow"></div>
+    <div class="float-card fc-task" style="--z:60px;--d:0s"><span class="fc-dot" style="--c:#ff8a5c"></span><div><b>Lab report</b><small>Due Friday · 5:00 PM</small></div><span class="fc-chip risk">At risk</span></div>
+    <div class="float-card fc-ring" style="--z:110px;--d:-2s"><svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="18" class="trk"/><circle cx="22" cy="22" r="18" class="val" style="stroke-dasharray:113;stroke-dashoffset:36"/></svg><div><b>68%</b><small>This week</small></div></div>
+    <div class="float-card fc-rem" style="--z:30px;--d:-4s">${IC.bell}<div><b>Reminder</b><small>Essay draft · in 1 hour</small></div></div>
+    <div class="float-card fc-todo" style="--z:85px;--d:-1s"><div class="fc-line done"><i>${IC.check}</i>Read chapter 4</div><div class="fc-line done"><i>${IC.check}</i>Outline slides</div><div class="fc-line"><i></i>Practice talk</div></div>
+  </div></div>`;
+}
 function showAuth(note){
   $("#app").hidden = true; const o = $("#onb"); o.hidden = false; o.classList.add("auth");
   const login = ACCOUNT.mode === "login";
-  o.innerHTML = `<div class="onb-card auth-card" role="main">
-    <div class="brandline">${logoSVG(26)} Deadline Tracker</div>
+  const keep = $("#au-email") ? $("#au-email").value : "";
+  o.innerHTML = `<div class="auth-wrap">
+  <section class="landing">
+    <div class="brandline">${logoSVG(30)} <span>Deadline Tracker</span></div>
+    <h1>Never miss a <span class="grad">deadline</span> again.</h1>
+    <p class="lead">Tell it about your work. It builds your to-do list, shows what's at risk, and reminds you before things are due.</p>
+    ${hero3dHTML()}
+  </section>
+  <div class="onb-card auth-card" role="main">
     <h1>${login ? "Welcome back." : "Create your account."}</h1>
     <p class="lead">${login ? "Log in to see your tasks and deadlines." : "Your tasks are saved to your account, so you can log in from any browser. Only you can see them."}</p>
     <div class="auth-tabs" role="tablist" aria-label="Log in or create an account">
@@ -3285,28 +3441,84 @@ function showAuth(note){
     </div>
     <form id="authForm" class="auth-form" novalidate>
       ${login ? "" : `<div class="field"><label for="au-name">Your name</label><input type="text" id="au-name" autocomplete="name" maxlength="80" required></div>`}
-      <div class="field"><label for="au-email">Email</label><input type="email" id="au-email" autocomplete="email" maxlength="200" required></div>
-      <div class="field"><label for="au-pass">Password</label><input type="password" id="au-pass" autocomplete="${login ? "current-password" : "new-password"}" minlength="8" maxlength="200" required>
-        ${login ? "" : `<span class="hint">At least 8 characters.</span>`}</div>
+      <div class="field"><label for="au-email">Email</label><input type="email" id="au-email" autocomplete="email" inputmode="email" maxlength="200" required value="${esc(keep)}"></div>
+      <div class="field"><label for="au-pass">Password</label>
+        <div class="pw-wrap"><input type="password" id="au-pass" autocomplete="${login ? "current-password" : "new-password"}" minlength="8" maxlength="200" required ${login ? "" : `aria-describedby="au-pass-hint"`}>
+        <button type="button" class="pw-eye" id="au-pass-toggle" data-act="pwtoggle" aria-controls="au-pass" aria-pressed="false" aria-label="Show password">${EYE}</button></div>
+        ${login ? "" : `<span class="hint" id="au-pass-hint">At least 8 characters.</span>`}</div>
       <p class="auth-err" id="authErr" role="alert" ${note ? "" : "hidden"}>${esc(note || "")}</p>
       <button class="btn primary" type="submit" id="authGo">${login ? "Log in" : "Create account"}</button>
     </form>
     <p class="auth-foot">${IC.info}<span>Passwords are stored securely as a hash. The AI key stays on the server.</span></p>
-  </div>`;
-  const f = $(login ? "#au-email" : "#au-name"); if (f) f.focus();
+  </div>
+  <ul class="features">
+    <li><span class="fi" style="--c:#7d93ff">${IC.spark}</span><div><b>Type it the way you'd say it</b><span>"Essay due Fri 5pm" becomes a task with its date.</span></div></li>
+    <li><span class="fi" style="--c:#ff8a5c">${IC.alert}</span><div><b>See what's at risk</b><span>It checks whether the work fits before each deadline.</span></div></li>
+    <li><span class="fi" style="--c:#3ecf8e">${IC.bell}</span><div><b>Reminders that arrive</b><span>Even when the app is closed, from your account.</span></div></li>
+  </ul>
+</div>`;
+  const f = !login ? $("#au-name") : keep ? $("#au-pass") : $("#au-email"); if (f) f.focus();
+  heroTilt();
+}
+// A gentle tilt of the 3D scene that follows the pointer (off with reduced motion and on touch screens).
+function heroTilt(){
+  const sc = $(".hero3d .scene"), wrap = $(".auth-wrap");
+  if (!sc || !wrap || matchMedia("(prefers-reduced-motion: reduce)").matches || !matchMedia("(hover: hover)").matches) return;
+  let raf = 0;
+  wrap.addEventListener("pointermove", e => {
+    if (raf) return;
+    raf = requestAnimationFrame(() => { raf = 0;
+      const x = e.clientX / innerWidth - .5, y = e.clientY / innerHeight - .5;
+      sc.style.setProperty("--ry", (-16 + x * 10).toFixed(2) + "deg"); sc.style.setProperty("--rx", (12 - y * 8).toFixed(2) + "deg"); });
+  });
+}
+function togglePw(btn){
+  const inp = $("#" + btn.getAttribute("aria-controls")); if (!inp) return;
+  const show = inp.type === "password"; inp.type = show ? "text" : "password";
+  btn.setAttribute("aria-pressed", String(show)); btn.setAttribute("aria-label", show ? "Hide password" : "Show password");
+  btn.innerHTML = show ? EYE_OFF : EYE; inp.focus();
+}
+const EMAIL_OK = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function authFail(msg, field){
+  const err = $("#authErr"); err.textContent = msg; err.hidden = false;
+  ["#au-name", "#au-email", "#au-pass"].forEach(id => { const el = $(id); if (el) { el.removeAttribute("aria-invalid"); if (el.getAttribute("aria-errormessage")) el.removeAttribute("aria-errormessage"); } });
+  const el = field && $(field); if (el) { el.setAttribute("aria-invalid", "true"); el.setAttribute("aria-errormessage", "authErr"); el.focus(); }
 }
 async function submitAuth(){
   const login = ACCOUNT.mode === "login";
-  const body = { email: $("#au-email").value, password: $("#au-pass").value, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone };
-  if (!login) body.name = $("#au-name").value;
+  const name = login ? "" : $("#au-name").value.trim(), email = $("#au-email").value.trim(), password = $("#au-pass").value;
+  // checks before sending (the server checks again)
+  if (!login && !name) return authFail("Please enter your name.", "#au-name");
+  if (!email) return authFail("Please enter your email.", "#au-email");
+  if (!EMAIL_OK.test(email)) return authFail("Please enter a valid email address, like name@example.com.", "#au-email");
+  if (!password) return authFail("Please enter your password.", "#au-pass");
+  if (!login && password.length < 8) return authFail("Use at least 8 characters for your password.", "#au-pass");
+  const body = { email, password, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone };
+  if (!login) body.name = name;
   const err = $("#authErr"), go = $("#authGo");
-  go.disabled = true; err.hidden = true;
+  go.disabled = true; go.classList.add("busy"); err.hidden = true;
   let r;
   try { r = await apiJSON("POST", login ? "/api/auth/login" : "/api/auth/signup", body); }
-  catch (e) { r = { ok: false, json: { error: "Couldn't reach the server. Is it still running?" } }; }
-  go.disabled = false;
-  if (!r.ok) { err.textContent = r.json.error || "Something went wrong. Try again."; err.hidden = false; const bad = { name: "#au-name", email: "#au-email", password: "#au-pass" }[r.json.code]; if (bad && $(bad)) $(bad).focus(); return; }
+  catch (e) { r = { ok: false, json: { error: "Couldn't reach the server. Check your connection and try again." } }; }
+  go.disabled = false; go.classList.remove("busy");
+  if (!r.ok) {
+    const code = r.json.code, field = { name: "#au-name", email: "#au-email", exists: "#au-email", password: "#au-pass", wrong: "#au-pass" }[r.json.field || code] || (code === "wrong" ? "#au-pass" : null);
+    if (code === "wrong") $("#au-pass").value = "";
+    return authFail(r.json.error || "Something went wrong. Try again.", field);
+  }
   location.reload();
+}
+async function changePassword(){
+  const cur = $("#pw-cur").value, next = $("#pw-new").value, err = $("#pwErr"), go = $("#pwSave");
+  const fail = (m, f) => { err.textContent = m; err.hidden = false; ["#pw-cur", "#pw-new"].forEach(x => $(x).removeAttribute("aria-invalid")); if (f) { $(f).setAttribute("aria-invalid", "true"); $(f).focus(); } };
+  if (!cur) return fail("Please enter your current password.", "#pw-cur");
+  if (next.length < 8) return fail("Use at least 8 characters for the new password.", "#pw-new");
+  if (next === cur) return fail("The new password is the same as the current one.", "#pw-new");
+  go.disabled = true; err.hidden = true;
+  let r; try { r = await apiJSON("POST", "/api/profile/password", { currentPassword: cur, newPassword: next }); } catch (e) { r = { ok: false, json: { error: "Couldn't reach the server. Try again." } }; }
+  go.disabled = false;
+  if (!r.ok) return fail(r.json.error || "Couldn't change the password.", r.json.field === "currentPassword" ? "#pw-cur" : r.json.field === "newPassword" ? "#pw-new" : null);
+  UI.pwOpen = false; render(); toast("Password changed. Other devices were signed out.");
 }
 async function logout(){
   // send any change that's still waiting to be saved before the session ends
@@ -4165,6 +4377,8 @@ document.addEventListener("click", async e => {
     case "onbback": ONB.step = Math.max(0, ONB.step - 1); showOnboarding(); break;
     case "onbmode": ONB.mode = a.dataset.v; ONB.ws = ""; showOnboarding(); break;
     case "authmode": ACCOUNT.mode = a.dataset.v; showAuth(); break;
+    case "pwtoggle": togglePw(a); break;
+    case "pwopen": UI.pwOpen = !UI.pwOpen; render(); if (UI.pwOpen && $("#pw-cur")) $("#pw-cur").focus(); break;
     case "logout": logout(); break;
     case "onbdone": ONB.due = $("#onb-due").value; ONB.demo = $("#onb-demo").checked; finishOnboarding(); break;
     /* shell */
@@ -4318,7 +4532,7 @@ document.addEventListener("input", e => {
   if (t.dataset.th) { t.nextElementSibling.textContent = t.value + "%"; return; }
   if (t.dataset.st != null && UI.sugg[UI.drawerId]) { UI.sugg[UI.drawerId][+t.dataset.st].text = t.value; return; }
 });
-document.addEventListener("submit", e => { if (e.target.id === "authForm") { e.preventDefault(); submitAuth(); } });
+document.addEventListener("submit", e => { if (e.target.id === "authForm") { e.preventDefault(); submitAuth(); } else if (e.target.id === "pwBox") { e.preventDefault(); changePassword(); } });
 document.addEventListener("submit", e => { const f = e.target.closest && e.target.closest("[data-addbox]"); if (f) { e.preventDefault(); submitAddBox(f.dataset.addbox); } });
 document.addEventListener("change", e => {
   const t = e.target; const id = t.id || ""; if (!state || !state.workspaces.length) return;
@@ -4471,7 +4685,7 @@ function afterLoad(){
 function closeModalIfOnb(){ $("#onb").hidden = true; }
 /* Test seam: only exposed when the page is opened with ?dt-test (used by the automated tests). */
 if (/[?&]dt-test\b/.test(location.search)) {
-  window.__DT_TEST__ = { parseQuick, extractFromText, radar, estimateInsight, checkinCandidate, rulesPlan, runReminders, AI, planFor, backwardPlan, chunkPlan, conflicts, notifs, availHours, progressOf, remainingH, mkItem, newWorkspace, levelOf,
+  window.__DT_TEST__ = { weekStats, parseQuick, extractFromText, radar, estimateInsight, checkinCandidate, rulesPlan, runReminders, AI, planFor, backwardPlan, chunkPlan, conflicts, notifs, availHours, progressOf, remainingH, mkItem, newWorkspace, levelOf,
     get state(){ return state; }, set state(v){ state = v; }, W, render, save };
 }
 // Start: with the Deadline Tracker server you log in and your data comes from your account;

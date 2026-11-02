@@ -400,8 +400,8 @@ document.addEventListener("click", e => {
       else if (msg.serverId) applyServerProposal(msg, true);
       else { msg.proposal.status = "discarded"; save(); render(); }
       break; }
-    case "airetry": case "airules": { const box = a.closest("[data-msg]"); const chat = chatOf(w); const k = chat.findIndex(m => m.id === (box && box.dataset.msg)); const msg = chat[k];
-      if (!msg) break; chat.splice(k, 1); sendToAssistant(msg.retry, { retry: true, rules: a.dataset.act === "airules" }); break; }
+    case "airetry": { const box = a.closest("[data-msg]"); const chat = chatOf(w); const k = chat.findIndex(m => m.id === (box && box.dataset.msg)); const msg = chat[k];
+      if (!msg) break; chat.splice(k, 1); sendToAssistant(msg.retry, { retry: true }); break; }
     case "aiclear": { const before = chatOf(w).slice(); w.chat = []; save(); render(); toast("Started a new chat. Your tasks are unchanged.", () => { w.chat = before; save(); render(); }); break; }
     case "aiadd": openQuickAdd(); break;
     case "aitoday": UI.todoTab = "today"; setRoute("overview"); break;

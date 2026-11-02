@@ -278,10 +278,25 @@ function headsHTML(w){
       <div class="row-flex">${c.kind === "over" && canManage(w) ? `<button class="btn xs" type="button" data-route="workload">Open workload</button>` : `<button class="btn xs" type="button" data-route="planner">Open planner</button>`}
       ${c.kind === "short" ? `<button class="btn xs" type="button" data-act="rescue" data-id="${c.ids[0]}">Rescue mode</button>` : ""}</div></div></div>`).join("")}</div>` : ""}</section>`;
 }
-function helloHTML(name){
+// Four plain numbers for the week, from your own deadlines (in a team workspace: the ones assigned to you).
+function weekStats(w, now, R){
+  const mine = w.items.filter(i => w.mode !== "company" || i.assignee === viewerId(w));
+  const open = mine.filter(i => !isDone(i) && i.due), t = i => new Date(i.due).getTime();
+  return { week: open.filter(i => t(i) >= now && t(i) < now + 7 * 864e5).length,
+    risk: open.filter(i => ["risk", "critical"].includes(levelOf(R, i))).length,
+    over: open.filter(i => t(i) < now).length,
+    done: mine.filter(i => isDone(i) && i.doneAt && now - new Date(i.doneAt).getTime() <= 7 * 864e5).length };
+}
+function weekStatsHTML(w){
+  const S = weekStats(w, CTX.now, CTX.R), r = listRoute();
+  const tile = (n, label, cls) => `<a class="wk ${cls}${n ? "" : " zero"}" href="#${r}" data-route="${r}"><b>${n}</b><span>${label}</span></a>`;
+  return `<nav class="wk-stats" aria-label="This week">${tile(S.week, "Due this week", "k-week")}${tile(S.risk, "At risk", "k-risk")}${tile(S.over, "Overdue", "k-over")}${tile(S.done, "Done in 7 days", "k-done")}</nav>`;
+}
+function helloHTML(name, w){
   return `<div class="hello hero">
     <div class="hero-main"><p class="today">${esc(new Date(CTX.now).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" }))}</p><h2>${greeting()}, ${esc((name || "there").split(" ")[0])}</h2>
       ${addBoxHTML("addText")}</div>
+    ${w ? weekStatsHTML(w) : ""}
   </div>`;
 }
 // Today's tasks: planned for today, due today, or unfinished from an earlier day.
@@ -312,7 +327,7 @@ function radarCard(w, items, sub){ return `<section class="card"><div class="car
 function todayView(w){
   const me = memberOf(w, viewerId(w));
   const n = w.mode === "company" && canManage(w) ? attentionCount(attentionOf(w, CTX.now)) : 0;
-  return `${helloHTML(w.mode === "company" && me ? me.name : state.user.name)}
+  return `${helloHTML(w.mode === "company" && me ? me.name : state.user.name, w)}
     ${w.mode === "company" && canManage(w) ? (n ? `<button class="card heads-sum attn-line" id="attnLine" type="button" data-route="approvals"><span class="warn">${IC.alert}</span>${n} thing${n === 1 ? "" : "s"} need${n === 1 ? "s" : ""} your attention<span class="chev">${IC.forward}</span></button>` : "") : headsHTML(w)}
     <div class="grid-2">${todayCard(w)}${nextDlHTML(w)}</div>`;
 }
@@ -723,7 +738,12 @@ function settingsHTML(w, s, gw, mgr, days){
         <div class="field"><label for="pf-ws">Workspace name</label><input type="text" id="pf-ws" value="${esc(w.name)}" maxlength="60" ${mgr ? "" : "disabled"}></div></div>
         <p class="muted" style="font-size:13px">${MODE_LABEL[w.mode]} workspace · created ${fmtDate(w.createdAt, { day: "numeric", month: "short", year: "numeric" })}. You belong to ${state.workspaces.length} workspace${state.workspaces.length > 1 ? "s" : ""}; switch from the top of the sidebar.</p>
         <div class="row-flex">${w.demo ? `<button class="btn sm" type="button" data-act="cleardemo">Clear sample data</button>` : ""}<button class="btn sm" type="button" data-act="wsnew">${IC.plus}New workspace</button>${state.workspaces.length > 1 && mgr ? `<button class="btn sm danger" type="button" data-act="wsdelete">Delete this workspace</button>` : ""}</div>
-      ${ACCOUNT.user ? `<div class="acct-row">${IC.check}<span>Signed in as <b>${esc(ACCOUNT.user.email)}</b>${ACCOUNT.user.role === "admin" ? " · admin" : ""}</span>${ACCOUNT.user.role === "admin" ? `<a class="btn sm" href="/admin" target="_blank" rel="noopener">Open admin</a>` : ""}<button class="btn sm" type="button" data-act="logout">Log out</button></div>` : ""}
+      ${ACCOUNT.user ? `<div class="acct-row">${IC.check}<span>Signed in as <b>${esc(ACCOUNT.user.email)}</b>${ACCOUNT.user.role === "admin" ? " · admin" : ""}</span>${ACCOUNT.user.role === "admin" ? `<a class="btn sm" href="/admin" target="_blank" rel="noopener">Open admin</a>` : ""}<button class="btn sm" type="button" data-act="pwopen" aria-expanded="${!!UI.pwOpen}" aria-controls="pwBox">Change password</button><button class="btn sm" type="button" data-act="logout">Log out</button></div>
+      ${UI.pwOpen ? `<form class="pw-box" id="pwBox" novalidate><h4>Change password</h4>
+        <div class="f2"><div class="field"><label for="pw-cur">Current password</label><div class="pw-wrap"><input type="password" id="pw-cur" autocomplete="current-password" maxlength="200"><button type="button" class="pw-eye" data-act="pwtoggle" aria-controls="pw-cur" aria-pressed="false" aria-label="Show password">${EYE}</button></div></div>
+        <div class="field"><label for="pw-new">New password</label><div class="pw-wrap"><input type="password" id="pw-new" autocomplete="new-password" maxlength="200" aria-describedby="pw-hint"><button type="button" class="pw-eye" data-act="pwtoggle" aria-controls="pw-new" aria-pressed="false" aria-label="Show password">${EYE}</button></div><span class="hint" id="pw-hint">At least 8 characters. Other devices will be signed out.</span></div></div>
+        <p class="auth-err" id="pwErr" role="alert" hidden></p>
+        <div class="row-flex"><button class="btn sm primary" type="submit" id="pwSave">Save new password</button><button class="btn sm" type="button" data-act="pwopen">Cancel</button></div></form>` : ""}` : ""}
       </section>
       <section class="card set-sec" id="s-avail"><h3>Availability</h3><p>Used by the planner and the radar to judge whether work fits before each deadline.</p>
         <div class="field"><label for="pf-hpd">${w.mode === "company" ? "Focus hours per working day (your default)" : "Study hours per day"}</label><div class="range"><input type="range" id="pf-hpd" min="0.5" max="10" step="0.5" value="${s.hoursPerDay}"><output id="pf-hpd-o">${fmtH(s.hoursPerDay)}</output></div></div>

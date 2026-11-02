@@ -63,3 +63,13 @@ test("phone: nothing on the home screen or assistant is wider than its card", as
     assert.deepEqual(bad, [], r);
   }
 });
+
+test("phone: the Add box shows its whole example text (bug: the placeholder was cut off mid-word)", async () => {
+  await onboard(page);
+  await go(page, "overview");
+  const m = await page.$eval("#addText", e => ({ sh: e.scrollHeight, ch: e.clientHeight }));
+  assert.ok(m.sh <= m.ch + 1, `placeholder fits: scrollHeight ${m.sh}, clientHeight ${m.ch}`);
+  await page.fill("#addText", "Call mom");
+  const one = await page.$eval("#addText", e => e.getBoundingClientRect().height);
+  assert.ok(one < 60, `with short text the box goes back to one line (${one}px)`);
+});

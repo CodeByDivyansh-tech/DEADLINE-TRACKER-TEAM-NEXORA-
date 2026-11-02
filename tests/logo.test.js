@@ -33,7 +33,7 @@ test("logo: on the log-in screen and the admin page; a logo file for the README"
   const s = await startServer({});
   try {
     const p = await env.browser.newPage(); await p.goto(s.base);
-    await p.waitForSelector(".auth-card .brandline .dt-logo");
+    await p.waitForSelector(".auth-wrap .brandline .dt-logo");
     await p.goto(s.base + "/admin"); await p.waitForSelector("header .dt-logo");
     await p.close();
   } finally { s.stop(); }

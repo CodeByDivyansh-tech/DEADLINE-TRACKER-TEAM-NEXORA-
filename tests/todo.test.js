@@ -119,3 +119,12 @@ test("to-do: dates follow the local day just before midnight (time zone)", async
   assert.equal(t.find(i => i.title === "Late task").plan, "2026-10-30");
   assert.equal(t.find(i => i.title === "Early task").plan, "2026-10-31");
 });
+
+test("to-do: unfinished work carried over from an earlier day counts in today's progress (bug: showed '0 of 0 done' next to a listed task)", async () => {
+  await open({ demo: true });
+  const listed = (await titles()).length;
+  assert.ok(listed >= 1, "the sample data has an overdue task listed under Today");
+  assert.match(await page.textContent("#todoProgress"), new RegExp(`^0 of ${listed} done`));
+  await page.locator(".todo .tcheck").first().click();
+  assert.match(await page.textContent("#todoProgress"), new RegExp(`^1 of ${listed} done`), "finishing it today still counts");
+});

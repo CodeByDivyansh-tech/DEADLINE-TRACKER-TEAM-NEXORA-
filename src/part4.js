@@ -586,6 +586,8 @@ document.addEventListener("click", async e => {
     case "onbback": ONB.step = Math.max(0, ONB.step - 1); showOnboarding(); break;
     case "onbmode": ONB.mode = a.dataset.v; ONB.ws = ""; showOnboarding(); break;
     case "authmode": ACCOUNT.mode = a.dataset.v; showAuth(); break;
+    case "pwtoggle": togglePw(a); break;
+    case "pwopen": UI.pwOpen = !UI.pwOpen; render(); if (UI.pwOpen && $("#pw-cur")) $("#pw-cur").focus(); break;
     case "logout": logout(); break;
     case "onbdone": ONB.due = $("#onb-due").value; ONB.demo = $("#onb-demo").checked; finishOnboarding(); break;
     /* shell */
@@ -739,7 +741,7 @@ document.addEventListener("input", e => {
   if (t.dataset.th) { t.nextElementSibling.textContent = t.value + "%"; return; }
   if (t.dataset.st != null && UI.sugg[UI.drawerId]) { UI.sugg[UI.drawerId][+t.dataset.st].text = t.value; return; }
 });
-document.addEventListener("submit", e => { if (e.target.id === "authForm") { e.preventDefault(); submitAuth(); } });
+document.addEventListener("submit", e => { if (e.target.id === "authForm") { e.preventDefault(); submitAuth(); } else if (e.target.id === "pwBox") { e.preventDefault(); changePassword(); } });
 document.addEventListener("submit", e => { const f = e.target.closest && e.target.closest("[data-addbox]"); if (f) { e.preventDefault(); submitAddBox(f.dataset.addbox); } });
 document.addEventListener("change", e => {
   const t = e.target; const id = t.id || ""; if (!state || !state.workspaces.length) return;
@@ -892,7 +894,7 @@ function afterLoad(){
 function closeModalIfOnb(){ $("#onb").hidden = true; }
 /* Test seam: only exposed when the page is opened with ?dt-test (used by the automated tests). */
 if (/[?&]dt-test\b/.test(location.search)) {
-  window.__DT_TEST__ = { parseQuick, extractFromText, radar, estimateInsight, checkinCandidate, rulesPlan, runReminders, AI, planFor, backwardPlan, chunkPlan, conflicts, notifs, availHours, progressOf, remainingH, mkItem, newWorkspace, levelOf,
+  window.__DT_TEST__ = { weekStats, parseQuick, extractFromText, radar, estimateInsight, checkinCandidate, rulesPlan, runReminders, AI, planFor, backwardPlan, chunkPlan, conflicts, notifs, availHours, progressOf, remainingH, mkItem, newWorkspace, levelOf,
     get state(){ return state; }, set state(v){ state = v; }, W, render, save };
 }
 // Start: with the Deadline Tracker server you log in and your data comes from your account;
