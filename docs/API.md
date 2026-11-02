@@ -10,7 +10,7 @@ Errors look like `{ "code": "invalid_title", "error": "Readable message", "field
 ## Health
 | Method | Path | |
 |---|---|---|
-| GET | `/api/health` | `{ ok, version, database, reminders.lastRun, ai.configured, ai.model }` (503 if the database fails) |
+| GET | `/api/health` | `{ ok, version, database, reminders.lastRun, persistence: { mode: "neon"\|"local", restored, lastSavedAt, sizeKB, ok, error }, ai.configured, ai.model }` (503 if the database fails) |
 | GET | `/api/status` | `{ accounts: true, ai, provider: "gemini", model }` |
 
 ## Accounts and profile

@@ -25,6 +25,7 @@ The existing app keeps working: it still loads and saves "the whole state" throu
 server.js                 wiring, request handling, security headers, static files
 lib/config.js             settings from environment variables / .env
 lib/db.js                 SQLite connection + numbered migrations
+lib/persist.js            optional permanent copy of the SQLite file in Neon Postgres (DATABASE_URL), for hosts that wipe the disk
 lib/http.js               JSON helpers, validation, rate limiter, router
 lib/time.js               time-zone maths (no packages)
 lib/modules/auth.js       registration, login, logout, sessions, profile, password change
@@ -43,12 +44,17 @@ admin.html                admin dashboard (uses /api/admin/*)
 knowledge/*.md            the help guide loaded on first run
 ```
 
+## Permanent storage on hosts without a disk (lib/persist.js)
+Render's free plan erases the disk on sleep, restart and redeploy. With `DATABASE_URL` set, `server.js` first loads the saved copy of `deadline.db` from a Neon table (`dt_snapshot`: one row with the gzip+base64 file and a version number), then opens SQLite as usual. It checks `total_changes()` every 3 s; after a change it makes a consistent copy with `VACUUM INTO`, compresses it and saves it with a version-checked `UPDATE` (Neon's HTTPS SQL endpoint, no driver). One last save runs on SIGTERM.
+Rules: never save before the load succeeded (load is retried); on a version conflict the server that started later wins and the older one stops saving; the connection string is never logged or returned. Limits: one instance; up to ~3 s of changes can be lost in a crash; best for databases up to a few MB.
+
 ## Privacy rules built into the design
 - Every query on private data includes `user_id = ?` taken from the session, never from the request. Someone else's task id returns 404.
 - **My Plan never uses an outside AI.** Planning with a person's tasks runs in `productivity.js` on your server.
 - **Gemini only sees public text**: the Help question, the recent Help conversation, and matching parts of the public help guide. Never tasks or schedules. Google may use free-tier requests to improve its products; the Help window says so.
 - Suggestions are stored on the server; `/api/plan/apply` re-checks ownership and validates every field before writing. Only `keep`, `title`, `date`, `time` and `priority` can be edited by the browser.
 - Admins manage accounts and public knowledge; they can't read other people's tasks.
+- Log-in limits: 10 tries per IP + email and 30 per email per 15 minutes (the second can't be dodged with a fake `X-Forwarded-For`). Only the site's file types are served (.html, .css, .svg, .png, .ico, .webmanifest). HSTS in production.
 
 ## Database schema
 All times are UTC milliseconds unless noted. Local dates (`YYYY-MM-DD`) and times (`HH:MM`) are in the user's time zone.

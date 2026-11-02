@@ -173,3 +173,19 @@ Removed: the Anthropic relay (`/api/ai`), its prompt/validation code and tests, 
 - New logo (`logo.svg`): a countdown ring that is almost full, a check mark, and a gold deadline dot, on the app's blue-violet gradient.
 - Shown as the browser tab icon, on the log-in and setup screens, at the top of the sidebar, in the phone top bar, on the admin page and in the README.
 - Tests (logo.test.js): tab icon, setup screen, sidebar, unique SVG ids, phone top bar with no sideways scrolling, log-in screen, admin page, logo file. Screenshots checked in light, dark and 390px. Full suite twice: 269 of 269.
+
+## Audit, login fix, security fixes and redesign (2 Nov 2026, branch `audit-redesign`)
+Test-first throughout; every bug below had a failing test before the fix. Full suite run twice: **296 of 296 pass** both times. Details and the bug log: `AUDIT-REPORT.md`.
+
+| Area | Test file | What is checked |
+|---|---|---|
+| Permanent storage (the login bug) | persist (fake Neon SQL-over-HTTP) | bug reproduced: without `DATABASE_URL` a wiped disk makes the right password fail; with it accounts, sessions and tasks survive a wiped disk; Neon down at start → server waits, never overwrites the saved copy; older server during a redeploy can't overwrite newer data; the database password never appears in responses or logs |
+| Log-in edge cases | api-accounts | empty email/password → 400 with the field (not "wrong password"); invalid email; spaces/capitals in the email; expired session refused and deleted; every private route answers 401 when signed out without leaking data |
+| Security | api-security | 40 guesses with a different fake `X-Forwarded-For` each → limited after 30 per account; HSTS on every production response, not on localhost; no CORS headers, preflights refused, cross-site POST 403; another user's task → 404 for read/change/delete, not in their list or state, admin routes 403, admin answers have no task contents or hashes; stored XSS payloads in task title, notes, user name, workspace name → shown as text on 7 pages, the drawer and the admin page, no script runs; private files and encoded path tricks → 404 |
+| Welcome page | auth-ui | landing text, 3D scene (hidden from screen readers) next to the panel; no sideways scroll at 390/768 px, 44 px tap targets; reduced motion stops the animation; password show/hide (labels, aria-pressed, value kept); checks before sending (name, email, valid email, password, 8 characters) with aria-invalid and focus, no request sent; email kept when switching tabs; duplicate account and wrong password messages, wrong password cleared; Settings → change password (wrong current, short new, success, old password fails, new works) |
+| Home | today, todo, merge | four real numbers in the greeting panel match an independent count and open the deadline list; Home still ≤ 4 blocks; Today progress counts carried-over work (was "0 of 0 done"); manager attention bar styled as a card; Add box example text not cut off |
+| Phone | ui-mobile | Add box shows its whole example text at 390 px and shrinks back with short text |
+| Company | ui-company | Workload member cards: nothing sticks out, badges not clipped, card headers line up |
+
+Manual checks: screenshots of the welcome page (desktop, tablet, phone, sign-up error), Home (light, dark, phone; student and manager), Workload, Needs attention and Reports; a sweep of every page for student, manager, employee and personal at 1440 and 390 px (no browser errors, no sideways scrolling).
+Not covered: real Neon (the workspace can't reach neon.tech; tests use a fake with Neon's request/response format), real Render/Vercel after deploy (not deployed yet), real Gemini, screen-reader walkthrough, Safari/Firefox (tests run Chromium only).
