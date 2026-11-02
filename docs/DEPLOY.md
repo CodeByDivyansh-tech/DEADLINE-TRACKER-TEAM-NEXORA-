@@ -19,7 +19,7 @@ Tests: `npm install` (once, for Playwright), then `npm test`.
 Right now the app runs on your laptop at localhost. Only you can open it, and reminders are only created while the server is running. To let others use it, or to get reminders while your laptop is off, run it on a host.
 
 ## Deploying to a host
-Any host that runs Node 22.5+ and keeps a **persistent disk** works (SQLite is a file). Free/cheap options: a small VPS, Render (with a persistent disk), Railway (with a volume), Fly.io (with a volume). Static-only hosts such as GitHub Pages or Netlify can't run the backend.
+Any host that runs Node 22.5+ works if it keeps a **persistent disk** (SQLite is a file) **or** you set `DATABASE_URL` to a Neon database (see step 3 below). Free/cheap options: a small VPS, Render (with a persistent disk), Railway (with a volume), Fly.io (with a volume). Static-only hosts such as GitHub Pages or Netlify can't run the backend.
 
 Settings on the host (environment variables, never in GitHub):
 ```
@@ -57,9 +57,19 @@ The browser only ever talks to the Vercel address. Vercel forwards every `/api/.
 2. Vercel → Add New → Project → import this repo → Deploy (settings come from `vercel.json`).
 3. Copy the Vercel address into Render's `ALLOWED_ORIGINS`, then open the Vercel address and create your account.
 
-**Render free plan limits (important):**
+**3. Keep accounts and tasks permanently (Neon, free) — required on Render's free plan**
+Render's free plan has **no persistent disk**: the database file is erased whenever the service sleeps (15 minutes without visits), restarts or redeploys. Without the step below, accounts disappear and a correct password then fails with "Email or password is wrong". This was the cause of the login bug.
+1. Go to <https://neon.tech> → sign up (free, no card) → **Create project** (any name, region close to your Render region).
+2. On the project dashboard click **Connect**, copy the connection string (`postgresql://...neon.tech/neondb?sslmode=require`).
+3. Render → your service → **Environment** → add `DATABASE_URL` = that string → Save (Render redeploys).
+4. Open `https://<your-service>.onrender.com/api/health`. It should show `"persistence": {"mode": "neon", "restored": true, "ok": true}`.
+
+How it works: the server still uses SQLite while running. On start it loads the saved copy from Neon before opening the database; a few seconds after any change it saves a compressed copy back (and once more on shutdown). It talks to Neon over HTTPS, so no extra packages. Safety: it never saves before the saved copy has loaded, so a network problem at start can't overwrite your data; if two servers overlap during a redeploy, the newer one wins.
+Limits: keep one instance; a change made in the last ~3 seconds before a crash (not a normal shutdown) can be lost; the whole database is copied each time, which suits databases up to a few MB (the health check warns above 8 MB). Neon's free plan includes 0.5 GB storage.
+The connection string is a password: keep it only in Render's Environment, never in GitHub or the frontend. The server never prints it.
+
+**Other Render free plan limits:**
 - The service **sleeps after 15 minutes without visits**; the next visit takes up to a minute (the app shows "Starting up…"). While it sleeps, the reminder job doesn't run; reminders catch up when it wakes.
-- The free plan has **no persistent disk**: the SQLite database is **erased on every redeploy or restart**. For real use, switch the service to a paid plan, add a Disk mounted at `/var/data`, and set `DATA_DIR=/var/data`.
 
 ## Gemini free tier notes
 - The server uses `gemini-3.5-flash-lite` for answers and `gemini-embedding-001` for search. Google's pricing page lists both as free of charge on the free tier (checked November 2026). Google doesn't publish fixed free-tier limits any more; your actual limits are shown in Google AI Studio for your project.

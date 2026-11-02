@@ -61,4 +61,42 @@ async function signup(base, name, email, password = "password123", timezone = "A
   const c = client(base); const r = await c.post("/api/auth/signup", { name, email, password, timezone });
   return Object.assign(c, { user: r.json && r.json.user, res: r });
 }
-module.exports = { fakeGemini, fakeVector, startServer, client, signup, ROOT };
+// Fake Neon "SQL over HTTP" endpoint (POST /sql, Neon-Connection-String header, {query, params}),
+// answering in raw-text array mode like Neon does. It understands the few statements lib/persist.js sends.
+function fakeNeon(){
+  const f = { row: null, requests: [], failNext: 0, down: false };
+  f.server = http.createServer((req, res) => {
+    let b = ""; req.on("data", c => b += c); req.on("end", () => {
+      const send = (s, j) => { res.writeHead(s, { "Content-Type": "application/json" }); res.end(JSON.stringify(j)); };
+      f.requests.push({ url: req.url, headers: req.headers, raw: b });
+      if (req.url !== "/sql" || !/^postgres(ql)?:\/\//.test(req.headers["neon-connection-string"] || "")) return send(400, { message: "bad request" });
+      if (f.down || f.failNext > 0) { f.failNext--; return send(503, { message: "endpoint unavailable" }); }
+      const { query, params = [] } = JSON.parse(b || "{}");
+      const q = query.replace(/\s+/g, " ").trim();
+      const out = (cols, rows, command) => send(200, { command, rowCount: rows.length, fields: cols.map(([name, dataTypeID]) => ({ name, dataTypeID })), rows, rowAsArray: true });
+      if (/^CREATE TABLE IF NOT EXISTS dt_snapshot/i.test(q)) return out([], [], "CREATE");
+      if (/^SELECT data, version, instance, started_at FROM dt_snapshot WHERE id = 1/i.test(q))
+        return out([["data", 25], ["version", 20], ["instance", 25], ["started_at", 20]], f.row ? [[f.row.data, String(f.row.version), f.row.instance, String(f.row.started_at)]] : [], "SELECT");
+      if (/^INSERT INTO dt_snapshot/i.test(q)) {
+        if (f.row) return out([["version", 20]], [], "INSERT");
+        f.row = { data: params[0], version: 1, instance: params[1], started_at: Number(params[2]), saved_at: Number(params[3]) };
+        return out([["version", 20]], [["1"]], "INSERT");
+      }
+      if (/^UPDATE dt_snapshot SET .* WHERE id = 1 AND version = \$5/i.test(q)) {
+        if (!f.row || String(f.row.version) !== String(params[4])) return out([["version", 20]], [], "UPDATE");
+        Object.assign(f.row, { data: params[0], version: f.row.version + 1, instance: params[1], started_at: Number(params[2]), saved_at: Number(params[3]) });
+        return out([["version", 20]], [[String(f.row.version)]], "UPDATE");
+      }
+      if (/^UPDATE dt_snapshot SET .* WHERE id = 1 RETURNING/i.test(q)) {
+        Object.assign(f.row, { data: params[0], version: f.row.version + 1, instance: params[1], started_at: Number(params[2]), saved_at: Number(params[3]) });
+        return out([["version", 20]], [[String(f.row.version)]], "UPDATE");
+      }
+      send(400, { message: "unexpected query: " + q.slice(0, 80) });
+    });
+  });
+  f.start = () => new Promise(r => f.server.listen(0, "127.0.0.1", () => { f.url = `http://127.0.0.1:${f.server.address().port}`; r(f); }));
+  f.close = () => f.server.close();
+  f.env = () => ({ DATABASE_URL: "postgresql://dt_user:secret-pw@ep-test-123-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require", NEON_HTTP_URL: f.url + "/sql", PERSIST_INTERVAL_MS: "300" });
+  return f;
+}
+module.exports = { fakeGemini, fakeVector, fakeNeon, startServer, client, signup, ROOT };

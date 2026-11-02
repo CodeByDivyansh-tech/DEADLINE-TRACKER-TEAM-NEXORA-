@@ -69,3 +69,38 @@ test("rate limiting: repeated wrong passwords are slowed down", async () => {
   for (let k = 0; k < 11; k++) last = await c.post("/api/auth/login", { email: "ira@example.com", password: "nope-nope-" + k });
   assert.equal(last.status, 429);
 });
+test("log in: empty fields get a clear message (not 'wrong password'); spaces around the email are ignored", async () => {
+  const t = await signup(s.base, "Tanvi", "tanvi.login@example.com", "tara-password"); assert.equal(t.res.status, 201, JSON.stringify(t.res.json));
+  const c = client(s.base);
+  const e1 = await c.post("/api/auth/login", { email: "", password: "" });
+  assert.equal(e1.status, 400); assert.equal(e1.json.field, "email"); assert.match(e1.json.error, /email/i);
+  const e2 = await c.post("/api/auth/login", { email: "tanvi.login@example.com", password: "" });
+  assert.equal(e2.status, 400); assert.equal(e2.json.field, "password");
+  const e3 = await c.post("/api/auth/login", { email: "not-an-email", password: "whatever1" });
+  assert.equal(e3.status, 400); assert.equal(e3.json.field, "email");
+  assert.equal((await c.post("/api/auth/login", { email: "  TANVI.login@example.com ", password: "tara-password" })).status, 200);
+});
+test("an expired session is refused and removed", async () => {
+  const a = await signup(s.base, "Ishan", "ishan@example.com");
+  assert.equal((await a.get("/api/tasks")).status, 200);
+  const db = new DatabaseSync(path.join(s.dataDir, "deadline.db"));
+  db.prepare("UPDATE sessions SET expires_at = ? WHERE user_id = (SELECT id FROM users WHERE email = ?)").run(Date.now() - 1000, "ishan@example.com");
+  db.close();
+  const r = await a.get("/api/tasks"); assert.equal(r.status, 401); assert.equal(r.json.code, "signed_out");
+  assert.equal((await a.get("/api/me")).json.user, null);
+  const db2 = new DatabaseSync(path.join(s.dataDir, "deadline.db"));
+  assert.equal(db2.prepare("SELECT COUNT(*) n FROM sessions WHERE user_id = (SELECT id FROM users WHERE email = ?)").get("ishan@example.com").n, 0);
+  db2.close();
+});
+test("signed out: every private route answers 401 and leaks nothing", async () => {
+  const c = client(s.base);
+  const routes = [["GET","/api/tasks"],["POST","/api/tasks"],["GET","/api/profile"],["PATCH","/api/profile"],["POST","/api/profile/password"],
+    ["GET","/api/state"],["PUT","/api/state"],["GET","/api/notifications"],["GET","/api/conversations"],["GET","/api/stats"],
+    ["POST","/api/plan/apply"],["GET","/api/admin/users"],["GET","/api/admin/settings"]];
+  for (const [m, u] of routes) {
+    const r = await c.call(m, u, m === "GET" ? undefined : {});
+    assert.ok(r.status === 401 || r.status === 404, `${m} ${u} -> ${r.status}`);
+    if (r.status === 401) assert.equal(r.json.code, "signed_out", `${m} ${u}`);
+    assert.ok(!/@example\.com/.test(r.text || JSON.stringify(r.json || {})), `${m} ${u} leaks an email`);
+  }
+});

@@ -3,7 +3,7 @@ services:
   - type: web
     name: deadline-tracker-api
     runtime: node
-    plan: free            # free: sleeps after 15 min idle and has no persistent disk (see docs/DEPLOY.md)
+    plan: free            # free: sleeps after 15 min idle and has no persistent disk: set DATABASE_URL (see docs/DEPLOY.md)
     buildCommand: node --version
     startCommand: node build.js && node server.js
     healthCheckPath: /api/health
@@ -22,3 +22,5 @@ services:
         sync: false
       - key: ALLOWED_ORIGINS
         sync: false       # your Vercel address, e.g. https://deadline-tracker.vercel.app
+      - key: DATABASE_URL
+        sync: false       # Neon Postgres connection string (free). Keeps accounts and tasks when Render wipes the disk.
