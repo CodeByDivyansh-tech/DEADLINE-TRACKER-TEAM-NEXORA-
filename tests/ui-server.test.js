@@ -4,7 +4,7 @@ const { test, before, after, afterEach } = require("node:test");
 const assert = require("node:assert/strict");
 const { chromium } = require("playwright");
 const { startServer, fakeGemini } = require("./srv");
-const { onboard } = require("./helpers");
+const { onboard, pollPage } = require("./helpers");
 const T = require("../lib/time");
 
 let s, g, browser; const ctxs = [];
@@ -26,7 +26,7 @@ async function newUser(opts = {}){
   await page.click("#authGo");
   await page.waitForSelector("#onb-name");
   await onboard(page, { mode: "student", demo: false, name: "User" });
-  await page.waitForFunction(async () => (await (await fetch("/api/state")).json()).version >= 1, null, { timeout: 5000 });
+  await pollPage(page, async () => (await (await fetch("/api/state")).json()).version >= 1, null, 5000);
   return page;
 }
 const api = (page, method, url, body) => page.evaluate(async ([m, u, b]) => { const r = await fetch(u, { method: m, headers: b ? { "Content-Type": "application/json" } : {}, body: b ? JSON.stringify(b) : undefined }); return r.json(); }, [method, url, body]);
@@ -76,13 +76,13 @@ test("notifications: reminders made by the server's job appear in the bell; Mark
   const page = await newUser();
   const soon = Date.now() + 40 * 60e3, tz = "Asia/Kolkata";
   await api(page, "POST", "/api/tasks", { title: "Submit scholarship form", dueDate: T.localDate(soon, tz), dueTime: T.localTime(soon, tz) });
-  await page.waitForFunction(async () => (await (await fetch("/api/notifications")).json()).unread > 0, null, { timeout: 6000 });
+  await pollPage(page, async () => (await (await fetch("/api/notifications")).json()).unread > 0, null, 6000);
   await page.reload(); await page.waitForSelector("#app:not([hidden])");
   await page.waitForSelector("#bellDot:not([hidden])");
   await page.click("#bellBtn");
   assert.match(await page.textContent("#notifPanel"), /Submit scholarship form" is due in/);
   await page.click("[data-act=readall]");
-  await page.waitForFunction(async () => (await (await fetch("/api/notifications")).json()).unread === 0, null, { timeout: 4000 });
+  await pollPage(page, async () => (await (await fetch("/api/notifications")).json()).unread === 0, null, 4000);
 });
 test("reports: account statistics come from the server; reminder settings update the account", async () => {
   const page = await newUser();
@@ -91,13 +91,36 @@ test("reports: account statistics come from the server; reminder settings update
   await page.evaluate(() => { location.hash = "reports"; });
   await page.waitForSelector(".acct-stats .as-grid");
   const txt = await page.textContent(".acct-stats");
-  assert.match(txt, /Total tasks\s*2/); assert.match(txt, /Completed\s*1/); assert.match(txt, /Completion\s*50%/);
+  assert.match(txt, /Total tasks\s*2/); assert.match(txt, /Completed\s*1/); assert.match(txt, /Done of all tasks\s*50%/);
   await page.evaluate(() => { location.hash = "prefs"; }); await page.waitForSelector(".set-nav");
   await page.click("[data-act=settab][data-v=s-notif]");
   await page.click("#pf-sum");
-  await page.waitForFunction(async () => (await (await fetch("/api/profile")).json()).user.notifyPrefs.dailySummary === false, null, { timeout: 4000 });
+  await pollPage(page, async () => (await (await fetch("/api/profile")).json()).user.notifyPrefs.dailySummary === false, null, 4000);
   assert.match(await page.textContent("#s-notif"), /even while this app is closed/);
 });
+test("reports: the account panel updates right after you finish a task, and its weekly bars are labelled", async () => {
+  const page = await newUser();
+  await page.fill("#addText", "Read chapter 4"); await page.waitForTimeout(40); await page.press("#addText", "Enter"); await page.waitForSelector(".todo:has-text(\"Read chapter 4\")");
+  await page.evaluate(() => { location.hash = "reports"; });
+  await page.waitForSelector(".acct-stats .as-grid");
+  assert.match(await page.textContent(".acct-stats"), /Completed\s*0/);
+  await page.evaluate(() => { location.hash = "overview"; });
+  await page.click(".todo:has-text(\"Read chapter 4\") [data-act=toggle]");
+  await page.evaluate(() => { location.hash = "reports"; });
+  await page.waitForFunction(() => /Completed\s*1/.test(document.querySelector(".acct-stats") && document.querySelector(".acct-stats").textContent || ""), null, { timeout: 4000 });
+  const labels = await page.$$eval(".as-weeks span small", xs => xs.map(x => x.textContent.trim()));
+  assert.equal(labels.length, 8); assert.ok(labels.every(Boolean), "every bar names its week: " + labels.join(","));
+  assert.match(await page.textContent(".acct-stats"), /Completed per week/);
+});
+
+test("reports for a brand-new member: no empty account panel full of zeros, just a clear next step", async () => {
+  const page = await newUser();
+  await page.evaluate(() => { location.hash = "reports"; });
+  await page.waitForSelector(".empty-card");
+  await pollPage(page, () => !document.querySelector(".acct-stats[aria-busy]"), null, 4000);
+  assert.equal(await page.locator(".acct-stats").count(), 0);
+});
+
 test("phone: the Deadline AI window fills the screen without sideways scrolling", async () => {
   const page = await newUser({ viewport: { width: 390, height: 844 } });
   await openAI(page, "help");

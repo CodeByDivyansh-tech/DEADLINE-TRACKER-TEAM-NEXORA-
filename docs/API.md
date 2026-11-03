@@ -10,7 +10,7 @@ Errors look like `{ "code": "invalid_title", "error": "Readable message", "field
 ## Health
 | Method | Path | |
 |---|---|---|
-| GET | `/api/health` | `{ ok, version, database, reminders.lastRun, persistence: { mode: "neon"\|"local", restored, lastSavedAt, sizeKB, ok, error }, ai.configured, ai.model }` (503 if the database fails) |
+| GET | `/api/health` | `{ ok, version, database, reminders.lastRun, persistence: { mode: "neon"\|"local", restored, fallback, lastSavedAt, sizeKB, ok, error }, email: { configured, provider }, ai.configured, ai.model }` (503 if the database fails). `fallback: true` means Neon couldn't be used at start: the server runs without saving to Neon and `error` says why. While the saved database is still loading, every route answers **503** `{ code: "starting", starting: true }` with `Retry-After`. |
 | GET | `/api/status` | `{ accounts: true, ai, provider: "gemini", model }` |
 
 ## Accounts and profile
@@ -19,6 +19,8 @@ Errors look like `{ "code": "invalid_title", "error": "Readable message", "field
 | POST | `/api/auth/signup` | `{ name, email, password (8–200), timezone? }` → 201 `{ user }` + cookie. The first account becomes admin. |
 | POST | `/api/auth/login` | `{ email, password, timezone? }` → `{ user }` + cookie. 10 wrong tries in 15 min → 429. |
 | POST | `/api/auth/logout` | Ends this session. |
+| POST | `/api/auth/forgot` | `{ email }` → `{ ok, emailEnabled, message }`. Emails a one-time reset link if the account exists; the answer is the same either way. Without email set up: `emailEnabled: false` and a message to ask the admin. Limited per address and per email. |
+| POST | `/api/auth/reset` | `{ token, password }` → `{ ok, email }`. Sets the new password once (link valid `RESET_TOKEN_MINUTES`, 30 by default), ends every session. Bad/used/expired token: 400 `bad_token`. |
 | GET | `/api/me` | `{ user }` or `{ user: null }` |
 | GET 🔒 | `/api/profile` | `{ user: { id, email, name, role, timezone, notifyPrefs } }` |
 | PATCH 🔒 | `/api/profile` | `{ name?, timezone? (IANA, e.g. Asia/Kolkata), notifyPrefs? }` |
@@ -81,6 +83,7 @@ Action types in a proposal: `create` (new task), `plan` (plan an existing task f
 |---|---|---|
 | GET | `/api/admin/overview` | Counts, AI status and limits, errors, last reminder run |
 | GET / PATCH / DELETE | `/api/admin/users` · `/api/admin/users/:id` | List; `{ role, disabled }`; delete. The last admin can't be removed. |
+| POST | `/api/admin/users/:id/reset-link` | `{ link, expiresAt }`: a one-time "set a new password" link (24 h) for the admin to send to someone who can't log in. The admin never sees or sets the password. |
 | GET / POST | `/api/admin/kb` | List; add `{ kind: faq|doc, title, body }` or upload `{ filename (.md/.txt/.html), body }`, optional `fromQuestion` |
 | GET / PUT / DELETE | `/api/admin/kb/:id` | One source; edit `{ title, body }`; delete |
 | POST | `/api/admin/kb/reindex` | `{ all?: true }`: re-chunk and embed |

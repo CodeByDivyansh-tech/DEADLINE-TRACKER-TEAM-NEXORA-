@@ -676,6 +676,11 @@ button.risk:hover{background:color-mix(in srgb,var(--rc) 22%,transparent)}
 .auth-form .btn.primary:active{transform:translateY(0)}
 .auth-form .btn.primary.busy{opacity:.75;cursor:progress}
 .auth-err{margin:0;background:rgba(255,92,120,.14);border:1px solid rgba(255,120,140,.45);color:#ffd6dd;border-radius:10px;padding:9px 12px;font-size:14px;animation:fadeUp .2s ease both}
+.auth-forgot{justify-self:end;margin-top:-6px;font-size:13px;color:#e8c3a0;font-weight:600}
+.auth-forgot:hover{color:#fff}
+.auth-links{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}.auth-links .auth-forgot{margin:0}
+.auth-ok{margin:0;background:rgba(92,198,164,.14);border:1px solid rgba(92,198,164,.45);color:#d9f5ea;border-radius:10px;padding:9px 12px;font-size:14px}
+.auth-tabs[data-v="forgot"] .auth-pill,.auth-tabs[data-v="reset"] .auth-pill{opacity:0}
 .auth-foot{display:flex;gap:8px;align-items:flex-start;color:#c4b6a3;font-size:12.5px;margin:0}
 .auth-foot svg{width:15px;height:15px;flex:none;margin-top:1px}
 #waking.auth-card{width:min(460px,100%);margin:auto}
@@ -1077,8 +1082,14 @@ body::before{content:"";position:fixed;inset:-10%;z-index:-1;pointer-events:none
 .as-row{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:16px;align-items:end}
 .as-weeks{display:grid;grid-template-columns:repeat(8,1fr);gap:6px;height:104px;align-items:end}
 .as-weeks span{height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:stretch;gap:3px}
-.as-weeks i{display:block;width:100%;min-height:3px;max-height:calc(100% - 16px);border-radius:6px 6px 2px 2px;background:linear-gradient(180deg,var(--accent),color-mix(in srgb,var(--accent) 55%,transparent))}
+.as-weeks i{display:block;width:100%;min-height:3px;max-height:calc(100% - 32px);border-radius:6px 6px 2px 2px;background:linear-gradient(180deg,var(--accent),color-mix(in srgb,var(--accent) 55%,transparent))}
 .as-weeks em{font-style:normal;font-size:11px;color:var(--muted);text-align:center;line-height:1}
+.as-weeks small{font-size:10.5px;color:var(--muted);text-align:center;line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* plain links inside pages (not tiles or buttons, which have their own colours) */
+.view a:not([class]){color:var(--accent);text-underline-offset:2px}
+.view a.btn{text-decoration:none}.view a.btn:not(.primary){color:var(--ink)}
+.empty-card{display:grid;gap:10px;justify-items:start}.empty-card h3{font-size:17px}.empty-card p{max-width:62ch}
+.as-cap{margin:0 0 8px;font-size:12.5px;font-weight:600;color:var(--ink-2)}
 .as-pris{display:grid;gap:6px}.as-pri{display:flex;align-items:center;gap:8px;font-size:13.5px}.as-pri b{margin-left:auto}.as-pri .muted{font-size:12px;min-width:84px;text-align:right}
 .as-pri .p-high{--pc:var(--over)}.as-pri .p-medium{--pc:var(--att)}.as-pri .p-low{--pc:var(--muted)}
 .dw-privacy{display:flex;gap:6px;align-items:flex-start;font-size:12px!important;color:var(--muted)}.dw-privacy svg{width:14px;height:14px;flex:none;margin-top:1px}

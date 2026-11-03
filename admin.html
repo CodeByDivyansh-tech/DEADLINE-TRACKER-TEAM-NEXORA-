@@ -71,12 +71,12 @@ async function show(){
         <p class="muted">Reminder job last ran: ${when(o.reminders.lastRun)}</p></div>`;
     } else if (tab === "users") {
       const { users } = await api("GET", "/api/admin/users");
-      m.innerHTML = `<div class="card"><h2>Users (${users.length})</h2><p class="muted">Admins can change roles and turn accounts off. They can't see anyone's tasks.</p>
+      m.innerHTML = `<div class="card"><h2>Users (${users.length})</h2><p class="muted">Admins can change roles and turn accounts off. They can't see anyone's tasks or passwords. "Reset link" makes a one-time link for someone who can't log in; you send it to them yourself.</p><div id="resetBox"></div>
         <table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Tasks</th><th>Time zone</th><th>Joined</th><th>Last login</th><th></th></tr></thead><tbody>
         ${users.map(u => `<tr><td>${esc(u.name)}${u.id === me.id ? ' <span class="tag">you</span>' : ""}</td><td>${esc(u.email)}</td>
           <td><select data-role="${u.id}" aria-label="Role for ${esc(u.email)}"><option value="user" ${u.role === "user" ? "selected" : ""}>User</option><option value="admin" ${u.role === "admin" ? "selected" : ""}>Admin</option></select></td>
           <td>${u.tasks}</td><td>${esc(u.timezone)}</td><td>${when(u.createdAt)}</td><td>${when(u.lastLogin)}</td>
-          <td class="row"><button class="btn" data-dis="${u.id}" data-v="${!u.disabled}">${u.disabled ? "Turn on" : "Turn off"}</button>${u.id !== me.id ? `<button class="btn danger" data-del-user="${u.id}" data-email="${esc(u.email)}">Delete</button>` : ""}</td></tr>`).join("")}
+          <td class="row"><button class="btn" data-reset-link="${u.id}" data-email="${esc(u.email)}" title="Make a one-time link to set a new password">Reset link</button><button class="btn" data-dis="${u.id}" data-v="${!u.disabled}">${u.disabled ? "Turn on" : "Turn off"}</button>${u.id !== me.id ? `<button class="btn danger" data-del-user="${u.id}" data-email="${esc(u.email)}">Delete</button>` : ""}</td></tr>`).join("")}
         </tbody></table></div>`;
     } else if (tab === "kb") {
       const { items } = await api("GET", "/api/admin/kb");
@@ -123,6 +123,12 @@ document.addEventListener("click", async e => {
   const t = e.target.closest("button, [data-tab]"); if (!t) return;
   try {
     if (t.dataset.tab) { tab = t.dataset.tab; editing = null; show.prefill = null; location.hash = tab; return show(); }
+    if (t.dataset.resetLink) {
+      const r = await api("POST", "/api/admin/users/" + t.dataset.resetLink + "/reset-link");
+      $("#resetBox").innerHTML = `<div class="card"><label class="f">Send this link to ${esc(t.dataset.email)}. It works once, until ${esc(new Date(r.expiresAt).toLocaleString())}.<input id="resetLinkOut" readonly value="${esc(r.link)}"></label><div class="row"><button class="btn" data-copy-reset>Copy link</button></div></div>`;
+      $("#resetLinkOut").select(); return;
+    }
+    if (t.dataset.copyReset !== undefined) { const i = $("#resetLinkOut"); i.select(); try { await navigator.clipboard.writeText(i.value); toast("Copied."); } catch (x) { document.execCommand("copy"); toast("Copied."); } return; }
     if (t.dataset.dis) { await api("PATCH", "/api/admin/users/" + t.dataset.dis, { disabled: t.dataset.v === "true" }); toast("Saved."); return show(); }
     if (t.dataset.delUser) { if (!confirm(`Delete ${t.dataset.email} and all their data? This can't be undone.`)) return; await api("DELETE", "/api/admin/users/" + t.dataset.delUser); toast("Deleted."); return show(); }
     if (t.dataset.edit) { editing = t.dataset.edit; show.prefill = null; await show(); return $("#kbTitle").focus(); }

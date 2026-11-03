@@ -232,3 +232,47 @@ Found and fixed along the way:
 Screenshots checked: light and dark (Today, heads-up open, rail mid-move and finished, Deadlines, AI window mid-open and open, log-in and sign-up switch), and 390 px phone (Today, AI window, log-in).
 
 Not covered: real GPUs, Safari and Firefox (tests use Chromium only); how the motion feels at low frame rates on old phones. The `/pitch` page still uses the indigo palette.
+
+## Full audit: login, password reset, new members, Reports, Planner, security (3 Nov 2026, branch `audit-fixes-nov3`)
+**Result:** the full suite, run twice in a row (see the final line of this section for the numbers); 100 test accounts × 14 scenarios against a real server; security sweep 24 of 24 checks.
+
+### Main cause of "login not working", "sample data missing", "Reports/Planner empty" on the live site
+The live backend on Render was still running code from before 2 Nov. Every Render deploy since commit `fd11854` failed after ~15 minutes (GitHub deployment statuses show 5 failures in a row). The new server waited for Neon *before* opening its port and retried forever; when Neon couldn't be used it never answered Render's health check, so Render kept the old server, which loses its database whenever it restarts (free plan). Accounts, sample data and reports disappeared with it.
+Fix (`server.js`, `lib/persist.js`, `lib/config.js`): the port opens first and answers 503 "starting" until the data is loaded; after 60 s without Neon the server starts anyway **without** saving to Neon, shows the reason in `/api/health` (`persistence.fallback`, `error`), and checks again every 30 s (empty Neon → starts saving; Neon holding a saved copy → never overwritten, asks for a restart). A `DATABASE_URL` pasted as `psql '…'`, with quotes or with `DATABASE_URL=` is cleaned. 5 new tests in `tests/persist.test.js` (they hung before the fix).
+
+### Bugs found and fixed
+| Bug | Effect | Fix | Test |
+|---|---|---|---|
+| Render deploys never finished (above) | Old server kept running; data lost on every restart | Listen first, time-limited Neon load, fallback + recheck, cleaned `DATABASE_URL` | `persist.test.js` (5 new) |
+| No way to recover a forgotten password | Members locked out | One-time reset links by email (Brevo/Resend, free) or made by the admin; `#reset=` page; token hashed, single use, 30 min, signs out all devices; rate limited | `api-password-reset.test.js` (11), `forgot-ui.test.js` (7) |
+| Bringing browser tasks into a new account deleted the browser copy *before* the server saved it | A refused save (old short ids) or network error lost those tasks | Copy removed only after a confirmed save; old ids repaired | `account-ui.test.js` (2) |
+| Reports "Your account" totals cached up to 30 s | Finished a task, Reports still showed the old numbers | Refreshed after every save | `ui-server.test.js` (verified red without the fix) |
+| Weekly bars in "Your account" had no labels; "Completion" contradicted "Completion rate" | Chart unreadable, numbers confusing | Week labels, "Done of all tasks", month names | `ui-server.test.js` |
+| Reports for a member with no deadlines showed "0%" rates and "Average finish: On the day" | Invented results | Empty state with "Add a deadline"; dashes when nothing is finished; empty account panel hidden | `empty-states.test.js`, `ui-server.test.js` |
+| Study Planner with no deadlines: empty picker, no guidance | Looked broken | "Nothing to plan yet" with an example and buttons | `empty-states.test.js` |
+| Deadline Radar drew deadlines due at the same time on the same spot | The lower dot couldn't be clicked | Colliding dots moved apart within their sector | `empty-states.test.js` (3 modes) |
+| Links inside pages used the browser's default blue | Hard to read in dark mode, off-palette | Accent colour for plain links | `empty-states.test.js` |
+| A reset link pasted into a tab with the site open did nothing | Reset page didn't appear | Handled on `hashchange` | `forgot-ui.test.js` |
+
+### Test mistakes found and fixed
+- **7 waits never waited:** `page.waitForFunction(async () => …)` returns at once because Playwright treats the returned Promise as "true" (checked: 31 ms while the condition was false). Replaced by `pollPage()` in `tests/helpers.js`. With real waits, two account tests' expectation "version ≥ 2" turned out wrong (setup and the first task are saved together); they now wait for the task itself. The import data-loss bug above had been hidden by this.
+- The earlier run's reset UI test used an "too short" password that was exactly 8 characters, and read error messages before the server answered.
+- The fake Neon crashed when a stopping server saved after the next test cleared its data (real Postgres just updates 0 rows).
+- A pitch test checked "no 3D yet" right after opening, a race that failed once when the machine was busy. It now compares the browser's first-paint time with the time the first scene appears. (On this machine the 3D appears after the text even without the built-in delay, so the test checks the result people see, not the delay itself.)
+
+### Security sweep (`/tmp` script, real server, test data only): 24 of 24
+All 52 private routes refuse visitors who aren't logged in (`/api/help/suggestions` is public on purpose: titles of the public help guide's FAQs). All admin routes refuse members. Another member's task and conversation ids return 404; lists, saved state and statistics hold only the member's own data. Profile/sign-up can't set role or email; SQL injection strings in log-in and filters are refused and the database is intact; XSS text is stored as text and shown escaped; session cookie HttpOnly + SameSite=Lax (+ Secure in production); logged-out and made-up sessions are refused; cross-site POSTs blocked (403); wrong passwords and reset-token guessing are rate limited (429); no hashes/salts/tokens in any response; a 3 MB body is refused; `.env`, the database and source files aren't served.
+
+### 100 accounts (`tests/load/hundred-users.js`, result in `tests/load/hundred-users-result.json`)
+Each account: browser sign-up and setup with sample data, Reports, Planner, create (Add box) / edit / delete (task API), refresh, log out and in, existing log-in, wrong password, forgot password email, reset page, protected routes; then every member tried every other member's task (9,900 checks). All 14 scenarios passed 100/100.
+
+### Crawl
+4 set-ups (student 1366 light, student 390 dark, company 1366 dark, personal 1024 light): every page, every kind of button clicked: no JavaScript errors, no server errors, no sideways scrolling.
+
+### Not covered / remaining risks
+- The live site was only read (health page, one unknown route); no accounts were created on it. Render's logs weren't readable (not signed in), so the exact Neon error on Render is unknown until the fixed server is deployed and `/api/health` shows it.
+- Reset emails need an email provider in Render's settings (`docs/DEPLOY.md` step 4); until then "Forgot password?" says to ask the admin, who can make a link.
+- Accounts made on the live site since its last restart will be lost when the new server deploys (the old server keeps them only on a disk Render wipes); with Neon working, nothing is lost after that.
+- Chromium only (no Safari/Firefox); one server instance; a change in the last ~3 s before a crash can be lost.
+
+**Final numbers:** full suite **354 of 354, twice in a row** (two earlier runs: 353/354 with the pitch race above, then 354/354). 100 accounts × 14 scenarios: **all 100/100**, 9,900 cross-member checks, 349 s (re-run on the final code).

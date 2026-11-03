@@ -78,3 +78,76 @@ test("the database password never appears in responses or logs", async () => {
     assert.doesNotMatch(s.out(), /secret-pw/);
   } finally { s.stop(); }
 });
+
+/* ---------- Bug (3 Nov): every Render deploy since the Neon change failed after 15 minutes ----------
+   The server waited for Neon *before* opening its port and retried forever, so when Neon couldn't be used
+   (a pasted connection string with extra text, a network problem) the new server never answered Render's
+   health check and the old server, which loses everything on restart, kept running. */
+const health = async base => { const r = await client(base).get("/api/health"); return { status: r.status, json: r.json }; };
+async function waitFor(fn, ms = 6000){ for (let t = 0; t < ms; t += 100) { if (await fn()) return true; await wait(100); } return false; }
+
+test("Neon unreachable for good: the server still starts, says why in /api/health, and never writes to Neon", async () => {
+  neon.row = { data: "keep-me", version: 7, instance: "x", started_at: 1, saved_at: 1 };
+  neon.down = true;
+  const t0 = Date.now();
+  const s = await startServer(Object.assign(neon.env(), { PERSIST_RETRY_MS: "100", PERSIST_START_TIMEOUT_MS: "1200", PERSIST_RECHECK_MS: "300" }));
+  try {
+    assert.ok(Date.now() - t0 < 7000, "started instead of waiting forever");
+    const h = await health(s.base);
+    assert.equal(h.status, 200);
+    assert.equal(h.json.persistence.ok, false); assert.equal(h.json.persistence.restored, false); assert.equal(h.json.persistence.fallback, true);
+    assert.match(h.json.persistence.error, /503|unavailable/i, "the real reason is shown");
+    assert.equal((await signup(s.base, "Temp", "temp@example.com")).res.status, 201, "the site works meanwhile");
+    await wait(900);
+    assert.equal(neon.row.data, "keep-me", "the saved copy was not overwritten");
+    neon.down = false; await wait(900);
+    assert.equal(neon.row.data, "keep-me", "still not overwritten after Neon came back, because it holds saved data");
+    assert.match((await health(s.base)).json.persistence.error, /restart/i, "tells the admin to restart to load the saved data");
+  } finally { s.stop(); neon.down = false; }
+});
+
+test("Neon unreachable at start but empty when it comes back: saving starts by itself", async () => {
+  neon.row = null; neon.down = true;
+  const s = await startServer(Object.assign(neon.env(), { PERSIST_RETRY_MS: "100", PERSIST_START_TIMEOUT_MS: "800", PERSIST_RECHECK_MS: "300", PERSIST_INTERVAL_MS: "200" }));
+  try {
+    await signup(s.base, "Kavi", "kavi@example.com");
+    neon.down = false;
+    assert.ok(await waitFor(() => neon.row && neon.row.version >= 1), "saved once Neon answered");
+    const h = await health(s.base);
+    assert.equal(h.json.persistence.ok, true); assert.equal(h.json.persistence.restored, true); assert.ok(!h.json.persistence.fallback);
+  } finally { s.stop(); }
+});
+
+test("while the saved database is loading, the API says 'starting' (503) instead of answering with empty data", async () => {
+  neon.row = null; neon.down = true;
+  const s = await startServer(Object.assign(neon.env(), { PERSIST_RETRY_MS: "100", PERSIST_START_TIMEOUT_MS: "60000" }), { early: true });
+  try {
+    const me = await client(s.base).get("/api/me");
+    assert.equal(me.status, 503); assert.equal(me.json.code, "starting"); assert.ok(me.headers.get("retry-after"));
+    const h = await health(s.base);
+    assert.equal(h.status, 503, "Render waits instead of sending people to a server without their data");
+    assert.equal(h.json.starting, true); assert.match(h.json.persistence.error || "", /503|unavailable/i);
+    neon.down = false;
+    assert.ok(await waitFor(async () => (await client(s.base).get("/api/me")).status === 200), "ready once Neon answers");
+  } finally { s.stop(); }
+});
+
+test("a connection string pasted with extra text (psql '...' or quotes) still works", async () => {
+  neon.row = null;
+  const e = neon.env();
+  for (const v of [`psql '${e.DATABASE_URL}'`, `"${e.DATABASE_URL}"`, `DATABASE_URL=${e.DATABASE_URL}`]) {
+    const s = await startServer(Object.assign({}, e, { DATABASE_URL: v }));
+    try { const h = await health(s.base); assert.equal(h.json.persistence.mode, "neon", v); assert.equal(h.json.persistence.ok, true, v); assert.equal(h.json.persistence.restored, true, v); }
+    finally { s.stop(); await wait(200); }
+  }
+});
+
+test("a DATABASE_URL that isn't a Postgres address: the server starts and explains, it doesn't crash", async () => {
+  const s = await startServer({ DATABASE_URL: "https://console.neon.tech/app/projects/abc", PERSIST_START_TIMEOUT_MS: "800" });
+  try {
+    const h = await health(s.base);
+    assert.equal(h.status, 200); assert.equal(h.json.persistence.ok, false);
+    assert.match(h.json.persistence.error, /postgresql:\/\//, "says what the value should look like");
+    assert.equal((await signup(s.base, "Lin", "lin@example.com")).res.status, 201);
+  } finally { s.stop(); }
+});

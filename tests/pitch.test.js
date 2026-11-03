@@ -47,10 +47,18 @@ test("pitch: /pitch, /pitch/ and /pitch.html open; three.js loads once from a ca
 });
 
 test("pitch: three different 3D scenes: the visible one runs, the others are prepared quietly and paused", async () => {
-  const page = await open({ warm: true, gl: true });
+  // Compare times: when the browser first painted text (first-contentful-paint) and when the first 3D scene appeared.
+  // (Checking "right after opening" was a race that failed when the machine was busy, and didn't prove the order.)
+  const page = await open({ warm: true, gl: true, init: () => {
+    window.__t = {};
+    try { new PerformanceObserver(l => { for (const e of l.getEntries()) if (e.name === "first-contentful-paint") window.__t.fcp = e.startTime; }).observe({ type: "paint", buffered: true }); } catch (e) {}
+    const tick = () => { if (window.NEXORA && window.NEXORA.stages().length) { window.__t.stage = performance.now(); return; } requestAnimationFrame(tick); }; requestAnimationFrame(tick);
+  } });
   const hosts = await page.$$eval("[data-3d]", hs => hs.map(h => h.dataset["3d"]));
   assert.deepEqual(hosts, ["orbit", "radar", "week", "orbit2"]);
-  assert.equal(await page.evaluate(() => window.NEXORA.stages().length), 0, "the 3D waits until the text has painted");
+  await page.waitForFunction(() => window.__t.fcp != null && window.__t.stage != null, null, { timeout: 15000 });
+  const t = await page.evaluate(() => window.__t);
+  assert.ok(t.stage > t.fcp, `the 3D waits until the text has painted (text ${t.fcp.toFixed(0)} ms, 3D ${t.stage.toFixed(0)} ms)`);
   await page.waitForFunction(() => window.NEXORA.stages().length > 0);
   let st = await page.evaluate(() => window.NEXORA.stages());
   assert.deepEqual(st.map(x => x.id), ["orbit"], "then only the first slide's scene is built");

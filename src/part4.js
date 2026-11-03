@@ -587,6 +587,7 @@ document.addEventListener("click", async e => {
     case "onbmode": ONB.mode = a.dataset.v; ONB.ws = ""; showOnboarding(); break;
     case "authmode": { if (ACCOUNT.mode === a.dataset.v) break; const pl = $(".auth-pill"); const from = pl ? pl.getBoundingClientRect().left : 0; ACCOUNT.mode = a.dataset.v; showAuth(null, true); if (pl) MOTION.authSwitch(from, ACCOUNT.mode === "signup"); break; }
     case "pwtoggle": togglePw(a); break;
+    case "authforgot": ACCOUNT.mode = "forgot"; ACCOUNT.keepEmail = $("#au-email") ? $("#au-email").value.trim() : ""; showAuth(null, true); break;
     case "pwopen": UI.pwOpen = !UI.pwOpen; render(); if (UI.pwOpen && $("#pw-cur")) $("#pw-cur").focus(); break;
     case "logout": logout(); break;
     case "onbdone": ONB.due = $("#onb-due").value; ONB.demo = $("#onb-demo").checked; finishOnboarding(); break;
@@ -850,6 +851,8 @@ document.addEventListener("drop", e => { if (!dragId) return; const z = e.target
 document.addEventListener("mouseover", e => { const b = e.target.closest && e.target.closest(".blip"); const tip = $("#radarTip"); if (!tip) return; if (!b) { tip.hidden = true; return; } const box = $("#radar").getBoundingClientRect(); const r = b.getBoundingClientRect(); tip.textContent = b.dataset.tip; tip.style.left = (r.left + r.width / 2 - box.left) + "px"; tip.style.top = (r.top - box.top) + "px"; tip.hidden = false; });
 document.addEventListener("focusin", e => { if (e.target.classList && e.target.classList.contains("blip")) e.target.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })); });
 document.addEventListener("toggle", e => { if (e.target.classList && e.target.classList.contains("nav-more")) UI.navMore = e.target.open; }, true);
+// A reset link pasted into a tab that already has the site open only changes the #part, so catch it here too.
+window.addEventListener("hashchange", () => { if (ACCOUNT.on && takeResetToken()) { showAuth(); } });
 window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if (h && h !== UI.route && state && state.workspaces.length && /^[a-z]+$/.test(h)) setRoute(h, false); });
 
 /* =========================================================
@@ -907,7 +910,7 @@ if (/[?&]dt-test\b/.test(location.search)) {
   const acct = await checkAccounts();
   if (acct) {
     ACCOUNT.on = true; ACCOUNT.user = acct.user;
-    if (!acct.user) { showAuth(); detectAI(); return; }
+    if (takeResetToken() || !acct.user) { showAuth(); detectAI(); return; }
     await initServerStore();
   } else initStore();
   afterLoad();

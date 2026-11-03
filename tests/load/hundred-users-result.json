@@ -1,0 +1,80 @@
+{
+  "when": "2026-11-03T08:25:02.756Z",
+  "accounts": 100,
+  "parallel": 4,
+  "seconds": 349,
+  "summary": [
+    {
+      "scenario": "1 sign-up",
+      "passed": 100,
+      "of": 100
+    },
+    {
+      "scenario": "2 first login",
+      "passed": 100,
+      "of": 100
+    },
+    {
+      "scenario": "3 sample data",
+      "passed": 100,
+      "of": 100
+    },
+    {
+      "scenario": "4 existing login",
+      "passed": 100,
+      "of": 100
+    },
+    {
+      "scenario": "5 wrong password",
+      "passed": 100,
+      "of": 100
+    },
+    {
+      "scenario": "6 forgot password",
+      "passed": 100,
+      "of": 100
+    },
+    {
+      "scenario": "7 password reset",
+      "passed": 100,
+      "of": 100
+    },
+    {
+      "scenario": "8 log out and in",
+      "passed": 100,
+      "of": 100
+    },
+    {
+      "scenario": "9 reports",
+      "passed": 100,
+      "of": 100
+    },
+    {
+      "scenario": "10 study planner",
+      "passed": 100,
+      "of": 100
+    },
+    {
+      "scenario": "11 create/edit/delete",
+      "passed": 100,
+      "of": 100
+    },
+    {
+      "scenario": "12 refresh keeps data",
+      "passed": 100,
+      "of": 100
+    },
+    {
+      "scenario": "13 protected without login",
+      "passed": 100,
+      "of": 100
+    },
+    {
+      "scenario": "14 other member's data",
+      "passed": 100,
+      "of": 100
+    }
+  ],
+  "failures": [],
+  "crossChecks": 9900
+}

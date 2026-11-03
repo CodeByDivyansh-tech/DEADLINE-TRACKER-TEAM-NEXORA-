@@ -26,12 +26,28 @@ const { createGemini } = require("./lib/ai/gemini");
 const { createRag } = require("./lib/ai/rag");
 const Help = require("./lib/ai/help");
 const { createPersistence } = require("./lib/persist");
+const { createMail } = require("./lib/mail");
 const VERSION = require("./package.json").version;
 
 async function main(){
   const persist = createPersistence(Object.assign({ dataDir: cfg.dataDir, log: (a, e) => log(a, e) }, cfg.persist));
+  // Open the port first and answer "starting" (503) until the database is ready. Before, the server waited for
+  // Neon before listening; when Neon couldn't be used it never answered, so every Render deploy timed out.
+  let ready = null;
+  const server = http.createServer((req, res) => {
+    if (ready) return ready(req, res);
+    send(res, 503, { ok: false, starting: true, code: "starting", error: "The server is starting up. Try again in a few seconds.", persistence: persist.status() }, { "Retry-After": "5" });
+  });
+  let tryPort = cfg.port, tries = 0;
+  server.on("error", e => {
+    if ((e.code === "EACCES" || e.code === "EADDRINUSE") && cfg.port !== 0 && tries < 20) { console.log(`Port ${tryPort} is not available (${e.code}), trying ${tryPort + 1}...`); tries++; tryPort++; server.listen(tryPort, cfg.host); }
+    else { console.error("Could not start the server:", e.message); process.exit(1); }
+  });
+  await new Promise(r => { server.once("listening", r); server.listen(cfg.port, cfg.host); });
+  const port = server.address().port;
+  console.log(`Starting at http://localhost:${port} ...`);
   if (persist.enabled) console.log("Permanent storage: Neon Postgres. Loading the saved database...");
-  await persist.restore();   // must finish before the database is opened, so a wiped disk gets its data back
+  await persist.restore();   // finishes before the database is opened, so a wiped disk gets its data back (or times out: see lib/persist.js)
   const db = openDb(cfg.dataDir);
   persist.start(db);
   function log(area, err){
@@ -40,7 +56,8 @@ async function main(){
       db.prepare("DELETE FROM error_log WHERE created_at < ?").run(Date.now() - 30 * 864e5); } catch (e) {}
     if (!(err && err.code && /quota|limited|no_key/.test(err.code))) console.error(`[${area}]`, msg);
   }
-  const auth = createAuth(db, cfg);
+  const mail = createMail(cfg.mail);
+  const auth = createAuth(db, cfg, { mail, log });
   const notifications = Notifs.createNotifications(db, { prefsOf: auth.prefsOf, log });
   const tasks = Tasks.createTasks(db, { onChange: uid => notifications.touch(uid) });
   const conversations = Convs.createConversations(db);
@@ -55,12 +72,14 @@ async function main(){
   const A = { auth: true };
   R.add("GET", "/api/health", () => {
     let dbOk = true; try { db.prepare("SELECT 1").get(); } catch (e) { dbOk = false; }
-    return { status: dbOk ? 200 : 503, body: { ok: dbOk, version: VERSION, time: new Date().toISOString(), database: dbOk ? "ok" : "error", reminders: notifications.status(), persistence: persist.status(), ai: { configured: gemini.configured(), model: gemini.model } } };
+    return { status: dbOk ? 200 : 503, body: { ok: dbOk, version: VERSION, time: new Date().toISOString(), database: dbOk ? "ok" : "error", reminders: notifications.status(), persistence: persist.status(), email: { configured: mail.configured(), provider: mail.provider }, ai: { configured: gemini.configured(), model: gemini.model } } };
   });
   R.add("GET", "/api/status", () => ({ accounts: true, ai: gemini.configured(), provider: "gemini", model: gemini.configured() ? gemini.model : null }));
   R.add("GET", "/api/me", (c) => ({ accounts: true, user: auth.publicUser(c.user) }));
   R.add("POST", "/api/auth/signup", async (c) => { const r = await auth.signup(await c.json(), c.ip); return { status: 201, body: { user: r.user }, headers: { "Set-Cookie": r.cookie } }; });
   R.add("POST", "/api/auth/login", async (c) => { const r = await auth.login(await c.json(), c.ip); return { body: { user: r.user }, headers: { "Set-Cookie": r.cookie } }; });
+  R.add("POST", "/api/auth/forgot", async (c) => auth.requestReset(await c.json(), c.ip, c.req));
+  R.add("POST", "/api/auth/reset", async (c) => auth.resetPassword(await c.json(), c.ip));
   R.add("POST", "/api/auth/logout", (c) => ({ body: { ok: true }, headers: { "Set-Cookie": auth.logout(c.req) } }));
   R.add("GET", "/api/profile", (c) => ({ user: auth.publicUser(c.user) }), A);
   R.add("PATCH", "/api/profile", async (c) => { const u = auth.updateProfile(c.user, await c.json()); notifications.touch(c.user.id); return { user: u }; }, A);
@@ -71,7 +90,7 @@ async function main(){
   Convs.routes(R, { db, conversations });
   Stats.routes(R, { stats });
   Help.routes(R, { help });
-  Admin.routes(R, { db, rag, help, gemini, notifications });
+  Admin.routes(R, { db, rag, help, gemini, notifications, auth });
 
   // ---------- request handling ----------
   const apiLimit = limiter(Number(process.env.API_RPM) || 600, 60e3);
@@ -107,7 +126,7 @@ async function main(){
   const MIME = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".webp": "image/webp", ".ico": "image/x-icon", ".webmanifest": "application/manifest+json" };
   // The pitch's public libraries (three.js, GSAP) are the only .js files served; all other .js is source code.
   const PUBLIC_JS = /^pitch-assets[\\/][\w.-]+\.min\.js$/;
-  const server = http.createServer(async (req, res) => {
+  const handle = async (req, res) => {
     let url, query = {};
     try { const u = new URL(req.url || "/", "http://x"); url = decodeURIComponent(u.pathname); u.searchParams.forEach((v, k) => { query[k] = v; }); }
     catch (e) { res.writeHead(400); return res.end("Bad request"); }
@@ -129,22 +148,16 @@ async function main(){
     if (!type) { res.writeHead(404, Object.assign({ "Content-Type": "text/plain" }, SECURITY_HEADERS)); return res.end("Not found"); }
     res.writeHead(200, Object.assign({ "Content-Type": type, "Cache-Control": /^pitch-assets[\\/]/.test(path.relative(cfg.ROOT, file)) ? "public, max-age=86400" : "no-store" }, SECURITY_HEADERS, /html/.test(type) ? { "Content-Security-Policy": CSP } : {}));
     fs.createReadStream(file).pipe(res);
-  });
+  };
 
   // ---------- start ----------
   notifications.start(cfg.reminderIntervalMs);
   rag.refresh().then(r => { if (r && r.embedded) console.log(`Knowledge base: added ${r.embedded} embeddings.`); }).catch(e => log("rag", e));
-  let tryPort = cfg.port, tries = 0;
-  server.on("error", e => {
-    if ((e.code === "EACCES" || e.code === "EADDRINUSE") && cfg.port !== 0 && tries < 20) { console.log(`Port ${tryPort} is not available (${e.code}), trying ${tryPort + 1}...`); tries++; tryPort++; server.listen(tryPort, cfg.host); }
-    else { console.error("Could not start the server:", e.message); process.exit(1); }
-  });
-  server.listen(cfg.port, cfg.host);
-  server.on("listening", () => {
-    console.log(`Deadline Tracker running at http://localhost:${server.address().port}`);
-    console.log(gemini.configured() ? `Deadline AI Help: Google Gemini (${gemini.model}, free tier)` : "Deadline AI Help: AI off (add GEMINI_API_KEY to .env to turn on Gemini). My Plan works without it.");
-    console.log(`Database: ${path.join(cfg.dataDir, "deadline.db")}`);
-  });
+  ready = handle;
+  console.log(`Deadline Tracker running at http://localhost:${port}`);
+  console.log(gemini.configured() ? `Deadline AI Help: Google Gemini (${gemini.model}, free tier)` : "Deadline AI Help: AI off (add GEMINI_API_KEY to .env to turn on Gemini). My Plan works without it.");
+  console.log(`Database: ${path.join(cfg.dataDir, "deadline.db")}`);
+  const ps = persist.status(); if (ps.fallback) console.error(`Permanent storage is NOT working: ${ps.error}`);
   let stopping = false;
   const stop = async () => {
     if (stopping) return; stopping = true;
