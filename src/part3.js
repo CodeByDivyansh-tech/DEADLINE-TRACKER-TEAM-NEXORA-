@@ -39,6 +39,7 @@ const IC = {
   forward: svg('<path d="M5 12h12M13 6l6 6-6 6"/>'),
   flag: svg('<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>'),
   send: svg('<path d="M4 12 20 4l-6 16-3-7z"/>'),
+  mail: svg('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>'),
   todo: svg('<rect x="3.5" y="3.5" width="17" height="17" rx="4"/><path d="m8 12.5 3 3 5-6"/>'),
   assistant: svg('<path d="M12 3c.6 3.7 2.3 5.4 6 6-3.7.6-5.4 2.3-6 6-.6-3.7-2.3-5.4-6-6 3.7-.6 5.4-2.3 6-6z"/><path d="M19 15c.3 1.6 1 2.3 2.5 2.5-1.5.3-2.2 1-2.5 2.5-.3-1.5-1-2.2-2.5-2.5 1.5-.2 2.2-.9 2.5-2.5z"/>'),
   copy: svg('<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>')
@@ -136,6 +137,33 @@ function renderSide(){
         <select id="viewAs">${[["manager", `${memberOf(w, "me").name} · Manager`]].concat(w.members.filter(m => m.id !== "me").map(m => [m.id, `${m.name} · Employee`])).map(([v, l]) => `<option value="${v}" ${w.viewAs === v ? "selected" : ""}>${esc(l)}</option>`).join("")}</select>
         <span>Permissions are simulated here. A real build checks them on the server.</span></div>` : ""}
       <p class="tagline">Never miss a deadline. Always know what comes next.<br><span id="syncLine">${syncText()}</span>${ACCOUNT.user ? ` · <button type="button" class="linkish" data-act="logout">Log out</button>` : ""}</p>
+    </div>`;
+}
+/* Email and Telegram (server only). Status comes from /api/channels; nothing secret is in the page. */
+function channelsHTML(){
+  if (Store.mode !== "server") return `<p class="note">${IC.info}<span>Email and Telegram reminders need the Deadline Tracker server (log in with an account).</span></p>`;
+  const C = UI.channels, p = (ACCOUNT.user && ACCOUNT.user.notifyPrefs) || {};
+  if (!C || UI.channelsStale) { loadChannels(); if (!C) return `<div class="chan" aria-busy="true"><p class="muted">Loading email and Telegram…</p></div>`; }
+  const e = C.email, t = C.telegram;
+  const emailLine = !e.configured ? "Email isn't set up on this site yet." : e.verified ? `${esc(e.address)} · Confirmed` : `${esc(e.address)} · Not confirmed yet`;
+  const tgLine = !t.configured ? "Telegram isn't set up on this site yet." : t.linked ? `Connected as ${t.username ? "@" + esc(t.username) : "your Telegram account"}` : "Not connected";
+  const tgBtns = !t.configured ? "" : t.linked
+    ? `<button class="btn sm" type="button" data-act="tgtest">Send test</button><button class="btn sm ghost" type="button" data-act="tgunlink">Disconnect</button>`
+    : UI.tgLink ? `<a class="btn sm primary" id="tgOpen" href="${esc(UI.tgLink.url)}" target="_blank" rel="noopener">${IC.send}Open Telegram and press Start</a>`
+    : `<button class="btn sm primary" type="button" data-act="tglink">${IC.send}Connect Telegram</button>`;
+  return `<div class="chan">
+      <div class="int" id="chEmail"><span class="lg">${IC.mail}</span><div><b>Email</b><span>${emailLine}</span></div>
+        ${e.configured && !e.verified ? `<button class="btn sm" type="button" data-act="chverify">Send confirmation email</button>` : ""}${e.configured && e.verified ? `<button class="btn sm" type="button" data-act="chtestemail">Send test</button>` : ""}
+        <label class="toggle"><input type="checkbox" id="ch-email" ${p.email !== false ? "checked" : ""} ${e.configured ? "" : "disabled"}><span class="ch-on">Reminders</span><span class="sr"> (send reminders by email)</span></label></div>
+      <div class="int" id="chTg"><span class="lg">${IC.send}</span><div><b>Telegram</b><span>${tgLine}${UI.tgLink && !t.linked ? ". Press Start in the bot; this page updates by itself." : ""}</span></div>${tgBtns}
+        <label class="toggle"><input type="checkbox" id="ch-tg" ${p.telegram !== false ? "checked" : ""} ${t.configured ? "" : "disabled"}><span class="ch-on">Reminders</span><span class="sr"> (send reminders to telegram)</span></label></div>
+      <p class="muted chan-h">What goes to email and Telegram:</p>
+      <div class="f2">
+        <label class="toggle"><input type="checkbox" id="pf-deadline" ${p.deadline !== false ? "checked" : ""}>Deadline reminders</label>
+        <label class="toggle"><input type="checkbox" id="pf-study" ${p.study !== false ? "checked" : ""}>Study reminders and daily summary</label>
+        <label class="toggle"><input type="checkbox" id="pf-account" ${p.account !== false ? "checked" : ""}>Account messages (password changes)</label>
+      </div>
+      ${e.configured && !e.verified ? `<p class="note">${IC.info}<span>Reminders go to your email once you confirm the address. Password reset emails always arrive.</span></p>` : ""}
     </div>`;
 }
 const PAGE = { overview: "Overview", deadlines: "My Deadlines", mywork: "My Work", exams: "Exams", calendar: "Calendar", planner: "Planner", reports: "Reports", prefs: "Settings", team: "Team Deadlines", workload: "Workload", approvals: "Approvals" };
@@ -747,7 +775,7 @@ function viewReports(){
 function viewPrefs(){
   const w = W(); const s = w.settings; const gw = GROUP_WORD[w.mode]; const mgr = canManage(w);
   const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const secs = [["s-profile", "Profile"], ["s-avail", "Availability"], ["s-notif", "Reminders"], ["s-ai", "Assistant"], ["s-groups", gw + "s"]].concat(w.mode === "company" ? [["s-team", "Team"]] : []).concat([["s-data", "Data"]]);
+  const secs = [["s-profile", "Profile"], ["s-avail", "Availability"], ["s-notif", "Notifications"], ["s-ai", "Assistant"], ["s-groups", gw + "s"]].concat(w.mode === "company" ? [["s-team", "Team"]] : []).concat([["s-data", "Data"]]);
   const cur = secs.some(s => s[0] === UI.setTab) ? UI.setTab : secs[0][0];
   // One short section at a time instead of one long page.
   return settingsHTML(w, s, gw, mgr, days).replace(/<section class="card set-sec" id="([\w-]+)"/g, (m, id) => id === cur ? m : `${m} hidden`)
@@ -778,7 +806,8 @@ function settingsHTML(w, s, gw, mgr, days){
         <button class="btn sm" type="button" data-act="thdefault" style="justify-self:start">Reset to defaults</button>
         </div>
       </section>
-      <section class="card set-sec" id="s-notif"><h3>Reminders</h3><p>Shown in the bell menu. Completed deadlines never get reminders.</p>
+      <section class="card set-sec" id="s-notif"><h3>Notifications</h3><p>Reminders always show in the bell menu. Completed deadlines never get reminders.</p>
+        ${channelsHTML()}
         <div class="f2">${REMINDER_OPTS.map(([v, l]) => `<label class="toggle"><input type="checkbox" id="rm-${v}" data-rem="${v}" ${s.reminders.includes(v) ? "checked" : ""}>${l}</label>`).join("")}</div>
         <label class="toggle"><input type="checkbox" id="pf-od" ${s.overdueAlerts ? "checked" : ""}>Overdue alerts</label>
         <label class="toggle"><input type="checkbox" id="pf-sum" ${s.dailySummary ? "checked" : ""}>Daily summary of upcoming deadlines</label>
@@ -787,7 +816,7 @@ function settingsHTML(w, s, gw, mgr, days){
         <label class="toggle"><input type="checkbox" id="pf-quiet" ${s.quietOn ? "checked" : ""}>Quiet hours (no pop-up reminders)</label>
         <div class="f2" style="max-width:360px"><div class="field"><label for="pf-qf">From</label><input type="time" id="pf-qf" value="${s.quietFrom}"></div><div class="field"><label for="pf-qt">To</label><input type="time" id="pf-qt" value="${s.quietTo}"></div></div>
         <div class="int"><span class="lg">${IC.bell}</span><div><b>Desktop alerts</b><span>${esc(desktopStatus().text)}</span></div>${desktopStatus().can ? `<label class="toggle"><input type="checkbox" id="pf-desktop" ${desktopStatus().on ? "checked" : ""}><span class="sr">Desktop alerts</span></label>` : ""}</div>
-        <p class="note">${IC.info}<span>${Store.mode === "server" ? `Reminders are created by your Deadline Tracker server at the right time in your time zone (${esc(ACCOUNT.user && ACCOUNT.user.timezone || "")}), even while this app is closed. They appear in the bell menu the next time you open the app, and as desktop alerts while it's open. Email and phone push aren't set up.` : "Reminders arrive while the app is open in a browser tab, even in the background. When the tab or browser is closed, nothing can be delivered. Run the Deadline Tracker server for reminders that are created even while the app is closed."}</span></p>
+        <p class="note">${IC.info}<span>${Store.mode === "server" ? `Reminders are created by your Deadline Tracker server at the right time in your time zone (${esc(ACCOUNT.user && ACCOUNT.user.timezone || "")}), even while this app is closed. They appear in the bell menu the next time you open the app, and as desktop alerts while it's open. With email or Telegram turned on above, they also arrive there.` : "Reminders arrive while the app is open in a browser tab, even in the background. When the tab or browser is closed, nothing can be delivered. Run the Deadline Tracker server for reminders that are created even while the app is closed."}</span></p>
         ${w.mode === "company" ? `<p class="note">${IC.info}<span>Manager escalation: when someone uses "Notify my manager" in Rescue mode, the manager sees it in their notifications.</span></p>` : ""}
       </section>
       <section class="card set-sec" id="s-ai"><h3>Assistant (AI)</h3><p>${ACCOUNT.on ? `<b>My Plan</b> uses the planning engine on your Deadline Tracker server: it reads only your own tasks and never sends them to an outside AI. <b>Help</b> answers questions about the website from the help guide${AI.gemini ? `, written up by Google Gemini (${esc(AI.model || "")}, free tier). Only your Help question is sent to Gemini, never your tasks; don't type private details there.` : `. Google Gemini is off: the server admin can add a GEMINI_API_KEY to the .env file to turn it on.`}` : "Planning runs in this browser with simple rules. Start the Deadline Tracker server (node server.js) for accounts, server reminders, the planning engine and Help."}</p>
@@ -804,7 +833,7 @@ function settingsHTML(w, s, gw, mgr, days){
         <div class="tbl-wrap"><table class="tbl"><thead><tr><th>What they can do</th><th>Owner / Admin</th><th>Manager</th><th>Employee</th><th>Guest</th></tr></thead><tbody>
           ${[["See all team deadlines", "✓", "✓", "✓", "Shared only"], ["Edit any task", "✓", "✓", "Own tasks", "–"], ["Approve submitted work", "✓", "✓", "–", "–"], ["Reassign work", "✓", "✓", "–", "–"], ["Workload & reports", "✓", "✓", "–", "–"], ["Manage people & roles", "✓", "–", "–", "–"]].map(r => `<tr>${r.map((c, k) => k ? `<td class="muted">${c}</td>` : `<td>${c}</td>`).join("")}</tr>`).join("")}
         </tbody></table></div></section>` : ""}
-      <section class="card set-sec" id="s-data"><h3>Export & data</h3><p>${esc(syncText())}. Reminders show inside the app; email, push and calendar sync aren't available yet.</p>
+      <section class="card set-sec" id="s-data"><h3>Export & data</h3><p>${esc(syncText())}. ${Store.mode === "server" ? "Reminders show in the app, and by email or Telegram if you turn them on under Notifications." : "Reminders show inside the app; email and Telegram need the Deadline Tracker server."} Calendar sync isn't available yet.</p>
         <div class="row-flex"><button class="btn sm" type="button" data-act="exportics">Export to calendar (.ics)</button><button class="btn sm" type="button" data-act="copybackup">${IC.copy}Copy backup</button><button class="btn sm" type="button" data-act="importbackup">Restore from backup</button><button class="btn sm danger" type="button" data-act="resetall">Reset everything</button></div>
       </section>
     </div></div>`;

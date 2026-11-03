@@ -97,7 +97,8 @@ test("Neon unreachable for good: the server still starts, says why in /api/healt
     assert.equal(h.status, 200);
     assert.equal(h.json.persistence.ok, false); assert.equal(h.json.persistence.restored, false); assert.equal(h.json.persistence.fallback, true);
     assert.match(h.json.persistence.error, /503|unavailable/i, "the real reason is shown");
-    assert.equal((await signup(s.base, "Temp", "temp@example.com")).res.status, 201, "the site works meanwhile");
+    assert.equal((await signup(s.base, "Temp", "temp@example.com")).res.status, 503, "new accounts are refused: they couldn't be kept");
+    assert.equal((await client(s.base).post("/api/auth/login", { email: "x@example.com", password: "password123" })).status, 401, "the rest of the site answers");
     await wait(900);
     assert.equal(neon.row.data, "keep-me", "the saved copy was not overwritten");
     neon.down = false; await wait(900);
@@ -110,8 +111,10 @@ test("Neon unreachable at start but empty when it comes back: saving starts by i
   neon.row = null; neon.down = true;
   const s = await startServer(Object.assign(neon.env(), { PERSIST_RETRY_MS: "100", PERSIST_START_TIMEOUT_MS: "800", PERSIST_RECHECK_MS: "300", PERSIST_INTERVAL_MS: "200" }));
   try {
-    await signup(s.base, "Kavi", "kavi@example.com");
+    assert.equal((await signup(s.base, "Kavi", "kavi@example.com")).res.status, 503, "refused while Neon is down");
     neon.down = false;
+    assert.ok(await waitFor(async () => (await health(s.base)).json.persistence.ok === true), "Neon usable again");
+    assert.equal((await signup(s.base, "Kavi", "kavi@example.com")).res.status, 201, "accepted again");
     assert.ok(await waitFor(() => neon.row && neon.row.version >= 1), "saved once Neon answered");
     const h = await health(s.base);
     assert.equal(h.json.persistence.ok, true); assert.equal(h.json.persistence.restored, true); assert.ok(!h.json.persistence.fallback);
@@ -148,6 +151,6 @@ test("a DATABASE_URL that isn't a Postgres address: the server starts and explai
     const h = await health(s.base);
     assert.equal(h.status, 200); assert.equal(h.json.persistence.ok, false);
     assert.match(h.json.persistence.error, /postgresql:\/\//, "says what the value should look like");
-    assert.equal((await signup(s.base, "Lin", "lin@example.com")).res.status, 201);
+    assert.equal((await signup(s.base, "Lin", "lin@example.com")).res.status, 503, "no accounts that would vanish");
   } finally { s.stop(); }
 });

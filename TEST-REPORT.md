@@ -276,3 +276,38 @@ Each account: browser sign-up and setup with sample data, Reports, Planner, crea
 - Chromium only (no Safari/Firefox); one server instance; a change in the last ~3 s before a crash can be lost.
 
 **Final numbers:** full suite **354 of 354, twice in a row** (two earlier runs: 353/354 with the pitch race above, then 354/354). 100 accounts × 14 scenarios: **all 100/100**, 9,900 cross-member checks, 349 s (re-run on the final code).
+
+## "Wrong password after sign-up", email and Telegram (3 Nov 2026, branch `email-telegram`)
+
+### Root cause of "wrong password"
+Not the password code. The live server's `/api/health` (checked 18:29 IST) says `password authentication failed for user 'neondb_owner'`: the `DATABASE_URL` in Render has a wrong Neon password, so nothing is saved permanently. Render's free server sleeps after 15 minutes and wipes its disk; the account no longer exists, and logging in answers "Email or password is wrong". **The fix needs the correct connection string in Render (the owner's step).** In code: while permanent storage is configured but not working, sign-up now answers 503 "can't create new accounts right now" instead of creating an account that later vanishes.
+Checked and ruled out by tests: double hashing, different algorithms, wrong comparison, wrong record, email case/spaces, password changed before checking, uncommitted writes, overwritten records (`tests/api-login-bug.test.js`, 7 tests; the flow tests passed before any change, confirming the code wasn't the cause).
+
+### Password hashing
+scrypt with a random 16-byte salt per user, raised from N=2^14, r=8, p=1 to **N=2^14, r=8, p=5** (one of OWASP's equivalent scrypt settings; ~16 MiB, ~0.25 s). Migration 3 adds `users.pass_algo`; existing hashes (`s1`) still verify and are upgraded to `s2` at the next successful login. No account was deleted and no password reset. (Argon2id isn't in Node 22 and the project uses no packages; bcrypt likewise needs a package.)
+
+### Email (Brevo or Resend, `lib/mail.js`; delivery in `lib/outbox.js`)
+Welcome email with a one-time "Confirm my email" link (24 h, hashed, single use); resend (3/hour); password-reset link (earlier work); "your password was changed" after a reset or change; deadline and study reminders and the daily summary from the reminder job, **only to confirmed addresses**; test email. Branded HTML + plain text. Each message is unique per user/channel/key (no duplicates), failures are retried 4 times with growing waits and the reason is stored (`outbox.status`, `last_error`), quiet hours postpone, more than 30 an hour per channel are skipped. Messages with one-time links are sent at once and the link is never stored.
+
+### Telegram (official Bot API, `lib/telegram.js`, `lib/modules/channels.js`)
+Settings → Notifications → Connect Telegram → one-time token (10 min, hashed) in a `t.me/<bot>?start=` link → the bot receives `/start <token>` by webhook (secret header, production) or polling (laptop) → that chat is linked to that account only (a chat already linked elsewhere is refused) → "Connected" shows on the page (it checks every 3 s). Test message, Disconnect (site or `/stop`), reminders, password-change notices (never links or tokens), a blocked bot disconnects itself. Bot token only in `TELEGRAM_BOT_TOKEN` on the server.
+
+### Notification settings
+Email row (address, confirmed or not, Send confirmation / Send test, on/off), Telegram row (Connect / Connected as @name, Send test, Disconnect, on/off), and three kinds: deadline reminders, study reminders and daily summary, account messages. The bell in the app always shows everything.
+
+### Database (migration 3, `lib/db.js`)
+`users.pass_algo`, `users.email_verified_at`; tables `email_verifications`, `telegram_links` (chat id unique), `telegram_link_tokens`, `outbox` (unique per user + channel + key).
+
+### Tests actually run
+- `tests/api-login-bug.test.js` (7): the reported flow, exact passwords (spaces, accents), repeated log-ins, hashing settings, upgrade of old hashes, same message for wrong password and unknown email, duplicate sign-up, restart, sign-up refused while storage is broken.
+- `tests/api-channels.test.js` (14), real server with fake Brevo and Telegram APIs (same requests and answers): welcome email, confirm link (once, tampered, expired), resend limit, reminders on both channels once each, unconfirmed address gets none, preferences, Telegram linking with secret, expired/bad/group/foreign chat refused, test + rate limit, disconnect and /stop, **6 accounts: each person's reminders only in their own inbox and chat**, account notices without tokens, retry after a failed email, blocked bot, secrets never in answers/page/log, unconfigured server says so, polling mode.
+- `tests/channels-ui.test.js` (6): settings status, send confirmation, confirm link in an open tab and in a new tab (logged out), Connect → Connected → Test → Disconnect, preferences saved and kept after reload, phone layout.
+- Mutation checks: removing the webhook secret check and sending to the wrong chat each made a test fail.
+- `tests/persist.test.js`: 3 tests updated for the new sign-up refusal.
+- Screenshots: Notifications in light, dark and 390 px.
+
+### Not tested with real credentials (none were available)
+- **Email:** no Brevo/Resend key exists yet; real delivery is untested. Needs `EMAIL_PROVIDER`, `EMAIL_API_KEY`, `EMAIL_FROM` (verified sender), `APP_BASE_URL` in Render.
+- **Telegram:** no bot token was found (`telegram-token.txt` isn't in Documents on the laptop). Needs `TELEGRAM_BOT_TOKEN` from @BotFather and `APP_BASE_URL`.
+- **Neon:** the live `DATABASE_URL` password is wrong (see above).
+- Full suite: first two runs 377/381 and 378/381 (three test-side problems: reset tests counted the new welcome email, a test's own database connection didn't wait for the server's writes, one count that couldn't tell a slow welcome email from a duplicate; the welcome email is now also strictly once per account in code). After the fixes: **381 of 381, twice in a row**. Security sweep: 24 of 24 (58 private routes refuse visitors; the webhook refuses calls without the secret).

@@ -117,4 +117,34 @@ function fakeMail(){
   f.linkFor = email => { const m = [...f.sent].reverse().find(x => JSON.stringify(x.body).toLowerCase().includes(email.toLowerCase())); if (!m) return null; const t = JSON.stringify(m.body).match(/https?:\/\/[^"\s<>\\]+#reset=[A-Za-z0-9_-]+/); return t ? t[0] : null; };
   return f;
 }
-module.exports = { fakeMail, fakeGemini, fakeVector, fakeNeon, startServer, client, signup, ROOT };
+// Fake Telegram Bot API (same methods and answers as api.telegram.org). Records messages; `updates` feeds getUpdates.
+const TG_TOKEN = "123456789:AAH-fake-test-token_abcdefghijklmnopqrstu";
+function fakeTelegram(){
+  const f = { sent: [], calls: [], updates: [], webhook: null, blocked: new Set(), failSend: 0, token: TG_TOKEN };
+  f.server = http.createServer((req, res) => {
+    let b = ""; req.on("data", c => b += c); req.on("end", () => {
+      const send = (s, j) => { res.writeHead(s, { "Content-Type": "application/json" }); res.end(JSON.stringify(j)); };
+      const m = /^\/bot([^/]+)\/(\w+)$/.exec(req.url || "");
+      if (!m || m[1] !== TG_TOKEN) return send(401, { ok: false, error_code: 401, description: "Unauthorized" });
+      const body = JSON.parse(b || "{}"); f.calls.push({ method: m[2], body });
+      if (m[2] === "getMe") return send(200, { ok: true, result: { id: 42, is_bot: true, first_name: "Deadline Tracker", username: "DeadlineTrackerTestBot" } });
+      if (m[2] === "setWebhook") { f.webhook = body; return send(200, { ok: true, result: true }); }
+      if (m[2] === "deleteWebhook") return send(200, { ok: true, result: true });
+      if (m[2] === "getUpdates") { const ups = f.updates.splice(0); return setTimeout(() => send(200, { ok: true, result: ups }), ups.length ? 0 : 50); }
+      if (m[2] === "sendMessage") {
+        if (f.blocked.has(String(body.chat_id))) return send(403, { ok: false, error_code: 403, description: "Forbidden: bot was blocked by the user" });
+        if (f.failSend > 0) { f.failSend--; return send(502, { ok: false, error_code: 502, description: "Bad Gateway" }); }
+        f.sent.push(body); return send(200, { ok: true, result: { message_id: f.sent.length, chat: { id: body.chat_id }, text: body.text } });
+      }
+      send(404, { ok: false, description: "Not Found" });
+    });
+  });
+  f.start = () => new Promise(r => f.server.listen(0, "127.0.0.1", () => { f.url = `http://127.0.0.1:${f.server.address().port}`; r(f); }));
+  f.close = () => f.server.close();
+  f.to = chat => f.sent.filter(x => String(x.chat_id) === String(chat));
+  let uid = 1;
+  // what a person typing in the bot looks like
+  f.message = (chatId, text, username = "user" + chatId, type = "private") => ({ update_id: uid++, message: { message_id: uid, date: 1, text, chat: { id: chatId, type }, from: { id: chatId, is_bot: false, first_name: "T", username } } });
+  return f;
+}
+module.exports = { fakeTelegram, fakeMail, fakeGemini, fakeVector, fakeNeon, startServer, client, signup, ROOT };

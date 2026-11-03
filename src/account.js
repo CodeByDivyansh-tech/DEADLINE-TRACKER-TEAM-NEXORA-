@@ -314,3 +314,46 @@ async function pullNotifications(first){
 function findItemAny(id){ for (const w of state.workspaces) { if (w.items.some(i => i.id === id)) return { ws: w.id }; } return null; }
 function markRead(ids){ if (Store.mode === "server") apiJSON("POST", "/api/notifications/read", ids === "all" ? { all: true } : { ids }).catch(() => {}); }
 function dismissNotif(id){ if (Store.mode === "server") apiJSON("DELETE", "/api/notifications/" + encodeURIComponent(id)).catch(() => {}); }
+
+/* ---------- email confirmation and Telegram (Settings → Notifications) ---------- */
+async function loadChannels(){
+  if (UI.channelsLoading) return; UI.channelsLoading = true; UI.channelsStale = false;
+  try { const r = await apiJSON("GET", "/api/channels"); if (r.ok) { UI.channels = r.json; if (r.json.telegram.linked) UI.tgLink = null; if (UI.route === "prefs") render({ soft: true }); } } catch (e) {}
+  UI.channelsLoading = false;
+}
+async function channelAction(act){
+  const call = async (m, u) => { try { return await apiJSON(m, u); } catch (e) { return { ok: false, json: { error: "Couldn't reach the server. Try again." } }; } };
+  if (act === "chverify") { const r = await call("POST", "/api/profile/verify-email"); toast(r.ok ? (r.json.already ? "Your email is already confirmed." : "Confirmation email sent. Open it and tap the button.") : r.json.error || "Couldn't send it."); }
+  else if (act === "chtestemail") { const r = await call("POST", "/api/channels/email/test"); toast(r.ok ? "Test email sent. Check your inbox." : r.json.error || "Couldn't send it."); }
+  else if (act === "tgtest") { const r = await call("POST", "/api/telegram/test"); toast(r.ok ? "Test message sent to Telegram." : r.json.error || "Couldn't send it."); }
+  else if (act === "tgunlink") { const r = await call("DELETE", "/api/telegram"); if (r.ok) toast("Telegram disconnected."); else toast(r.json.error || "Couldn't disconnect."); UI.tgLink = null; }
+  else if (act === "tglink") {
+    const r = await call("POST", "/api/telegram/link");
+    if (!r.ok) return toast(r.json.error || "Couldn't start connecting.");
+    UI.tgLink = r.json; render({ soft: true });
+    // check every 3 s, for as long as the link is valid, until the bot reports the chat as connected
+    clearInterval(UI.tgPoll); const until = Date.parse(r.json.expiresAt);
+    UI.tgPoll = setInterval(async () => {
+      if (Date.now() > until || !UI.tgLink) { clearInterval(UI.tgPoll); UI.tgLink = null; return loadChannels(); }
+      const s = await call("GET", "/api/channels");
+      if (s.ok && s.json.telegram.linked) { clearInterval(UI.tgPoll); UI.tgLink = null; UI.channels = s.json; toast("Telegram connected."); if (UI.route === "prefs") render({ soft: true }); }
+    }, 3000);
+    return;
+  }
+  UI.channelsStale = true; loadChannels();
+}
+// Turn a channel or a kind of message on/off for email and Telegram.
+const CH_PREF = { "ch-email": "email", "ch-tg": "telegram", "pf-deadline": "deadline", "pf-study": "study", "pf-account": "account" };
+async function saveChannelPref(id, on){
+  const k = CH_PREF[id]; if (!k || Store.mode !== "server") return;
+  const r = await apiJSON("PATCH", "/api/profile", { notifyPrefs: { [k]: on } }).catch(() => ({ ok: false, json: {} }));
+  if (r.ok) ACCOUNT.user = r.json.user; else toast(r.json.error || "Couldn't save that setting.");
+}
+// A confirm-email link opens the site at #verify=<token>: confirm it, then clear it from the address bar.
+async function takeVerifyToken(){
+  const m = /^#verify=([A-Za-z0-9_-]{20,100})/.exec(location.hash || ""); if (!m) return null;
+  try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { try { location.hash = ""; } catch (x) {} }
+  let r; try { r = await apiJSON("POST", "/api/auth/verify-email", { token: m[1] }); } catch (e) { r = { ok: false, json: { error: "Couldn't reach the server. Open the link again." } }; }
+  if (r.ok && ACCOUNT.user) { ACCOUNT.user.emailVerified = true; UI.channelsStale = true; }
+  return r.ok ? `Email confirmed${r.json.email ? ` (${r.json.email})` : ""}. Reminders can now arrive there too.` : (r.json.error || "That confirmation link didn't work.");
+}

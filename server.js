@@ -27,6 +27,9 @@ const { createRag } = require("./lib/ai/rag");
 const Help = require("./lib/ai/help");
 const { createPersistence } = require("./lib/persist");
 const { createMail } = require("./lib/mail");
+const { createTelegram } = require("./lib/telegram");
+const { createOutbox } = require("./lib/outbox");
+const Channels = require("./lib/modules/channels");
 const VERSION = require("./package.json").version;
 
 async function main(){
@@ -57,8 +60,15 @@ async function main(){
     if (!(err && err.code && /quota|limited|no_key/.test(err.code))) console.error(`[${area}]`, msg);
   }
   const mail = createMail(cfg.mail);
-  const auth = createAuth(db, cfg, { mail, log });
-  const notifications = Notifs.createNotifications(db, { prefsOf: auth.prefsOf, log });
+  const events = new (require("events").EventEmitter)();
+  // New accounts are refused while permanent storage (Neon) is configured but not working: they would vanish later.
+  const auth = createAuth(db, cfg, { mail, log, events, storageOk: () => { const p = persist.status(); return !(persist.enabled && (p.fallback || p.stoppedBecauseNewer)); } });
+  const tgMode = cfg.telegram.mode || (cfg.prod && cfg.publicUrl ? "webhook" : "polling");
+  const telegram = createTelegram({ token: cfg.telegram.token, apiUrl: cfg.telegram.apiUrl, webhookSecret: cfg.telegram.webhookSecret, pollSeconds: cfg.telegram.pollSeconds,
+    webhookUrl: tgMode === "webhook" && cfg.publicUrl ? cfg.publicUrl + "/api/telegram/webhook" : null, polling: tgMode === "polling" }, { log });
+  const outbox = createOutbox(db, { mail, telegram, log, prefsOf: auth.prefsOf, inQuiet: Notifs.inQuiet });
+  const channels = Channels.createChannels({ db, cfg, mail, telegram, outbox, events, log });
+  const notifications = Notifs.createNotifications(db, { prefsOf: auth.prefsOf, log, onDelivered: channels.onDelivered });
   const tasks = Tasks.createTasks(db, { onChange: uid => notifications.touch(uid) });
   const conversations = Convs.createConversations(db);
   const stats = Stats.createStats(db);
@@ -72,7 +82,7 @@ async function main(){
   const A = { auth: true };
   R.add("GET", "/api/health", () => {
     let dbOk = true; try { db.prepare("SELECT 1").get(); } catch (e) { dbOk = false; }
-    return { status: dbOk ? 200 : 503, body: { ok: dbOk, version: VERSION, time: new Date().toISOString(), database: dbOk ? "ok" : "error", reminders: notifications.status(), persistence: persist.status(), email: { configured: mail.configured(), provider: mail.provider }, ai: { configured: gemini.configured(), model: gemini.model } } };
+    return { status: dbOk ? 200 : 503, body: { ok: dbOk, version: VERSION, time: new Date().toISOString(), database: dbOk ? "ok" : "error", reminders: notifications.status(), persistence: persist.status(), email: { configured: mail.configured(), provider: mail.provider }, telegram: telegram.status(), ai: { configured: gemini.configured(), model: gemini.model } } };
   });
   R.add("GET", "/api/status", () => ({ accounts: true, ai: gemini.configured(), provider: "gemini", model: gemini.configured() ? gemini.model : null }));
   R.add("GET", "/api/me", (c) => ({ accounts: true, user: auth.publicUser(c.user) }));
@@ -91,6 +101,7 @@ async function main(){
   Stats.routes(R, { stats });
   Help.routes(R, { help });
   Admin.routes(R, { db, rag, help, gemini, notifications, auth });
+  Channels.routes(R, { channels, telegram });
 
   // ---------- request handling ----------
   const apiLimit = limiter(Number(process.env.API_RPM) || 600, 60e3);
@@ -152,6 +163,8 @@ async function main(){
 
   // ---------- start ----------
   notifications.start(cfg.reminderIntervalMs);
+  outbox.start(cfg.outboxIntervalMs);
+  if (tgMode !== "off") telegram.start(channels.handleUpdate).then(r => { if (telegram.configured()) console.log(`Telegram bot: ${r.mode}${r.error ? " (" + r.error + ")" : ""}`); }).catch(e => log("telegram", e));
   rag.refresh().then(r => { if (r && r.embedded) console.log(`Knowledge base: added ${r.embedded} embeddings.`); }).catch(e => log("rag", e));
   ready = handle;
   console.log(`Deadline Tracker running at http://localhost:${port}`);
@@ -161,7 +174,7 @@ async function main(){
   let stopping = false;
   const stop = async () => {
     if (stopping) return; stopping = true;
-    notifications.stop(); server.close();
+    notifications.stop(); outbox.stop(); telegram.stop(); server.close();
     setTimeout(() => process.exit(0), 8000).unref();
     try { await persist.stop(); } catch (e) {}   // last save to Neon before the host shuts us down
     try { db.close(); } catch (e) {}

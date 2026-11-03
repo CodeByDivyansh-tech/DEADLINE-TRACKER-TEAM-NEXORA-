@@ -28,8 +28,10 @@ test("forgot password: emails a one-time link; the answer is the same whether or
   assert.deepEqual(yes.json, no.json, "no hint about which emails have accounts");
   assert.equal(yes.json.emailEnabled, true);
   await linkFor("asha@example.com"); await new Promise(r => setTimeout(r, 150));
-  const sent = mail.sent.filter(m => JSON.stringify(m.body).includes("asha@example.com"));
-  assert.equal(sent.length, 1, "one email for the real account");
+  // (sign-up also sends a welcome email now; count only the reset emails)
+  const isReset = m => /#reset=/.test(JSON.stringify(m.body));
+  const sent = mail.sent.filter(m => JSON.stringify(m.body).includes("asha@example.com") && isReset(m));
+  assert.equal(sent.length, 1, "one reset email for the real account");
   assert.equal(mail.sent.filter(m => JSON.stringify(m.body).includes("nobody@example.com")).length, 0, "none for an unknown address");
   assert.equal(sent[0].headers["api-key"], "test-mail-key");
   const link = await linkFor("asha@example.com");
@@ -118,7 +120,7 @@ test("expired links are refused", async () => {
     await signup(s3.base, "Tom", "tom@example.com", "tom-password-1");
     await client(s3.base).post("/api/auth/forgot", { email: "tom@example.com" });
     const token = tokenOf(await linkFor("tom@example.com"));
-    const m = mail.sent[mail.sent.length - 1]; assert.equal(m.url, "/emails"); assert.equal(m.headers.authorization, "Bearer k2");
+    const m = [...mail.sent].reverse().find(x => /#reset=/.test(JSON.stringify(x.body))); assert.equal(m.url, "/emails"); assert.equal(m.headers.authorization, "Bearer k2");
     await new Promise(r => setTimeout(r, 1600));
     const r = await client(s3.base).post("/api/auth/reset", { token, password: "tom-password-2" });
     assert.equal(r.status, 400); assert.equal(r.json.code, "bad_token");
@@ -139,10 +141,11 @@ test("a failed email send is logged for the admin and the person gets the same c
 // Last: it uses up this address's allowance.
 test("forgot password is rate limited per email and per address, still without revealing anything", async () => {
   await signup(s.base, "Zed", "zed@example.com", "zed-password-1");
-  const before = mail.sent.length; let last;
+  const resets = () => mail.sent.filter(m => JSON.stringify(m.body).includes("zed@example.com") && /#reset=/.test(JSON.stringify(m.body))).length;
+  let last;
   for (let k = 0; k < 6; k++) last = await forgot(client(s.base), "zed@example.com");
   await new Promise(r => setTimeout(r, 400));
-  assert.ok(mail.sent.length - before <= 3, "at most 3 emails an hour to one address");
+  assert.ok(resets() <= 3, "at most 3 reset emails an hour to one address");
   assert.equal(last.status, 200, "same calm answer");
   const c = client(s.base); let limited = false;
   for (let k = 0; k < 25; k++) { const x = await c.call("POST", "/api/auth/forgot", { email: `p${k}@example.com` }, { Origin: ORIGIN }); if (x.status === 429) { limited = true; break; } }

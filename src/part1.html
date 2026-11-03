@@ -483,7 +483,9 @@ button.risk:hover{background:color-mix(in srgb,var(--rc) 22%,transparent)}
 .range{display:flex;align-items:center;gap:12px}
 .range input[type=range]{flex:1;accent-color:var(--accent);padding:0;border:0;background:transparent;box-shadow:none}
 .range output{font-family:var(--font-mono);font-weight:600;min-width:52px;text-align:right}
-.int{display:flex;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.int{display:flex;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line);flex-wrap:wrap}
+.chan{display:grid;gap:4px;margin:6px 0 14px}.chan .int .lg svg{width:17px;height:17px}.chan .int div{min-width:180px}.chan-h{margin:8px 0 2px;font-size:13px}.chan .ch-on{font-size:12.5px;color:var(--muted)}
+@media (max-width:520px){.chan .f2{grid-template-columns:minmax(0,1fr)}}
 .int:first-of-type{border-top:0}
 .int .lg{width:34px;height:34px;border-radius:9px;background:var(--surface-2);display:grid;place-items:center;font-weight:700;font-size:13px;color:var(--ink-2);flex:none}
 .int div{flex:1}

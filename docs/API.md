@@ -84,6 +84,19 @@ Action types in a proposal: `create` (new task), `plan` (plan an existing task f
 | GET | `/api/admin/overview` | Counts, AI status and limits, errors, last reminder run |
 | GET / PATCH / DELETE | `/api/admin/users` · `/api/admin/users/:id` | List; `{ role, disabled }`; delete. The last admin can't be removed. |
 | POST | `/api/admin/users/:id/reset-link` | `{ link, expiresAt }`: a one-time "set a new password" link (24 h) for the admin to send to someone who can't log in. The admin never sees or sets the password. |
+
+### Email and Telegram
+| Method | Path | What it does |
+|---|---|---|
+| GET | `/api/channels` | `{ email: { address, verified, configured }, telegram: { configured, bot, linked, username, linkedAt } }` (your own only). |
+| POST | `/api/auth/verify-email` | `{ token }` from the confirm link → `{ ok, email }`. One use, 24 hours; 400 `bad_token` otherwise. |
+| POST | `/api/profile/verify-email` | Sends the confirmation email again (3 an hour). 503 `no_email` if email isn't set up. |
+| POST | `/api/channels/email/test` | Sends a test email to your confirmed address (3 per 10 minutes). |
+| POST | `/api/telegram/link` | `{ url: "https://t.me/<bot>?start=<one-time token>", expiresAt }` (10 minutes, 10 an hour). 503 `no_telegram` if no bot token. |
+| DELETE | `/api/telegram` | Disconnects your Telegram chat. |
+| POST | `/api/telegram/test` | Sends a test message to your chat (3 per 10 minutes). |
+| POST | `/api/telegram/webhook` | For Telegram only: needs the `X-Telegram-Bot-Api-Secret-Token` header. `/start <token>` links, `/stop` unlinks. |
+Preferences (`PATCH /api/profile` → `notifyPrefs`): `email`, `telegram` (send there at all), `deadline`, `study`, `account` (which kinds), all true/false. `/api/me` includes `emailVerified`. Sign-up answers 503 `storage_unavailable` while permanent storage (Neon) is configured but not working.
 | GET / POST | `/api/admin/kb` | List; add `{ kind: faq|doc, title, body }` or upload `{ filename (.md/.txt/.html), body }`, optional `fromQuestion` |
 | GET / PUT / DELETE | `/api/admin/kb/:id` | One source; edit `{ title, body }`; delete |
 | POST | `/api/admin/kb/reindex` | `{ all?: true }`: re-chunk and embed |

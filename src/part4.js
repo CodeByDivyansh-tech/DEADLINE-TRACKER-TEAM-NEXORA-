@@ -587,6 +587,7 @@ document.addEventListener("click", async e => {
     case "onbmode": ONB.mode = a.dataset.v; ONB.ws = ""; showOnboarding(); break;
     case "authmode": { if (ACCOUNT.mode === a.dataset.v) break; const pl = $(".auth-pill"); const from = pl ? pl.getBoundingClientRect().left : 0; ACCOUNT.mode = a.dataset.v; showAuth(null, true); if (pl) MOTION.authSwitch(from, ACCOUNT.mode === "signup"); break; }
     case "pwtoggle": togglePw(a); break;
+    case "chverify": case "chtestemail": case "tglink": case "tgtest": case "tgunlink": channelAction(act); break;
     case "authforgot": ACCOUNT.mode = "forgot"; ACCOUNT.keepEmail = $("#au-email") ? $("#au-email").value.trim() : ""; showAuth(null, true); break;
     case "pwopen": UI.pwOpen = !UI.pwOpen; render(); if (UI.pwOpen && $("#pw-cur")) $("#pw-cur").focus(); break;
     case "logout": logout(); break;
@@ -750,6 +751,7 @@ document.addEventListener("submit", e => { if (e.target.id === "authForm") { e.p
 document.addEventListener("submit", e => { const f = e.target.closest && e.target.closest("[data-addbox]"); if (f) { e.preventDefault(); submitAddBox(f.dataset.addbox); } });
 document.addEventListener("change", e => {
   const t = e.target; const id = t.id || ""; if (!state || !state.workspaces.length) return;
+  if (CH_PREF[id]) { saveChannelPref(id, t.checked); return; }
   if (t.closest && t.closest(".topics")) return;
   const w = W();
   // drawer fields
@@ -852,7 +854,11 @@ document.addEventListener("mouseover", e => { const b = e.target.closest && e.ta
 document.addEventListener("focusin", e => { if (e.target.classList && e.target.classList.contains("blip")) e.target.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })); });
 document.addEventListener("toggle", e => { if (e.target.classList && e.target.classList.contains("nav-more")) UI.navMore = e.target.open; }, true);
 // A reset link pasted into a tab that already has the site open only changes the #part, so catch it here too.
-window.addEventListener("hashchange", () => { if (ACCOUNT.on && takeResetToken()) { showAuth(); } });
+window.addEventListener("hashchange", async () => {
+  if (!ACCOUNT.on) return;
+  if (/^#verify=/.test(location.hash)) { const msg = await takeVerifyToken(); if (msg) { if (ACCOUNT.user) { toast(msg); if (UI.route === "prefs") render({ soft: true }); } else showAuth(null, true, msg); } return; }
+  if (takeResetToken()) showAuth();
+});
 window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if (h && h !== UI.route && state && state.workspaces.length && /^[a-z]+$/.test(h)) setRoute(h, false); });
 
 /* =========================================================
@@ -910,7 +916,9 @@ if (/[?&]dt-test\b/.test(location.search)) {
   const acct = await checkAccounts();
   if (acct) {
     ACCOUNT.on = true; ACCOUNT.user = acct.user;
-    if (takeResetToken() || !acct.user) { showAuth(); detectAI(); return; }
+    const verified = await takeVerifyToken();
+    if (takeResetToken() || !acct.user) { showAuth(null, false, verified); detectAI(); return; }
+    if (verified) setTimeout(() => toast(verified), 600);
     await initServerStore();
   } else initStore();
   afterLoad();

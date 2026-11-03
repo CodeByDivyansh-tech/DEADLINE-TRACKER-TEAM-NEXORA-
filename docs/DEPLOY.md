@@ -76,6 +76,12 @@ The connection string is a password: keep it only in Render's Environment, never
 3. Render → Environment: `EMAIL_PROVIDER=brevo`, `EMAIL_API_KEY=<the key>`, `EMAIL_FROM=Deadline Tracker <the verified address>`, `PUBLIC_URL=https://<your Vercel address>`.
 4. `/api/health` shows `"email": {"configured": true}`. Without these, "Forgot password?" tells people to ask the admin, and the admin page (Users → Reset link) makes a one-time link to send them.
 
+**5. Telegram reminders (optional, free)**
+1. In Telegram, open **@BotFather** → `/newbot` → choose a name and a username ending in `bot`. Copy the token it gives you (looks like `123456789:AA...`). Keep it secret.
+2. Render → Environment: `TELEGRAM_BOT_TOKEN=<the token>` and `APP_BASE_URL=https://<your Vercel address>` (already set if you did step 4). Save; Render redeploys and registers the webhook (`<APP_BASE_URL>/api/telegram/webhook`, protected by a secret header).
+3. `/api/health` shows `"telegram": {"configured": true, "mode": "webhook", ...}`. In the app: Settings → Notifications → Connect Telegram → press Start in the bot. "Send test" sends a message.
+Without the token, the Telegram row says it isn't set up; nothing is faked.
+
 **Other Render free plan limits:**
 - The service **sleeps after 15 minutes without visits**; the next visit takes up to a minute (the app shows "Starting up…"). While it sleeps, the reminder job doesn't run; reminders catch up when it wakes.
 
