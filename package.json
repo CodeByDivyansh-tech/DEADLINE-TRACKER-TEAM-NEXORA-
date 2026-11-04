@@ -5,7 +5,6 @@
   "description": "Deadline Tracker: deadline and to-do app with a Node + SQLite backend, reminders, a private planning engine and Google Gemini help",
   "scripts": {
     "build": "node build.js",
-    "vercel-build": "node build-public.js",
     "test": "node build.js && node --test --test-concurrency=1 tests/*.test.js",
     "start": "node build.js && node server.js",
     "test:api": "node build.js && node --test --test-concurrency=1 tests/api-*.test.js tests/engine-server.test.js tests/reminders-server.test.js tests/persist.test.js tests/api-security.test.js"

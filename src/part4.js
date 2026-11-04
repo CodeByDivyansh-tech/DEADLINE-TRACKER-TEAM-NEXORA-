@@ -569,7 +569,7 @@ function renderFocusMini(){
   const host = $("#focusMini"); const F = UI.focus;
   if (!F || UI.route === "planner") { host.innerHTML = ""; return; }
   const it = findItem(F.id); const left = focusLeft(); const c = 2 * Math.PI * 14;
-  host.innerHTML = `<div class="focus-mini" role="status"><div class="mr"><svg viewBox="0 0 34 34"><circle cx="17" cy="17" r="14" fill="none" stroke="rgba(255,255,255,.15)" stroke-width="4"/><circle id="fmPr" cx="17" cy="17" r="14" fill="none" stroke="#5fd4bd" stroke-width="4" stroke-linecap="round" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${(c * (1 - left / F.total)).toFixed(1)}"/></svg></div>
+  host.innerHTML = `<div class="focus-mini" role="status"><div class="mr"><svg viewBox="0 0 34 34"><circle cx="17" cy="17" r="14" fill="none" stroke="rgba(255,255,255,.15)" stroke-width="4"/><circle id="fmPr" cx="17" cy="17" r="14" fill="none" stroke="#e8a06a" stroke-width="4" stroke-linecap="round" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${(c * (1 - left / F.total)).toFixed(1)}"/></svg></div>
     <div><div class="t" id="fmTm">${pad(Math.floor(left / 60))}:${pad(Math.floor(left % 60))}</div><div class="n">${esc(it ? it.title : "")}</div></div>
     <button type="button" data-act="fpause">${F.running ? "Pause" : "Resume"}</button><button type="button" data-act="ffinish">Finish</button></div>`;
 }
@@ -618,13 +618,14 @@ document.addEventListener("click", async e => {
     case "onbnext": if (ONB.step === 0) ONB.name = ($("#onb-name") || {}).value || ""; ONB.step++; showOnboarding(); break;
     case "onbback": ONB.step = Math.max(0, ONB.step - 1); showOnboarding(); break;
     case "onbmode": ONB.mode = a.dataset.v; ONB.ws = ""; showOnboarding(); break;
-    case "authmode": ACCOUNT.mode = a.dataset.v; showAuth(); break;
+    case "authmode": { if (ACCOUNT.mode === a.dataset.v) break; const pl = $(".auth-pill"); const from = pl ? pl.getBoundingClientRect().left : 0; ACCOUNT.mode = a.dataset.v; showAuth(null, true); if (pl) MOTION.authSwitch(from, ACCOUNT.mode === "signup"); break; }
     case "pwtoggle": togglePw(a); break;
+    case "authforgot": ACCOUNT.mode = "forgot"; ACCOUNT.keepEmail = $("#au-email") ? $("#au-email").value.trim() : ""; showAuth(null, true); break;
     case "pwopen": UI.pwOpen = !UI.pwOpen; render(); if (UI.pwOpen && $("#pw-cur")) $("#pw-cur").focus(); break;
     case "logout": logout(); break;
     case "onbdone": ONB.due = $("#onb-due").value; ONB.demo = $("#onb-demo").checked; finishOnboarding(); break;
     /* shell */
-    case "wsmenu": UI.wsMenu = !UI.wsMenu; renderSide(); break;
+    case "wsmenu": if (MOTION.isRail()) { UI.wsMenu = true; MOTION.rail(false); break; } UI.wsMenu = !UI.wsMenu; renderSide(); break;
     case "wsswitch": state.active = a.dataset.ws; UI.wsMenu = false; UI.f = { type: "all", group: "all", risk: "all", status: "active", who: "all" }; UI.q = ""; UI.boardGroup = "all"; closeDrawer(); save(); setRoute(UI.route); seenInit = false; break;
     case "wsnew": UI.wsMenu = false; UI.newWs = null; openWsModal(); break;
     case "wsmode": UI.newWs.mode = a.dataset.v; UI.newWs.name = ""; openWsModal(); break;
@@ -667,7 +668,11 @@ document.addEventListener("click", async e => {
       touch(it); logItem(w, it, `Extension approved: deadline moved from ${fmtDue(it.originalDue)} to ${fmtDue(it.due)}`); save(); render();
       toast(`Deadline moved to ${fmtDue(it.due)}.`, () => { replaceItem(w, before); save(); render(); }); break; }
     case "extno": { const it = findItem(UI.drawerId); if (!it || !it.extension) break; it.extension.status = "declined"; it.extension.decidedAt = nowIso(); touch(it); logItem(w, it, "Extension declined; deadline unchanged"); save(); render(); toast("Noted. Your deadline stays the same; Rescue mode can help you finish."); break; }
-    case "headstoggle": UI.headsOpen = !UI.headsOpen; render(); break;
+    case "headstoggle":
+      if (UI.headsOpen) { const b = $("#headsToggle"); if (b) b.setAttribute("aria-expanded", "false"); MOTION.fold($("#headsList"), $("#headsToggle .chev"), () => { UI.headsOpen = false; render(); }); }
+      else { UI.headsOpen = true; render(); MOTION.unfold($("#headsList"), $("#headsToggle .chev")); }
+      break;
+    case "rail": MOTION.rail(); break;
     case "filters": UI.filtersOpen = !UI.filtersOpen; render(); break;
     case "advtoggle": { UI.advOpen = !UI.advOpen; a.setAttribute("aria-expanded", UI.advOpen); $("#advBox").hidden = !UI.advOpen; break; }
     case "drmore": { UI.drMore = !UI.drMore; a.setAttribute("aria-expanded", UI.drMore); $("#drMoreBox").hidden = !UI.drMore; break; }
@@ -881,6 +886,8 @@ document.addEventListener("drop", e => { if (!dragId) return; const z = e.target
 document.addEventListener("mouseover", e => { const b = e.target.closest && e.target.closest(".blip"); const tip = $("#radarTip"); if (!tip) return; if (!b) { tip.hidden = true; return; } const box = $("#radar").getBoundingClientRect(); const r = b.getBoundingClientRect(); tip.textContent = b.dataset.tip; tip.style.left = (r.left + r.width / 2 - box.left) + "px"; tip.style.top = (r.top - box.top) + "px"; tip.hidden = false; });
 document.addEventListener("focusin", e => { if (e.target.classList && e.target.classList.contains("blip")) e.target.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })); });
 document.addEventListener("toggle", e => { if (e.target.classList && e.target.classList.contains("nav-more")) UI.navMore = e.target.open; }, true);
+// A reset link pasted into a tab that already has the site open only changes the #part, so catch it here too.
+window.addEventListener("hashchange", () => { if (ACCOUNT.on && takeResetToken()) { showAuth(); } });
 window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if (h && h !== UI.route && state && state.workspaces.length && /^[a-z]+$/.test(h)) setRoute(h, false); });
 
 /* =========================================================
@@ -929,7 +936,7 @@ function afterLoad(){
 function closeModalIfOnb(){ $("#onb").hidden = true; }
 /* Test seam: only exposed when the page is opened with ?dt-test (used by the automated tests). */
 if (/[?&]dt-test\b/.test(location.search)) {
-  window.__DT_TEST__ = { weekStats, parseQuick, extractFromText, radar, estimateInsight, checkinCandidate, rulesPlan, runReminders, AI, planFor, backwardPlan, chunkPlan, conflicts, notifs, availHours, progressOf, remainingH, mkItem, newWorkspace, levelOf,
+  window.__DT_TEST__ = { motion: MOTION, showAuth: () => { ACCOUNT.mode = "login"; showAuth(); }, weekStats, parseQuick, extractFromText, radar, estimateInsight, checkinCandidate, rulesPlan, runReminders, AI, planFor, backwardPlan, chunkPlan, conflicts, notifs, availHours, progressOf, remainingH, mkItem, newWorkspace, levelOf,
     SFX, get state(){ return state; }, set state(v){ state = v; }, W, render, save };
 }
 // Start: with the Deadline Tracker server you log in and your data comes from your account;
@@ -938,7 +945,7 @@ if (/[?&]dt-test\b/.test(location.search)) {
   const acct = await checkAccounts();
   if (acct) {
     ACCOUNT.on = true; ACCOUNT.user = acct.user;
-    if (!acct.user) { showAuth(); detectAI(); return; }
+    if (takeResetToken() || !acct.user) { showAuth(); detectAI(); return; }
     await initServerStore();
   } else initStore();
   afterLoad();

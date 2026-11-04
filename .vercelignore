@@ -1,13 +1,14 @@
-# Vercel only serves the web pages; the backend runs on Render.
+# Vercel only serves the web pages (app, admin, pitch); the backend runs on Render.
 /*
 !index.html
 !admin.html
 !pitch.html
+!logo.svg
 !pitch-assets/
 !pitch-assets/**
 !vercel.json
 !build.js
-!build-public.js
-!logo.svg
 !src
+!vendor
+!vendor/**
 !package.json

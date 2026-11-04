@@ -87,11 +87,11 @@ function render(opts = {}){
   const aid = ae && ae.id, selS = ae && ae.selectionStart, selE = ae && ae.selectionEnd;
   const w = W(); const now = Date.now();
   CTX = { w, now, R: radar(w, now) };
-  renderSide(); renderTop(); renderBnav();
+  MOTION.railShell(); renderSide(); renderTop(); renderBnav();
   const drawerHasFocus = $("#drawer").contains(document.activeElement);
   $("#viewInner").innerHTML = VIEWS[UI.route] ? VIEWS[UI.route]() : VIEWS.overview();
   $("#viewInner").style.animation = UI.animate ? "" : "none";
-  if (UI.animate) { countUp(); UI.animate = false; }
+  if (UI.animate) { countUp(); MOTION.view($("#viewInner")); UI.animate = false; }
   if (!(opts.soft && drawerHasFocus)) renderDrawer();
   renderFocusMini();
   if (UI.route === "assistant") scrollChat();
@@ -116,19 +116,20 @@ function renderSide(){
     if (r === "deadlines" || r === "mywork") { const n = w.items.filter(i => !isDone(i) && (r !== "mywork" || i.assignee === viewerId(w)) && ["overdue", "critical"].includes(levelOf(R, i))).length; return n ? `<span class="badge">${n}</span>` : ""; }
     return "";
   };
-  const link = (r, l) => `<a href="#${r}" data-route="${r}" aria-current="${UI.route === r ? "page" : "false"}" class="${r === "assistant" ? "nav-ai" : ""}">${NAV_ICON[r]}${l}${badge(r)}</a>`;
+  const rail = MOTION.isRail();
+  const link = (r, l) => `<a href="#${r}" data-route="${r}" data-flip="nav-${r}" aria-current="${UI.route === r ? "page" : "false"}" class="${r === "assistant" ? "nav-ai" : ""}"${rail ? ` title="${esc(l)}"` : ""}>${NAV_ICON[r]}<span class="lbl">${l}</span>${badge(r)}</a>`;
   $("#side").innerHTML = `
-    <div class="brand">${logoSVG(28)}<span>Deadline Tracker</span></div>
-    <button class="ws-btn" type="button" data-act="wsmenu" aria-expanded="${UI.wsMenu}">
+    <div class="brand" data-flip="brand">${logoSVG(28)}<span class="lbl">Deadline Tracker</span></div>
+    <button class="ws-btn" type="button" data-act="wsmenu" data-flip="ws" aria-expanded="${UI.wsMenu}"${rail ? ` title="${esc(w.name)} · switch workspace"` : ""}>
       <span class="ws-ico" style="background:${MODE_COLOR[w.mode]}">${esc(initials(w.name))}</span>
-      <span style="min-width:0"><span class="wn">${esc(w.name)}</span><span class="wm">${MODE_LABEL[w.mode]} workspace</span></span>
+      <span class="lbl" style="min-width:0"><span class="wn">${esc(w.name)}</span><span class="wm">${MODE_LABEL[w.mode]} workspace</span></span>
       <span class="chev">${IC.chev}</span>
     </button>
-    ${UI.wsMenu ? `<div class="ws-menu">${state.workspaces.map(x => `<button type="button" data-act="wsswitch" data-ws="${x.id}" aria-current="${x.id === w.id}"><span class="ws-ico" style="background:${MODE_COLOR[x.mode]}">${esc(initials(x.name))}</span><span>${esc(x.name)}<br><small style="color:var(--side-muted)">${MODE_LABEL[x.mode]}</small></span></button>`).join("")}
+    ${UI.wsMenu && !rail ? `<div class="ws-menu">${state.workspaces.map(x => `<button type="button" data-act="wsswitch" data-ws="${x.id}" aria-current="${x.id === w.id}"><span class="ws-ico" style="background:${MODE_COLOR[x.mode]}">${esc(initials(x.name))}</span><span>${esc(x.name)}<br><small style="color:var(--side-muted)">${MODE_LABEL[x.mode]}</small></span></button>`).join("")}
       <button type="button" data-act="wsnew"><span class="ws-ico" style="background:var(--side-hover)">${IC.plus}</span>New workspace</button></div>` : ""}
     <nav class="nav" aria-label="Sections">
       ${nav.filter(x => !x[2]).map(([r, l]) => link(r, l)).join("")}
-      <details class="nav-more"${nav.some(x => x[2] && x[0] === UI.route) || UI.navMore ? " open" : ""}><summary>${IC.more}More</summary>${nav.filter(x => x[2]).map(([r, l]) => link(r, l)).join("")}</details>
+      <details class="nav-more"${nav.some(x => x[2] && x[0] === UI.route) || UI.navMore ? " open" : ""}><summary data-flip="more"${rail ? ` title="More"` : ""}>${IC.more}<span class="lbl">More</span></summary>${nav.filter(x => x[2]).map(([r, l]) => link(r, l)).join("")}</details>
     </nav>
     <div class="side-foot">
       ${w.mode === "company" ? `<div class="viewas"><label for="viewAs">Viewing as (prototype role switch)</label>
@@ -214,16 +215,26 @@ function radarHTML(w, items){
   const n = sectors.length, C = 150, R0 = 22, RMAX = 132;
   const rad = days => days <= 0 ? R0 * .6 : R0 + (RMAX - R0) * Math.sqrt(Math.min(days, 21) / 21);
   const rings = [[1, "1d"], [3, "3d"], [7, "7d"], [14, "14d"], [21, "21d"]];
-  let blips = "";
+  let blips = ""; const placed = [];
   act.forEach(it => {
     const si = Math.max(0, sectors.findIndex(s => s.id === it.groupId || (s.id === "__other" && !groups.find(g => g.id === it.groupId)) || (s.id === null)));
     const days = (new Date(it.due).getTime() - now) / DAY;
     const r = rad(days);
     const jitter = (hueOf(it.id) % 100) / 100;
-    const a = (si + .15 + jitter * .7) / n * Math.PI * 2 - Math.PI / 2;
-    const x = C + Math.cos(a) * r, y = C + Math.sin(a) * r;
-    const lv = R[it.id].level; const col = `var(--${{ ontrack: "ok", attention: "att", risk: "risk", critical: "crit", overdue: "over" }[lv]})`;
     const size = it.priority === "high" ? 7 : it.priority === "medium" ? 5.5 : 4.5;
+    // Dots due at the same time in the same sector would sit on top of each other (the lower one couldn't be
+    // clicked): move a colliding dot sideways within its sector, then slightly outward if the sector is full.
+    let a = (si + .15 + jitter * .7) / n * Math.PI * 2 - Math.PI / 2, rr = r, x = C + Math.cos(a) * rr, y = C + Math.sin(a) * rr;
+    const hits = () => placed.some(p => Math.hypot(p.x - x, p.y - y) < p.s + size + 1.5);
+    for (let k = 1; k <= 40 && hits(); k++) {
+      const step = (size * 2.2) / Math.max(rr, 12), off = Math.ceil(k / 2) * step * (k % 2 ? 1 : -1);
+      const lo = (si + .04) / n * Math.PI * 2 - Math.PI / 2, hi = (si + .96) / n * Math.PI * 2 - Math.PI / 2;
+      a = Math.min(hi, Math.max(lo, (si + .15 + jitter * .7) / n * Math.PI * 2 - Math.PI / 2 + off));
+      if (k > 20) rr = Math.min(RMAX + 10, r + (k - 20) * 1.5);
+      x = C + Math.cos(a) * rr; y = C + Math.sin(a) * rr;
+    }
+    placed.push({ x, y, s: size });
+    const lv = R[it.id].level; const col = `var(--${{ ontrack: "ok", attention: "att", risk: "risk", critical: "crit", overdue: "over" }[lv]})`;
     if (lv === "critical" || lv === "overdue") blips += `<circle class="halo" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${size}" fill="${col}"/>`;
     blips += `<circle class="blip" data-act="open" data-id="${it.id}" data-tip="${esc(it.title)} · ${LV[lv]} · ${esc(countdown(it.due, now))}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${size}" fill="${col}" stroke="var(--surface)" stroke-width="1.5" tabindex="0" role="button" aria-label="${esc(it.title)}, ${LV[lv]}"/>`;
   });
@@ -510,6 +521,10 @@ function viewPlanner(){
   const tot = F ? F.total : 25 * 60;
   const circ = 2 * Math.PI * 56;
   const shortList = Object.entries(P.short).map(([id, h]) => [findItem(id, w), h]).filter(x => x[0]);
+  const planEmpty = !active.some(i => i.due);
+  const emptyCard = `<section class="card empty-card"><h3>Nothing to plan yet</h3>
+    <p class="muted">Add a deadline and say how long it takes, like “Essay due Friday 5pm ~3h”. The planner then spreads the work over your free ${word} time before it's due, and you can start a focus session from here.</p>
+    <div class="row-flex"><button class="btn primary" type="button" data-act="qa" data-type="deadline">${IC.plus}Add a deadline</button><a class="btn ghost" href="#prefs" data-route="prefs">Set your ${word} hours</a></div></section>`;
   return `
     <section class="card focus-card">
       <div class="fring"><svg viewBox="0 0 132 132"><circle class="tr" cx="66" cy="66" r="56"/><circle class="pr" id="fringPr" cx="66" cy="66" r="56" stroke-dasharray="${circ.toFixed(1)}" stroke-dashoffset="${(circ * (1 - left / tot)).toFixed(1)}"/></svg><div class="tm mono" id="fringTm">${pad(Math.floor(left / 60))}:${pad(Math.floor(left % 60))}</div></div>
@@ -517,11 +532,13 @@ function viewPlanner(){
         <h3 style="font-size:18px">${F ? (F.running ? "Focusing on" : "Paused:") + " " + esc(fItem ? fItem.title : "") : "Focus session"}</h3>
         <p class="muted" style="font-size:13.5px">${F ? "Time you finish is logged on the deadline and moves its progress forward." : "Pick a deadline and work without switching tasks. Finished minutes are logged and count toward progress."}</p>
         ${F ? `<div class="row-flex"><button class="btn primary" type="button" data-act="fpause">${F.running ? IC.pause + "Pause" : IC.play + "Resume"}</button><button class="btn" type="button" data-act="ffinish">Finish & log</button><button class="btn ghost" type="button" data-act="fstop">Discard</button></div>`
+          : !active.length ? `<p class="muted" style="font-size:13.5px">Add a task or deadline first, then pick it here.</p>`
           : `<div class="row-flex"><select id="focusItem" aria-label="Deadline to focus on">${active.map(i => `<option value="${i.id}">${esc(i.title)} (${relDay(i.due, now)})</option>`).join("")}</select>
             <div class="seg" role="group" aria-label="Length">${[25, 50].map(n => `<button type="button" data-act="flen" data-v="${n}" aria-pressed="${(UI.flen || 25) === n}">${n} min</button>`).join("")}</div>
             <button class="btn primary" type="button" data-act="fstart" ${active.length ? "" : "disabled"}>${IC.play}Start</button></div>`}
       </div>
     </section>
+    ${planEmpty ? emptyCard : ""}
     <div class="row-flex"><p class="muted" style="margin-right:auto">Suggested sessions for the next 7 days, earliest deadline first, within your ${fmtH(P.hpd)} of ${word} time per day. <a href="#prefs" data-route="prefs">Change availability</a></p></div>
     <div class="plan-days">${P.days.map((d, k) => {
       const segs = d.sessions.map(s => { const it = findItem(s.id, w); const g = it && groupOf(w, it.groupId); return `<span style="--c:${g ? g.color : "var(--accent)"};width:${d.cap ? s.h / d.cap * 100 : 0}%"></span>`; }).join("");
@@ -529,7 +546,7 @@ function viewPlanner(){
         <div class="cap-track">${segs}</div>
         ${d.sessions.length ? d.sessions.map(s => { const it = findItem(s.id, w); if (!it) return ""; const g = groupOf(w, it.groupId); return `<div class="sess" style="--c:${g ? g.color : "var(--accent)"}"><b>${esc(it.title)}</b><div class="sm"><span>${fmtH(s.h)} · due ${relDay(it.due, now)}</span><button class="play" type="button" data-act="focus" data-id="${it.id}">Start</button></div></div>`; }).join("") : `<p class="muted" style="font-size:12.5px">${d.cap ? "Free. Nothing to schedule." : "Day off"}</p>`}
       </div>`; }).join("")}</div>
-    <div class="grid-2">
+    <div class="grid-2"${planEmpty ? " hidden" : ""}>
       <section class="card"><div class="card-h"><h3>Won't fit in time</h3><span class="sub">${shortList.length}</span></div>
         ${shortList.length ? shortList.map(([it, h]) => `<div class="head">${IC.alert}<div style="flex:1"><p><b>${esc(it.title)}</b> is about ${fmtH(h)} short before ${fmtDue(it.due)}.</p><div class="row-flex"><button class="btn xs" type="button" data-act="rescue" data-id="${it.id}">Rescue mode</button><button class="btn xs" type="button" data-act="open" data-id="${it.id}">Open</button></div></div></div>`).join("") : `<p class="muted">Everything with an estimate fits before its deadline.</p>`}
       </section>
@@ -652,18 +669,20 @@ function viewApprovalsList(w, now){
 function accountStatsHTML(){
   if (Store.mode !== "server") return "";
   const S = UI.acctStats;
-  if (!S || Date.now() - S.at > 30000) { if (!UI.acctStatsLoading) { UI.acctStatsLoading = true; apiJSON("GET", "/api/stats").then(r => { UI.acctStatsLoading = false; if (r.ok) { UI.acctStats = { at: Date.now(), d: r.json }; if (UI.route === "reports") render({ soft: true }); } }).catch(() => { UI.acctStatsLoading = false; }); } if (!S) return `<section class="card acct-stats" aria-busy="true"><div class="card-h"><h3>Your account</h3><span class="sub">Loading…</span></div></section>`; }
-  const d = S.d; const maxW = Math.max(1, ...d.weekly.map(x => x.completed));
+  // Refetched after every save (S.stale) so it matches what you just did on other pages, and at most every 30 s otherwise.
+  if (!S || S.stale || Date.now() - S.at > 30000) { if (!UI.acctStatsLoading) { UI.acctStatsLoading = true; apiJSON("GET", "/api/stats").then(r => { UI.acctStatsLoading = false; if (r.ok) { UI.acctStats = { at: Date.now(), d: r.json }; if (UI.route === "reports") render({ soft: true }); } }).catch(() => { UI.acctStatsLoading = false; }); } if (!S) return `<section class="card acct-stats" aria-busy="true"><div class="card-h"><h3>Your account</h3><span class="sub">Loading…</span></div></section>`; }
+  const d = S.d; if (!d.total) return "";   // no tasks in any workspace yet: the page's own empty state explains what to do
+  const maxW = Math.max(1, ...d.weekly.map(x => x.completed));
   const pr = ["high", "medium", "low"].map(k => `<div class="as-pri"><span class="pdot p-${k}"></span>${k[0].toUpperCase() + k.slice(1)}<b>${d.priorities[k].pending}</b><span class="muted">pending of ${d.priorities[k].total}</span></div>`).join("");
   return `<section class="card acct-stats"><div class="card-h"><h3>Your account</h3><span class="sub">All workspaces · from your saved data</span></div>
     <div class="as-grid">
       <div class="as-k"><span>Total tasks</span><b>${d.total}</b></div><div class="as-k"><span>Completed</span><b>${d.completed}</b></div>
       <div class="as-k"><span>Pending</span><b>${d.pending}</b></div><div class="as-k"><span>Overdue</span><b style="color:${d.overdue ? "var(--over)" : "inherit"}">${d.overdue}</b></div>
-      <div class="as-k"><span>Completion</span><b>${d.completionRate}%</b></div><div class="as-k"><span>On time</span><b>${d.onTimeRate == null ? "–" : d.onTimeRate + "%"}</b></div>
+      <div class="as-k"><span>Done of all tasks</span><b>${d.completionRate}%</b></div><div class="as-k"><span>On time</span><b>${d.onTimeRate == null ? "–" : d.onTimeRate + "%"}</b></div>
     </div>
-    <div class="as-row"><div class="as-weeks" role="img" aria-label="Tasks completed per week, last 8 weeks">${d.weekly.map(x => `<span title="Week of ${x.weekStart}: ${x.completed} completed"><i style="height:${Math.round(x.completed / maxW * 100)}%"></i><em>${x.completed}</em></span>`).join("")}</div>
+    <div class="as-row"><div><p class="as-cap">Completed per week (last 8 weeks)</p><div class="as-weeks" role="img" aria-label="Tasks completed per week, last 8 weeks: ${d.weekly.map(x => `week of ${fmtDate(x.weekStart + "T12:00")} ${x.completed}`).join(", ")}">${d.weekly.map(x => `<span title="Week of ${fmtDate(x.weekStart + "T12:00")}: ${x.completed} completed"><i style="height:${Math.round(x.completed / maxW * 100)}%"></i><em>${x.completed}</em><small>${new Date(x.weekStart + "T12:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</small></span>`).join("")}</div></div>
       <div class="as-pris">${pr}</div></div>
-    <p class="muted" style="font-size:12.5px;margin:0">Monthly: ${d.monthly.map(m => `${m.month.slice(5)}/${m.month.slice(2, 4)} ${m.completed} done`).join(" · ")}</p></section>`;
+    <p class="muted" style="font-size:12.5px;margin:0">Completed per month: ${d.monthly.map(m => `${new Date(m.month + "-15T12:00").toLocaleDateString("en-GB", { month: "short", year: "2-digit" })}: ${m.completed}`).join(" · ")}</p></section>`;
 }
 function viewReports(){
   const w = W(); const { now, R } = CTX;
@@ -690,11 +709,16 @@ function viewReports(){
   const dist = {}; LEVELS.forEach(l => dist[l] = 0); items.filter(i => !isDone(i)).forEach(i => dist[levelOf(R, i)]++);
   const distTot = Object.values(dist).reduce((a, b) => a + b, 0) || 1;
   const exams = w.items.filter(i => i.type === "exam" && !isDone(i));
+  // A new member with no deadlines: say so plainly instead of showing rates of nothing.
+  if (!items.length) return `${accountStatsHTML()}<section class="card empty-card"><h3>No deadlines to report on yet</h3>
+    <p class="muted">Reports show how many deadlines you finish, how many on time, and what's at risk. Add a deadline and finish it, and this page fills in by itself.</p>
+    <div class="row-flex"><button class="btn primary" type="button" data-act="qa" data-type="deadline">${IC.plus}Add a deadline</button></div></section>`;
+  const dash = `<span class="v">–</span>`;
   return `${accountStatsHTML()}<div class="kpis">
-      <div class="kpi"><span class="l">Completion rate</span><span class="v">${compRate}%</span><span class="h">${done.length} of ${dueSoFar} deadlines that are already due</span></div>
-      <div class="kpi"><span class="l">On-time rate</span><span class="v">${otRate}%</span><span class="h">${onTime.length} of ${done.length} finished before the deadline</span></div>
+      <div class="kpi"><span class="l">Completion rate</span>${dueSoFar ? `<span class="v">${compRate}%</span>` : dash}<span class="h">${dueSoFar ? `${done.length} of ${dueSoFar} deadlines that are already due` : "None of your deadlines is due yet"}</span></div>
+      <div class="kpi"><span class="l">On-time rate</span>${done.length ? `<span class="v">${otRate}%</span>` : dash}<span class="h">${done.length ? `${onTime.length} of ${done.length} finished before the deadline` : "Nothing finished yet"}</span></div>
       <div class="kpi"><span class="l">Overdue now</span><span class="v" style="color:${missed.length ? "var(--over)" : "inherit"}">${missed.length}</span><span class="h">${items.filter(i => !isDone(i)).length ? Math.round(missed.length / items.filter(i => !isDone(i)).length * 100) : 0}% of active deadlines</span></div>
-      <div class="kpi"><span class="l">Average finish</span><span class="v">${Math.abs(avgLead) < .05 ? "On the day" : `${Math.abs(avgLead).toFixed(1)}d`}</span><span class="h">${avgLead >= 0 ? "before" : "after"} the deadline</span></div>
+      <div class="kpi"><span class="l">Average finish</span>${lateDays.length ? `<span class="v">${Math.abs(avgLead) < .05 ? "On the day" : `${Math.abs(avgLead).toFixed(1)}d`}</span><span class="h">${avgLead >= 0 ? "before" : "after"} the deadline</span>` : `${dash}<span class="h">Nothing finished yet</span>`}</div>
     </div>
     <div class="grid-2">
       <section class="card chart"><div class="card-h"><h3>Completed per week</h3><span class="sub"><span style="color:var(--ok)">■</span> on time <span style="color:var(--risk)">■</span> late</span></div>${chart}</section>

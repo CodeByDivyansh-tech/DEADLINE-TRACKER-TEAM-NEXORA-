@@ -52,10 +52,19 @@ async function onboard(page, { mode = "student", demo = true, name = "Divyansh",
 }
 
 // Switch section, then wait for the section's short fade-in to finish (drags don't start on a moving element).
-const settle = page => page.waitForFunction(() => { const v = document.getElementById("viewInner"); return !v || v.getAnimations().every(a => a.playState !== "running"); }, null, { timeout: 3000 });
+// The GSAP card reveal (src/motion.js) marks moving cards with data-rv until they have landed.
+const settle = page => page.waitForFunction(() => { const v = document.getElementById("viewInner"); return !v || (v.getAnimations().every(a => a.playState !== "running") && !v.querySelector("[data-rv]")); }, null, { timeout: 3000 });
 const go = async (page, route) => { await page.evaluate(r => { location.hash = r; }, route); await page.waitForTimeout(50); await settle(page); };
 const state = page => page.evaluate(() => JSON.parse(JSON.stringify(window.__DT_TEST__.state)));
 const ws = async page => { const s = await state(page); return s.workspaces.find(w => w.id === s.active); };
 const itemByTitle = async (page, title) => (await ws(page)).items.find(i => i.title === title);
 
-module.exports = { setup, newPage, onboard, go, settle, state, ws, itemByTitle, FIXED_NOW };
+// Wait until an async check in the page is true. (page.waitForFunction treats a returned Promise as "true" at once,
+// so it can't be used with fetch-based checks.)
+async function pollPage(page, fn, arg, ms = 5000){
+  const t0 = Date.now();
+  while (Date.now() - t0 < ms) { if (await page.evaluate(fn, arg)) return true; await new Promise(r => setTimeout(r, 100)); }
+  throw new Error(`pollPage: condition not met within ${ms} ms: ${String(fn).slice(0, 120)}`);
+}
+
+module.exports = { pollPage, setup, newPage, onboard, go, settle, state, ws, itemByTitle, FIXED_NOW };

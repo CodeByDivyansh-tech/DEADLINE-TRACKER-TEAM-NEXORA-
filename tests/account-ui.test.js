@@ -3,7 +3,7 @@ const { test, before, after, afterEach } = require("node:test");
 const assert = require("node:assert/strict");
 const { chromium } = require("playwright");
 const { startServer } = require("./srv");
-const { onboard, FIXED_NOW } = require("./helpers");
+const { onboard, FIXED_NOW, pollPage } = require("./helpers");
 
 let s, browser; const ctxs = [];
 before(async () => { s = await startServer({}); browser = await chromium.launch(); });
@@ -52,7 +52,8 @@ test("account UI: tasks are saved to the account (not the browser) and come back
   await signupUI(page, "Asha", "asha@example.com");
   await onboard(page, { mode: "student", demo: false, name: "Asha" });
   await addTask(page, "Asha private essay due Fri 5pm");
-  await page.waitForFunction(async () => (await (await fetch("/api/state")).json()).version >= 2, null, { timeout: 5000 });
+  // the set-up and the new task may go to the server in one save, so wait for the task itself
+  await pollPage(page, async () => JSON.stringify((await (await fetch("/api/state")).json()).state || "").includes("Asha private essay"), null, 5000);
   assert.equal(await page.evaluate(() => localStorage.getItem("deadline-tracker-v2")), null, "nothing left in this browser's storage");
   assert.match(await page.textContent("#syncLine"), /Saved to your account \(asha@example.com\)/);
   // another computer
@@ -65,7 +66,7 @@ test("account UI: tasks are saved to the account (not the browser) and come back
 test("account UI: another account never sees your tasks", async () => {
   const a = await open(); await signupUI(a, "Kiran", "kiran@example.com"); await onboard(a, { demo: false, name: "Kiran" });
   await addTask(a, "Kiran secret plan tomorrow");
-  await a.waitForFunction(async () => (await (await fetch("/api/state")).json()).version >= 2, null, { timeout: 5000 });
+  await pollPage(a, async () => JSON.stringify((await (await fetch("/api/state")).json()).state || "").includes("Kiran secret plan"), null, 5000);
   const b = await open(); await signupUI(b, "Bilal", "bilal@example.com");
   await onboard(b, { demo: false, name: "Bilal" });
   assert.ok(!(await titles(b)).some(t => /Kiran/.test(t)));
@@ -92,8 +93,22 @@ test("account UI: tasks saved in this browser before having an account can be br
   await page.click("[data-act=confirmok]");
   await page.waitForSelector("#app:not([hidden])");
   assert.ok((await titles(page)).includes("Pay electricity bill"));
-  await page.waitForFunction(async () => (await (await fetch("/api/state")).json()).version >= 1, null, { timeout: 5000 });
+  await pollPage(page, async () => (await (await fetch("/api/state")).json()).version >= 1, null, 5000);
   assert.equal(await page.evaluate(() => localStorage.getItem("deadline-tracker-v2")), null, "moved, not copied");
+});
+
+// Audit bug (3 Nov): the browser's copy was deleted before the account had saved it; when the server refused the
+// save (here an old short task id; also a network error), those tasks were lost from both places.
+test("account UI: if the account can't save the brought-in tasks, the browser keeps its copy and says so", async () => {
+  const seed = () => { if (!localStorage.getItem("seeded")) { localStorage.setItem("seeded", "1"); localStorage.setItem("deadline-tracker-v2", JSON.stringify({ v: 2, user: { name: "Old" }, active: "w1", workspaces: [{ id: "w1", name: "Old work", mode: "personal", items: [{ id: "x2", title: "Renew passport", plan: "2026-10-30", status: "todo", priority: "medium" }], groups: [], members: [{ id: "me", name: "Old", role: "Owner" }], settings: { hoursPerDay: 3, workdays: [0,1,2,3,4,5,6], reminders: [1440, 60] } }] })); } };
+  const page = await open({ init: seed });
+  await page.route("**/api/state", r => r.request().method() === "PUT" ? r.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ code: "starting", error: "The server is starting up." }) }) : r.continue());
+  await signupUI(page, "Ravi", "ravi-import@example.com");
+  await page.waitForSelector("#modalWrap.on"); await page.click("[data-act=confirmok]");
+  await page.waitForSelector("#app:not([hidden])");
+  await pollPage(page, () => /couldn't be saved to your account/i.test(document.getElementById("toastMsg").textContent), null, 6000);
+  assert.ok(await page.evaluate(() => !!localStorage.getItem("deadline-tracker-v2")), "the browser still has the tasks");
+  await page.unroute("**/api/state");
 });
 
 test("account UI: the log in screen fits a phone", async () => {

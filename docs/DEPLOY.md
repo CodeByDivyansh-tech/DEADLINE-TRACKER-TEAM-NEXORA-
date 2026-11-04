@@ -68,6 +68,14 @@ How it works: the server still uses SQLite while running. On start it loads the 
 Limits: keep one instance; a change made in the last ~3 seconds before a crash (not a normal shutdown) can be lost; the whole database is copied each time, which suits databases up to a few MB (the health check warns above 8 MB). Neon's free plan includes 0.5 GB storage.
 The connection string is a password: keep it only in Render's Environment, never in GitHub or the frontend. The server never prints it.
 
+**If `/api/health` shows `"fallback": true` or `"ok": false` under `persistence`:** the server started but can't use Neon, so nothing is being saved permanently. The `error` line says why. Common causes: the value was pasted with extra text (the server now removes `psql '...'`, quotes and `DATABASE_URL=` itself), a typo in the password, or the Neon project was deleted. Fix the value in Render → Environment; Render redeploys. (Before 3 Nov 2026 the server waited for Neon forever and never started, so every Render deploy failed after 15 minutes and the old server kept running.)
+
+**4. "Forgot password?" emails (optional, free)**
+1. Sign up at <https://www.brevo.com> (free: 300 emails a day). Add and verify a sender address (Senders & IP → Senders); a Gmail address works, no domain needed.
+2. SMTP & API → API keys → create a key.
+3. Render → Environment: `EMAIL_PROVIDER=brevo`, `EMAIL_API_KEY=<the key>`, `EMAIL_FROM=Deadline Tracker <the verified address>`, `PUBLIC_URL=https://<your Vercel address>`.
+4. `/api/health` shows `"email": {"configured": true}`. Without these, "Forgot password?" tells people to ask the admin, and the admin page (Users → Reset link) makes a one-time link to send them.
+
 **Other Render free plan limits:**
 - The service **sleeps after 15 minutes without visits**; the next visit takes up to a minute (the app shows "Starting up…"). While it sleeps, the reminder job doesn't run; reminders catch up when it wakes.
 

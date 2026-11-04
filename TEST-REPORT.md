@@ -190,6 +190,93 @@ Test-first throughout; every bug below had a failing test before the fix. Full s
 Manual checks: screenshots of the welcome page (desktop, tablet, phone, sign-up error), Home (light, dark, phone; student and manager), Workload, Needs attention and Reports; a sweep of every page for student, manager, employee and personal at 1440 and 390 px (no browser errors, no sideways scrolling).
 Not covered: real Neon (the workspace can't reach neon.tech; tests use a fake with Neon's request/response format), real Render/Vercel after deploy (not deployed yet), real Gemini, screen-reader walkthrough, Safari/Firefox (tests run Chromium only).
 
+## Original NEXORA pitch and shared design system (2 Nov 2026, branch `original-redesign`)
+The earlier pitch (made with Antigravity) was replaced by an original one built on the app's own identity (`docs/DESIGN-SYSTEM.md`). The team's slide text and speaker notes were kept; wrong claims were corrected (4 problems, not 5; no "confidence rings"; 300+ tests, not 269; the reminder answer now mentions the free-hosting sleep).
+
+| Area | Test file | What is checked |
+|---|---|---|
+| 3D scenes | pitch | three different scenes (Countdown Orbit, Risk Radar, Week Rebalance) plus the finished ring on the closing slide; the 3D waits until the text has painted; the others are prepared in idle time; only the visible one runs; week day labels follow the columns |
+| 3D type | pitch, auth-ui | NEXORA title: 6 letters with 12 depth layers each, read as one word; slide headings flip in word by word; the app's welcome headline uses the same 3D type |
+| Controls | pitch | Begin, next/previous, arrows, Space, Home/End, chapter rail, chapter menu, logo, keyboard focus, hidden slides inert, stays on the last slide; #slide-N links and refresh; 7 product tabs and keys 1–7, all pictures load; notes follow the slide; judges' Q&A (button, Q, Esc); timer matches the script (3:25), pauses and resets; full screen; app links open safely |
+| Phone | pitch | controls on screen and ≥36 px; every slide starts at its heading; comparison as cards with our answer first; no sideways scroll; swipes, but not inside the table, tabs or a 3D scene |
+| Fallbacks | pitch | reduced motion: one still frame, no loops, instant changes; no graphics acceleration (software WebGL): still pictures rendered from the real scenes, no freezing; no WebGL at all: same stills |
+| Glass, contrast, budget | pitch | 14 px blur, solid fallback without blur support; text on glass ≥ 4.5:1; pitch.html < 140 KB, first load < 2 MB, three.js once from a cached file, WebP pictures; nothing left of the earlier deck (GSAP, Cinzel, pink) |
+| Design tokens | auth-ui | teal, amber and coral tokens in light and dark; the old pink landing gradient is gone |
+
+Performance found and fixed: building the title scene blocked the page for ~9 s on software graphics (ready at 10.5 s, now 0.67 s); slide changes stuttered while shaders compiled (now prepared in idle time); weak GPUs get lower resolution, no shadows and a frame cap automatically.
+Manual: screenshots of every slide at 1920×1080, 1366×768, 820×1180 and 390×844; the still-picture fallback; the app's welcome page and Home in light, dark and phone.
+Not covered: real GPU frame rates (this machine has none; 3D was checked with software WebGL), Safari and Firefox, a screen reader walkthrough.
+
+## Signature GSAP motion and warm palette (3 Nov 2026, branch `gsap-panels`)
+**Result: 321 of 321 tests pass, two full runs in a row** (10 new tests in `tests/motion.test.js`).
+
+Reference: an Instagram clip of a GSAP sidebar where the panel keeps its wide box while its edge travels (`clip-path`), the page, handle and arrow move with it, shifted items follow by y, and labels fade back in with a stagger. Built as our own version in five places, each with its own motion (see `docs/DESIGN-SYSTEM.md`).
+
+What was tested (written first, run red: 0 of 10 passed):
+- GSAP is inlined by the build; no script from another site; it drives the motion.
+- Sidebar rail, mid-animation: the edge is part-way, the sidebar stays 248 px wide, the page and handle are still moving, the arrow is turning. At the end: 76 px rail, handle on the edge, no leftover transforms, labels hidden visually but still in the link text and as tooltips, links work, the choice is remembered after a reload.
+- Opening the rail: labels come back one after another; nothing stays clipped.
+- Deadline AI window: a circle centred on its button grows to the full window; closing shrinks it back while the state changes at once.
+- Heads-up panel: height and clip grow together, the chevron turns, folding back leaves no jump.
+- Changing section: cards unfold from their top edge, then nothing is left clipped or moved.
+- Reduced motion: every change is instant, no clip or movement.
+- Phone (390 px): no rail handle, no sideways scrolling, the AI window opens.
+- Log-in tabs: the pill slides under the chosen tab; the form is revealed from that side.
+- Palette: copper accent and warm background in both themes; no blue or violet colour left in the app's code.
+
+Found and fixed along the way:
+- The calendar drag test started a drag while the new card reveal was still moving. The shared `settle` helper now also waits for GSAP reveals (cards are marked while they move), which is what it was meant to do.
+- GSAP's own clock uses `Date.now`, which the tests freeze. GSAP now runs on `performance.now()` and only while something is moving, so it works the same in tests and for users and never runs an idle loop.
+- Switching log-in tabs replayed the headline's word animation; it now stays still.
+
+Screenshots checked: light and dark (Today, heads-up open, rail mid-move and finished, Deadlines, AI window mid-open and open, log-in and sign-up switch), and 390 px phone (Today, AI window, log-in).
+
+Not covered: real GPUs, Safari and Firefox (tests use Chromium only); how the motion feels at low frame rates on old phones. The `/pitch` page still uses the indigo palette.
+
+## Full audit: login, password reset, new members, Reports, Planner, security (3 Nov 2026, branch `audit-fixes-nov3`)
+**Result:** the full suite, run twice in a row (see the final line of this section for the numbers); 100 test accounts × 14 scenarios against a real server; security sweep 24 of 24 checks.
+
+### Main cause of "login not working", "sample data missing", "Reports/Planner empty" on the live site
+The live backend on Render was still running code from before 2 Nov. Every Render deploy since commit `fd11854` failed after ~15 minutes (GitHub deployment statuses show 5 failures in a row). The new server waited for Neon *before* opening its port and retried forever; when Neon couldn't be used it never answered Render's health check, so Render kept the old server, which loses its database whenever it restarts (free plan). Accounts, sample data and reports disappeared with it.
+Fix (`server.js`, `lib/persist.js`, `lib/config.js`): the port opens first and answers 503 "starting" until the data is loaded; after 60 s without Neon the server starts anyway **without** saving to Neon, shows the reason in `/api/health` (`persistence.fallback`, `error`), and checks again every 30 s (empty Neon → starts saving; Neon holding a saved copy → never overwritten, asks for a restart). A `DATABASE_URL` pasted as `psql '…'`, with quotes or with `DATABASE_URL=` is cleaned. 5 new tests in `tests/persist.test.js` (they hung before the fix).
+
+### Bugs found and fixed
+| Bug | Effect | Fix | Test |
+|---|---|---|---|
+| Render deploys never finished (above) | Old server kept running; data lost on every restart | Listen first, time-limited Neon load, fallback + recheck, cleaned `DATABASE_URL` | `persist.test.js` (5 new) |
+| No way to recover a forgotten password | Members locked out | One-time reset links by email (Brevo/Resend, free) or made by the admin; `#reset=` page; token hashed, single use, 30 min, signs out all devices; rate limited | `api-password-reset.test.js` (11), `forgot-ui.test.js` (7) |
+| Bringing browser tasks into a new account deleted the browser copy *before* the server saved it | A refused save (old short ids) or network error lost those tasks | Copy removed only after a confirmed save; old ids repaired | `account-ui.test.js` (2) |
+| Reports "Your account" totals cached up to 30 s | Finished a task, Reports still showed the old numbers | Refreshed after every save | `ui-server.test.js` (verified red without the fix) |
+| Weekly bars in "Your account" had no labels; "Completion" contradicted "Completion rate" | Chart unreadable, numbers confusing | Week labels, "Done of all tasks", month names | `ui-server.test.js` |
+| Reports for a member with no deadlines showed "0%" rates and "Average finish: On the day" | Invented results | Empty state with "Add a deadline"; dashes when nothing is finished; empty account panel hidden | `empty-states.test.js`, `ui-server.test.js` |
+| Study Planner with no deadlines: empty picker, no guidance | Looked broken | "Nothing to plan yet" with an example and buttons | `empty-states.test.js` |
+| Deadline Radar drew deadlines due at the same time on the same spot | The lower dot couldn't be clicked | Colliding dots moved apart within their sector | `empty-states.test.js` (3 modes) |
+| Links inside pages used the browser's default blue | Hard to read in dark mode, off-palette | Accent colour for plain links | `empty-states.test.js` |
+| A reset link pasted into a tab with the site open did nothing | Reset page didn't appear | Handled on `hashchange` | `forgot-ui.test.js` |
+
+### Test mistakes found and fixed
+- **7 waits never waited:** `page.waitForFunction(async () => …)` returns at once because Playwright treats the returned Promise as "true" (checked: 31 ms while the condition was false). Replaced by `pollPage()` in `tests/helpers.js`. With real waits, two account tests' expectation "version ≥ 2" turned out wrong (setup and the first task are saved together); they now wait for the task itself. The import data-loss bug above had been hidden by this.
+- The earlier run's reset UI test used an "too short" password that was exactly 8 characters, and read error messages before the server answered.
+- The fake Neon crashed when a stopping server saved after the next test cleared its data (real Postgres just updates 0 rows).
+- A pitch test checked "no 3D yet" right after opening, a race that failed once when the machine was busy. It now compares the browser's first-paint time with the time the first scene appears. (On this machine the 3D appears after the text even without the built-in delay, so the test checks the result people see, not the delay itself.)
+
+### Security sweep (`/tmp` script, real server, test data only): 24 of 24
+All 52 private routes refuse visitors who aren't logged in (`/api/help/suggestions` is public on purpose: titles of the public help guide's FAQs). All admin routes refuse members. Another member's task and conversation ids return 404; lists, saved state and statistics hold only the member's own data. Profile/sign-up can't set role or email; SQL injection strings in log-in and filters are refused and the database is intact; XSS text is stored as text and shown escaped; session cookie HttpOnly + SameSite=Lax (+ Secure in production); logged-out and made-up sessions are refused; cross-site POSTs blocked (403); wrong passwords and reset-token guessing are rate limited (429); no hashes/salts/tokens in any response; a 3 MB body is refused; `.env`, the database and source files aren't served.
+
+### 100 accounts (`tests/load/hundred-users.js`, result in `tests/load/hundred-users-result.json`)
+Each account: browser sign-up and setup with sample data, Reports, Planner, create (Add box) / edit / delete (task API), refresh, log out and in, existing log-in, wrong password, forgot password email, reset page, protected routes; then every member tried every other member's task (9,900 checks). All 14 scenarios passed 100/100.
+
+### Crawl
+4 set-ups (student 1366 light, student 390 dark, company 1366 dark, personal 1024 light): every page, every kind of button clicked: no JavaScript errors, no server errors, no sideways scrolling.
+
+### Not covered / remaining risks
+- The live site was only read (health page, one unknown route); no accounts were created on it. Render's logs weren't readable (not signed in), so the exact Neon error on Render is unknown until the fixed server is deployed and `/api/health` shows it.
+- Reset emails need an email provider in Render's settings (`docs/DEPLOY.md` step 4); until then "Forgot password?" says to ask the admin, who can make a link.
+- Accounts made on the live site since its last restart will be lost when the new server deploys (the old server keeps them only on a disk Render wipes); with Neon working, nothing is lost after that.
+- Chromium only (no Safari/Firefox); one server instance; a change in the last ~3 s before a crash can be lost.
+
+**Final numbers:** full suite **354 of 354, twice in a row** (two earlier runs: 353/354 with the pitch race above, then 354/354). 100 accounts × 14 scenarios: **all 100/100**, 9,900 cross-member checks, 349 s (re-run on the final code).
+
 ## Full visual redesign, Daily tasks, sounds and a friendlier assistant (4 Nov 2026, branch `feature/redesign`)
 **Visual identity "Tide & Apricot"** (replaces the navy/indigo look): warm paper + deep teal by day, green-charcoal with teal and amber light by night; apricot as the second colour. Fonts: Sora (headings), Manrope (text), JetBrains Mono (small figures). Logo, favicon and admin page recoloured.
 **Glass that actually works:** a slowly drifting colour field (four soft lights + fine grain) sits behind every page, so the panels have something to frost. Panels use a tinted translucent fill, `backdrop-filter: blur(22px) saturate(170%)`, a light sheen from the top-left, a hairline edge and an inner highlight. Applied to cards, the Today panel, top bar, sidebar, drawer, modals, Deadline AI window, Add box, Daily tasks and the log-in and setup screens. Text contrast is still checked by the theme tests (≥7:1 main text, ≥4.5:1 secondary, sidebar and button text).
@@ -213,3 +300,7 @@ Not covered: real Neon (the workspace can't reach neon.tech; tests use a fake wi
 **Flaky under load:** in the first full run, two tests timed out inside `page.goto` (log-in page and a Daily reload) after the laptop had been busy for two hours; both pass when run again.
 **Test bug found in the second full run:** `api-plan` "turns a sentence into suggested tasks" assumed "Java assignment tomorrow" is listed before "Maths test on Friday". On a Thursday both are the same day and the engine lists the test first (a sensible order), so it failed only after midnight going into Thursday 5 Nov. The test now compares the two items without depending on order. The planning code itself was not changed.
 **Full suite:** run 1: **317 of 317 pass** (49 min). Run 2: 316 of 317 (only that date-dependent test, which ran before the fix). After the fix, `api-plan` alone: 7 of 7 pass.
+
+### Merged with main (5 Nov 2026): Ivory & Copper kept
+Main had moved on (GSAP "travelling edge" motion, Ivory & Copper palette, password reset, audit fixes). On the owner's choice the merged app uses **Ivory & Copper**: main's tokens, fonts and logo; this branch's Daily tasks, sounds, ₹ assistant, glass layer and Help guide page kept. The design layer's extra tokens (`--accent-2`, `--accent-soft`, `--glass-sheen`, `--blob-4`, `--ease`) were given copper/gold values in all three theme blocks; this branch's teal login/setup overrides were removed so main's styling stands; `logo.svg` and the admin page now use the copper logo too (they were still indigo on main).
+After resolving: motion, sound, daily, menu, Today, theme/contrast, phone, logo and empty-state tests: **68 of 68 pass**. Screenshots checked: Today (light, dark), Daily tasks, Settings, log-in screen (desktop, phone, after the entrance motion), Deadline AI window with ₹ amounts.
