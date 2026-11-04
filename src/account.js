@@ -28,7 +28,7 @@ function showWaking(){
     <h1>Starting up…</h1><p class="lead">The server is waking up. This can take up to a minute the first time; the page will continue by itself.</p><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span></div>`;
 }
 function hideWaking(){ const w = $("#waking"); if (w) { $("#onb").innerHTML = ""; $("#onb").hidden = true; } }
-function showWakingFailed(){ toast("Couldn't reach the server, so your changes are saved in this browser only. Reload the page to try again."); }
+function showWakingFailed(){ toast("Couldn't reach the server, so your changes are saved in this browser only. Reload the page to try again.", null, null, "error"); }
 async function apiJSON(method, url, body){
   const r = await fetch(url, { method, credentials: "same-origin", cache: "no-store", headers: body === undefined ? {} : { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
   let j = null; try { j = await r.json(); } catch (e) {}
@@ -84,7 +84,7 @@ function showAuth(note){
     <p class="auth-foot">${IC.info}<span>Passwords are stored securely as a hash. The AI key stays on the server.</span></p>
   </div>
   <ul class="features">
-    <li><span class="fi" style="--c:#7d93ff">${IC.spark}</span><div><b>Type it the way you'd say it</b><span>"Essay due Fri 5pm" becomes a task with its date.</span></div></li>
+    <li><span class="fi" style="--c:#5fd4bd">${IC.spark}</span><div><b>Type it the way you'd say it</b><span>"Essay due Fri 5pm" becomes a task with its date.</span></div></li>
     <li><span class="fi" style="--c:#ff8a5c">${IC.alert}</span><div><b>See what's at risk</b><span>It checks whether the work fits before each deadline.</span></div></li>
     <li><span class="fi" style="--c:#3ecf8e">${IC.bell}</span><div><b>Reminders that arrive</b><span>Even when the app is closed, from your account.</span></div></li>
   </ul>
@@ -206,8 +206,8 @@ async function flushServer(){
       ACCOUNT.version = r.json.version; if (r.json.state) { state = r.json.state; afterLoad(); }
       toast("Your tasks were changed on another device, so this page now shows the latest version. Please check your last change.");
       ACCOUNT.dirty = false;
-    } else if (r.status !== 401 && !ACCOUNT.warned) { ACCOUNT.warned = true; toast(r.json.error || "Couldn't save to your account. Your change will be retried."); ACCOUNT.dirty = true; }
-  } catch (e) { if (!ACCOUNT.warned) { ACCOUNT.warned = true; toast("Couldn't reach the server, so your last change isn't saved yet. Keep this tab open; it will retry."); } ACCOUNT.dirty = true; }
+    } else if (r.status !== 401 && !ACCOUNT.warned) { ACCOUNT.warned = true; toast(r.json.error || "Couldn't save to your account. Your change will be retried.", null, null, "error"); ACCOUNT.dirty = true; }
+  } catch (e) { if (!ACCOUNT.warned) { ACCOUNT.warned = true; toast("Couldn't reach the server, so your last change isn't saved yet. Keep this tab open; it will retry.", null, null, "error"); } ACCOUNT.dirty = true; }
   ACCOUNT.saving = false;
   if (ACCOUNT.dirty) { ACCOUNT.dirty = false; setTimeout(flushServer, 3000); }
 }
@@ -241,7 +241,7 @@ function syncPrefs(){
     const s = W().settings;
     const before = [...new Set(s.reminders.concat(s.customReminder ? [s.customReminder] : []))].filter(m => PREF_CHOICES.includes(m)).slice(0, 6);
     apiJSON("PATCH", "/api/profile", { notifyPrefs: { before, overdue: !!s.overdueAlerts, dailySummary: s.dailySummary !== false, dueToday: s.dueToday !== false, highDone: s.highDone !== false, quietOn: !!s.quietOn, quietFrom: s.quietFrom, quietTo: s.quietTo } })
-      .then(r => { if (r.ok) ACCOUNT.user = r.json.user; else toast(r.json.error || "Couldn't save your reminder settings."); }).catch(() => {});
+      .then(r => { if (r.ok) ACCOUNT.user = r.json.user; else toast(r.json.error || "Couldn't save your reminder settings.", null, null, "error"); }).catch(() => {});
   }, 400);
 }
 // Notifications come from the server's reminder job (they're created even while the app is closed).

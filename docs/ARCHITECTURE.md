@@ -40,6 +40,7 @@ lib/modules/admin.js      admin-only routes
 lib/ai/gemini.js          Gemini client: free-tier model, our limits, quota/error handling, usage log
 lib/ai/rag.js             knowledge base: chunk, embed, store vectors, hybrid retrieval
 lib/ai/help.js            Help answers (website from the guide; general productivity tips)
+lib/ai/format.js          tidies answers: money in the person's currency (₹ with Indian grouping by default), no code fences or stray labels
 admin.html                admin dashboard (uses /api/admin/*)
 knowledge/*.md            the help guide loaded on first run
 ```

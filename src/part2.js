@@ -72,10 +72,10 @@ const TYPES_BY_MODE = { student: ["assignment", "exam", "project", "application"
 const DEFAULT_TYPE = { student: "assignment", company: "task", personal: "personal" };
 const STATUSES = { todo: "To do", doing: "In progress", blocked: "Blocked", review: "In review", done: "Done" };
 const STATUS_COLOR = { todo: "var(--muted)", doing: "var(--accent)", blocked: "var(--risk)", review: "var(--att)", done: "var(--ok)" };
-const COLORS = ["#5b6cf0", "#14a39a", "#e2762b", "#d14d8b", "#8a5cf6", "#2f9e44", "#c99a0a", "#3a8dde"];
+const COLORS = ["#0f8f7e", "#d9622b", "#b4567a", "#c99a0a", "#4f7cc4", "#2f9e44", "#8a5cf6", "#d14d8b"];
 const GROUP_WORD = { student: "Subject", company: "Project", personal: "List" };
 const MODE_LABEL = { student: "Student", company: "Company", personal: "Personal" };
-const MODE_COLOR = { student: "#5b6cf0", company: "#e2762b", personal: "#14a39a" };
+const MODE_COLOR = { student: "#0f8f7e", company: "#d9622b", personal: "#b4567a" };
 const PRI = { high: { label: "High", rank: 0 }, medium: { label: "Medium", rank: 1 }, low: { label: "Low", rank: 2 } };
 const REMINDER_OPTS = [[10080, "1 week before"], [4320, "3 days before"], [1440, "1 day before"], [60, "1 hour before"]];
 const TEMPLATES = {
@@ -137,7 +137,7 @@ function logItem(w, it, text){
 let logoN = 0;
 function logoSVG(size){
   const id = "dtg" + (++logoN);
-  return `<svg class="dt-logo" width="${size}" height="${size}" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4353ff"/><stop offset="1" stop-color="#a855f7"/></linearGradient></defs><rect width="64" height="64" rx="16" fill="url(#${id})"/><circle cx="32" cy="33" r="17" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="5"/><path d="M32 16 A17 17 0 1 1 17.28 24.5" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/><path d="M24.5 33.5 30 39 40.5 27.5" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="32" cy="16" r="4" fill="#ffc94d" stroke="#fff" stroke-width="1.5"/></svg>`;
+  return `<svg class="dt-logo" width="${size}" height="${size}" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#13a08b"/><stop offset="1" stop-color="#e2702f"/></linearGradient></defs><rect width="64" height="64" rx="16" fill="url(#${id})"/><circle cx="32" cy="33" r="17" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="5"/><path d="M32 16 A17 17 0 1 1 17.28 24.5" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/><path d="M24.5 33.5 30 39 40.5 27.5" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="32" cy="16" r="4" fill="#ffc94d" stroke="#fff" stroke-width="1.5"/></svg>`;
 }
 function defaultSettings(mode){
   return {
@@ -641,8 +641,8 @@ async function flush(){
   try { await withRetry(() => Store.ref.set(clone(state))); }
   catch (e) {
     const c = e && e.code;
-    if (c === "quota_exceeded") toast("Your saved data is too large. Remove completed deadlines or old workspaces, then try again.");
-    else if (!warned) { warned = true; toast(c === "invalid_argument" || c === "revoked" ? "Changes can't be saved to your account in this view. They're kept in this browser." : "Couldn't save to your account. Check your connection; your changes are kept in this browser."); }
+    if (c === "quota_exceeded") toast("Your saved data is too large. Remove completed deadlines or old workspaces, then try again.", null, null, "error");
+    else if (!warned) { warned = true; toast(c === "invalid_argument" || c === "revoked" ? "Changes can't be saved to your account in this view. They're kept in this browser." : "Couldn't save to your account. Check your connection; your changes are kept in this browser.", null, null, "error"); }
   }
   Store.saving = false;
   if (Store.dirty) { Store.dirty = false; flush(); }

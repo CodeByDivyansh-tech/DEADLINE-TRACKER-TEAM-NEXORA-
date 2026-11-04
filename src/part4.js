@@ -16,7 +16,40 @@ const listRoute = () => { const w = W(); return w.mode === "company" ? (canManag
    Toast, burst, modal helpers
    ========================================================= */
 let toastT = null, undoFn = null;
-function toast(msg, undo, label){
+/* Sounds: tiny tones made with Web Audio (no files). Silent until the first click or key press (browsers require it),
+   never while typing, and switched off in Settings (remembered on this device). */
+const SND_KEY = "dt-sound";
+const SFX = { ctx: null, on: true, armed: false, last: 0, log: [] };
+try { SFX.on = localStorage.getItem(SND_KEY) !== "off"; } catch (e) {}
+function tone(c, t0, f, dur, gain, type, f2){
+  const o = c.createOscillator(), g = c.createGain(); o.type = type || "sine";
+  o.frequency.setValueAtTime(f, t0); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t0 + dur);
+  g.gain.setValueAtTime(.0001, t0); g.gain.exponentialRampToValueAtTime(gain, t0 + .008); g.gain.exponentialRampToValueAtTime(.0001, t0 + dur);
+  o.connect(g).connect(c.destination); o.start(t0); o.stop(t0 + dur + .02);
+}
+function sfx(kind){
+  if (!SFX.on || !SFX.armed) return;
+  const t = performance.now(); if (kind === "click" && t - SFX.last < 70) return; SFX.last = t;
+  SFX.log.push(kind); if (SFX.log.length > 50) SFX.log.shift();
+  try {
+    const C = window.AudioContext || window.webkitAudioContext; if (!C) return;
+    const c = SFX.ctx || (SFX.ctx = new C()); if (c.state === "suspended") c.resume();
+    const s = c.currentTime + .005;
+    if (kind === "click") tone(c, s, 1900, .04, .035, "sine", 1400);
+    else if (kind === "success") { tone(c, s, 784, .14, .05); tone(c, s + .075, 1175, .22, .045); }
+    else if (kind === "error") { tone(c, s, 311, .14, .05, "triangle", 277); tone(c, s + .1, 233, .2, .045, "triangle", 208); }
+  } catch (e) {}
+}
+["pointerdown", "keydown"].forEach(ev => document.addEventListener(ev, () => { SFX.armed = true; }, { capture: true, once: true }));
+// A soft click for anything you press that acts; fields, typing and scrolling stay silent.
+document.addEventListener("click", e => {
+  const b = e.target.closest && e.target.closest("button, [role=button], [role=tab], a[data-route], a[href], summary, [data-act]");
+  if (!b || b.disabled || b.matches("input, textarea, select, label") || b.closest("[data-nosfx]")) return;
+  sfx("click");
+}, true);
+function toast(msg, undo, label, kind){
+  if (kind === "error") sfx("error"); else if (kind === "success") sfx("success");
+  $("#toast").classList.toggle("err", kind === "error"); $("#toast").classList.toggle("ok", kind === "success");
   $("#toastMsg").textContent = msg; undoFn = undo || null;
   const b = $("#toastUndo"); b.hidden = !undo; b.textContent = label || "Undo";
   $("#toast").classList.add("on"); clearTimeout(toastT);
@@ -62,7 +95,7 @@ function addRepeat(due, rep){
 }
 function completeItem(id, el){
   const w = W(); const it = findItem(id); if (!it) return;
-  if (!canEditItem(w, it)) { toast("Only the assignee or a manager can change this."); return; }
+  if (!canEditItem(w, it)) { toast("Only the assignee or a manager can change this.", null, null, "error"); return; }
   if (isDone(it)) {
     const before = clone(it);
     it.status = progressOf({ ...it, status: "todo" }) > 0 ? "doing" : "todo"; it.doneAt = null; touch(it);
@@ -86,7 +119,7 @@ function completeItem(id, el){
   burst(el); save(); render(); celebrateIfAllDone(w);
   toast(spawned ? (spawned.due ? `Done. The next one is due ${fmtDate(spawned.due)}.` : `Done. The next one is on ${fmtDate(spawned.plan + "T12:00")}.`) : `Nice. "${it.title}" is done${late || !it.due ? "" : " on time"}.`, () => {
     replaceItem(w, before); if (spawned) w.items = w.items.filter(x => x.id !== spawned.id); save(); render();
-  });
+  }, undefined, "success");
 }
 function deleteItem(id){
   const w = W(); const it = findItem(id); if (!it) return;
@@ -98,7 +131,7 @@ function deleteItem(id){
 }
 function setStatus(id, st){
   const w = W(); const it = findItem(id); if (!it || it.status === st) return;
-  if (!canEditItem(w, it)) { toast("You can only move your own cards."); return; }
+  if (!canEditItem(w, it)) { toast("You can only move your own cards.", null, null, "error"); return; }
   if (st === "done") { completeItem(id); return; }
   if (st === "review") { if (!canManage(w) || !it.evidence) { openDrawer(id, "proof"); toast("Add evidence and submit it for review."); return; } }
   const before = clone(it); const from = STATUSES[it.status];
@@ -310,18 +343,18 @@ function refreshAddHint(id){ const h = document.getElementById(id + "-hint"); if
 function submitAddBox(id){
   const w = W(); const acts = addActions(id);
   const el = document.getElementById(id);
-  if (!acts.length) { toast("Type what you need to do."); if (el) el.focus(); return; }
+  if (!acts.length) { toast("Type what you need to do.", null, null, "error"); if (el) el.focus(); return; }
   const made = acts.map(a => { const it = taskFromAction(w, a, { day: addDay(id) }); logItem(w, it, `Added "${it.title}"`); return it; });
   AB.drafts[id] = ""; if (el) { el.value = ""; el.style.height = ""; }
   const inModal = id === "qaText"; if (inModal) closeModal();
   save(); render(); refreshAddHint(id);
   const one = made[0]; const now = Date.now();
   const where = it => it.due ? `due ${fmtDue(it.due)}` : `for ${it.plan === ymd(now) ? "today" : it.plan === ymd(addDays(startOfDay(now), 1)) ? "tomorrow" : fmtDate(it.plan + "T12:00")}`;
-  toast(made.length === 1 ? `Added "${one.title}" ${where(one)}.` : `Added ${made.length} things.`, () => { const ids = made.map(x => x.id); W().items = W().items.filter(x => !ids.includes(x.id)); save(); render(); });
+  toast(made.length === 1 ? `Added "${one.title}" ${where(one)}.` : `Added ${made.length} things.`, () => { const ids = made.map(x => x.id); W().items = W().items.filter(x => !ids.includes(x.id)); save(); render(); }, undefined, "success");
   if (!inModal) setTimeout(() => { const i = document.getElementById(id); if (i) i.focus({ preventScroll: true }); }, 0);
 }
 function askFromAddBox(id){
-  const t = (AB.drafts[id] || "").trim(); if (!t) { toast("Type what you want to ask the assistant."); return; }
+  const t = (AB.drafts[id] || "").trim(); if (!t) { toast("Type what you want to ask the assistant.", null, null, "error"); return; }
   AB.drafts[id] = ""; if (modalKind) closeModal();
   setRoute("assistant"); sendToAssistant(t);
 }
@@ -536,7 +569,7 @@ function renderFocusMini(){
   const host = $("#focusMini"); const F = UI.focus;
   if (!F || UI.route === "planner") { host.innerHTML = ""; return; }
   const it = findItem(F.id); const left = focusLeft(); const c = 2 * Math.PI * 14;
-  host.innerHTML = `<div class="focus-mini" role="status"><div class="mr"><svg viewBox="0 0 34 34"><circle cx="17" cy="17" r="14" fill="none" stroke="rgba(255,255,255,.15)" stroke-width="4"/><circle id="fmPr" cx="17" cy="17" r="14" fill="none" stroke="#7d93ff" stroke-width="4" stroke-linecap="round" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${(c * (1 - left / F.total)).toFixed(1)}"/></svg></div>
+  host.innerHTML = `<div class="focus-mini" role="status"><div class="mr"><svg viewBox="0 0 34 34"><circle cx="17" cy="17" r="14" fill="none" stroke="rgba(255,255,255,.15)" stroke-width="4"/><circle id="fmPr" cx="17" cy="17" r="14" fill="none" stroke="#5fd4bd" stroke-width="4" stroke-linecap="round" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${(c * (1 - left / F.total)).toFixed(1)}"/></svg></div>
     <div><div class="t" id="fmTm">${pad(Math.floor(left / 60))}:${pad(Math.floor(left % 60))}</div><div class="n">${esc(it ? it.title : "")}</div></div>
     <button type="button" data-act="fpause">${F.running ? "Pause" : "Resume"}</button><button type="button" data-act="ffinish">Finish</button></div>`;
 }
@@ -757,7 +790,7 @@ document.addEventListener("change", e => {
     const v = t.value; let txt = null;
     switch (id) {
       case "dr-title": if (!v.trim()) { t.value = it.title; return; } it.title = v.trim().slice(0, 140); break;
-      case "dr-date": case "dr-time": { const dv = $("#dr-date").value, tv = $("#dr-time").value || "23:59"; if (!dv) { toast("A deadline needs a date."); render(); return; } const old = it.due; it.due = `${dv}T${tv}`; if (old !== it.due) txt = `Changed the deadline from ${fmtDue(old)} to ${fmtDue(it.due)}`; break; }
+      case "dr-date": case "dr-time": { const dv = $("#dr-date").value, tv = $("#dr-time").value || "23:59"; if (!dv) { toast("A deadline needs a date.", null, null, "error"); render(); return; } const old = it.due; it.due = `${dv}T${tv}`; if (old !== it.due) txt = `Changed the deadline from ${fmtDue(old)} to ${fmtDue(it.due)}`; break; }
       case "dr-type": it.type = v; break;
       case "dr-group": it.groupId = v || null; break;
       case "dr-pri": it.priority = v; txt = `Set priority to ${PRI[v].label}`; break;
@@ -786,6 +819,8 @@ document.addEventListener("change", e => {
   if (id === "sortSel") { UI.sort = t.value; render(); return; }
   if (id === "whoSel") { UI.f.who = t.value; render(); return; }
   if (id === "boardGroup") { UI.boardGroup = t.value; render(); return; }
+  if (id === "pf-currency") { state.user.currency = t.value; save(); toast(`Money in answers will be shown in ${t.options[t.selectedIndex].text}.`); return; }
+  if (id === "pf-sound") { SFX.on = t.checked; try { localStorage.setItem(SND_KEY, t.checked ? "on" : "off"); } catch (err) {} if (t.checked) sfx("success"); toast(t.checked ? "Sound effects on." : "Sound effects off."); return; }
   // settings
   const s = w.settings;
   if (id === "pf-name") { state.user.name = t.value.trim(); state.workspaces.forEach(x => { const me = memberOf(x, "me"); if (me && t.value.trim()) me.name = t.value.trim(); }); }
@@ -895,7 +930,7 @@ function closeModalIfOnb(){ $("#onb").hidden = true; }
 /* Test seam: only exposed when the page is opened with ?dt-test (used by the automated tests). */
 if (/[?&]dt-test\b/.test(location.search)) {
   window.__DT_TEST__ = { weekStats, parseQuick, extractFromText, radar, estimateInsight, checkinCandidate, rulesPlan, runReminders, AI, planFor, backwardPlan, chunkPlan, conflicts, notifs, availHours, progressOf, remainingH, mkItem, newWorkspace, levelOf,
-    get state(){ return state; }, set state(v){ state = v; }, W, render, save };
+    SFX, get state(){ return state; }, set state(v){ state = v; }, W, render, save };
 }
 // Start: with the Deadline Tracker server you log in and your data comes from your account;
 // anywhere else (claude.ai, a plain file server) it's saved in this browser as before.

@@ -76,13 +76,14 @@ test("notifications: reminders made by the server's job appear in the bell; Mark
   const page = await newUser();
   const soon = Date.now() + 40 * 60e3, tz = "Asia/Kolkata";
   await api(page, "POST", "/api/tasks", { title: "Submit scholarship form", dueDate: T.localDate(soon, tz), dueTime: T.localTime(soon, tz) });
-  await page.waitForFunction(async () => (await (await fetch("/api/notifications")).json()).unread > 0, null, { timeout: 6000 });
+  // (waitForFunction with an async function returns a Promise, which counts as "true" at once, so poll here instead)
+  assert.ok(await page.evaluate(async () => { for (let k = 0; k < 40; k++) { if ((await (await fetch("/api/notifications")).json()).unread > 0) return true; await new Promise(r => setTimeout(r, 200)); } return false; }), "the server made the reminder");
   await page.reload(); await page.waitForSelector("#app:not([hidden])");
   await page.waitForSelector("#bellDot:not([hidden])");
   await page.click("#bellBtn");
   assert.match(await page.textContent("#notifPanel"), /Submit scholarship form" is due in/);
   await page.click("[data-act=readall]");
-  await page.waitForFunction(async () => (await (await fetch("/api/notifications")).json()).unread === 0, null, { timeout: 4000 });
+  assert.ok(await page.evaluate(async () => { for (let k = 0; k < 30; k++) { if ((await (await fetch("/api/notifications")).json()).unread === 0) return true; await new Promise(r => setTimeout(r, 200)); } return false; }), "marked read on the server");
 });
 test("reports: account statistics come from the server; reminder settings update the account", async () => {
   const page = await newUser();

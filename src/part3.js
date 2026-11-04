@@ -50,19 +50,19 @@ const IC = {
 // [route, label, inMore]: four main items (plus team pages for company), the rest folded under "More".
 function navFor(w){
   const M = true;
-  if (w.mode === "student") return [["overview", "Today"], ["assistant", "Assistant"], ["calendar", "Calendar"], ["deadlines", "Deadlines"], ["exams", "Exams", M], ["planner", "Study Planner", M], ["reports", "Reports", M], ["prefs", "Settings", M]];
+  if (w.mode === "student") return [["overview", "Today"], ["daily", "Daily tasks"], ["assistant", "Assistant"], ["calendar", "Calendar"], ["deadlines", "Deadlines"], ["exams", "Exams", M], ["planner", "Study Planner", M], ["reports", "Reports", M], ["prefs", "Settings", M]];
   if (w.mode === "company") {
-    const n = [["overview", "Today"], ["assistant", "Assistant"], ["calendar", "Calendar"], ["mywork", "My Work"], ["team", "Team Deadlines"]];
+    const n = [["overview", "Today"], ["daily", "Daily tasks"], ["assistant", "Assistant"], ["calendar", "Calendar"], ["mywork", "My Work"], ["team", "Team Deadlines"]];
     if (canManage(w)) n.push(["workload", "Workload"], ["approvals", "Needs attention"]);
     n.push(["planner", "My Planner", M]);
     if (canManage(w)) n.push(["reports", "Reports", M]);
     n.push(["prefs", "Settings", M]);
     return n;
   }
-  return [["overview", "Today"], ["assistant", "Assistant"], ["calendar", "Calendar"], ["deadlines", "Deadlines"], ["planner", "Planner", M], ["reports", "Reports", M], ["prefs", "Settings", M]];
+  return [["overview", "Today"], ["daily", "Daily tasks"], ["assistant", "Assistant"], ["calendar", "Calendar"], ["deadlines", "Deadlines"], ["planner", "Planner", M], ["reports", "Reports", M], ["prefs", "Settings", M]];
 }
 const NAV_GROUP = {};
-const NAV_ICON = { assistant: IC.assistant, todo: IC.todo, overview: IC.overview, deadlines: IC.list, mywork: IC.mywork, exams: IC.exam, calendar: IC.calendar, planner: IC.planner, reports: IC.reports, prefs: IC.prefs, team: IC.team, workload: IC.workload, approvals: IC.approvals };
+const NAV_ICON = { assistant: IC.assistant, todo: IC.todo, daily: IC.todo, overview: IC.overview, deadlines: IC.list, mywork: IC.mywork, exams: IC.exam, calendar: IC.calendar, planner: IC.planner, reports: IC.reports, prefs: IC.prefs, team: IC.team, workload: IC.workload, approvals: IC.approvals };
 function setRoute(r, push = true){
   const w = W();
   const valid = navFor(w).map(x => x[0]);
@@ -151,8 +151,9 @@ function renderTop(){
 }
 function renderBnav(){
   const w = W(); const nav = navFor(w);
-  const main = nav.filter(x => !x[2]).slice(0, 4);
-  $("#bnav").innerHTML = main.map(([r, l]) => `<a href="#${r}" data-route="${r}" aria-current="${UI.route === r ? "page" : "false"}">${NAV_ICON[r]}<span>${l.replace("My ", "").replace("Team Deadlines", "Team")}</span></a>`).join("") +
+  // phone bar: Today, Daily tasks, the deadlines list and the Assistant; everything else is under More
+  const pick = ["overview", "daily", "deadlines", "mywork", "assistant"]; const main = pick.map(r => nav.find(x => x[0] === r && !x[2])).filter(Boolean).slice(0, 4);
+  $("#bnav").innerHTML = main.map(([r, l]) => `<a href="#${r}" data-route="${r}" aria-current="${UI.route === r ? "page" : "false"}">${NAV_ICON[r]}<span>${l.replace("My ", "").replace("Team Deadlines", "Team").replace("Daily tasks", "Daily")}</span></a>`).join("") +
     `<button type="button" data-act="morenav">${IC.more}<span>More</span></button>`;
 }
 
@@ -737,6 +738,8 @@ function settingsHTML(w, s, gw, mgr, days){
         <div class="f2"><div class="field"><label for="pf-name">Your name</label><input type="text" id="pf-name" value="${esc(state.user.name)}" maxlength="60"></div>
         <div class="field"><label for="pf-ws">Workspace name</label><input type="text" id="pf-ws" value="${esc(w.name)}" maxlength="60" ${mgr ? "" : "disabled"}></div></div>
         <p class="muted" style="font-size:13px">${MODE_LABEL[w.mode]} workspace · created ${fmtDate(w.createdAt, { day: "numeric", month: "short", year: "numeric" })}. You belong to ${state.workspaces.length} workspace${state.workspaces.length > 1 ? "s" : ""}; switch from the top of the sidebar.</p>
+        <div class="field"><label for="pf-currency">Currency for money in answers</label><select id="pf-currency">${[["INR", "₹ Indian Rupee (INR)"], ["USD", "$ US Dollar (USD)"], ["EUR", "€ Euro (EUR)"], ["GBP", "£ British Pound (GBP)"], ["AED", "AED UAE Dirham"], ["SGD", "S$ Singapore Dollar"], ["AUD", "A$ Australian Dollar"], ["CAD", "C$ Canadian Dollar"], ["JPY", "¥ Japanese Yen"]].map(([v, l]) => `<option value="${v}" ${(state.user.currency || "INR") === v ? "selected" : ""}>${l}</option>`).join("")}</select></div>
+        <label class="switch" for="pf-sound"><span><b>Sound effects</b><span>Soft clicks and chimes when you act. Saved on this device.</span></span><input type="checkbox" id="pf-sound" role="switch" ${SFX.on ? "checked" : ""}></label>
         <div class="row-flex">${w.demo ? `<button class="btn sm" type="button" data-act="cleardemo">Clear sample data</button>` : ""}<button class="btn sm" type="button" data-act="wsnew">${IC.plus}New workspace</button>${state.workspaces.length > 1 && mgr ? `<button class="btn sm danger" type="button" data-act="wsdelete">Delete this workspace</button>` : ""}</div>
       ${ACCOUNT.user ? `<div class="acct-row">${IC.check}<span>Signed in as <b>${esc(ACCOUNT.user.email)}</b>${ACCOUNT.user.role === "admin" ? " · admin" : ""}</span>${ACCOUNT.user.role === "admin" ? `<a class="btn sm" href="/admin" target="_blank" rel="noopener">Open admin</a>` : ""}<button class="btn sm" type="button" data-act="pwopen" aria-expanded="${!!UI.pwOpen}" aria-controls="pwBox">Change password</button><button class="btn sm" type="button" data-act="logout">Log out</button></div>
       ${UI.pwOpen ? `<form class="pw-box" id="pwBox" novalidate><h4>Change password</h4>

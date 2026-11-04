@@ -95,6 +95,98 @@ function todoTabsHTML(w){
     <div class="todo-list" id="todoList">${body}</div>`;
 }
 
+/* =========================================================
+   Daily tasks: a simple list for today's activities.
+   Plain tasks (no deadline) with a title and an optional short description; new ones go on today.
+   They're ordinary items, so they save with everything else (to the account when signed in).
+   ========================================================= */
+const DAILY_F = [["all", "All"], ["today", "Today"], ["pending", "Pending"], ["completed", "Completed"]];
+const dailyAll = w => myTasks(w).filter(i => !i.due);
+function dailyFiltered(w, f, t){
+  const all = dailyAll(w);
+  const list = f === "today" ? all.filter(i => i.plan === t) : f === "pending" ? all.filter(i => !isDone(i)) : f === "completed" ? all.filter(isDone) : all;
+  // pending first; then today's before older days; then the order they were added
+  return list.sort((a, b) => isDone(a) - isDone(b) || (b.plan || "").localeCompare(a.plan || "") || new Date(a.createdAt) - new Date(b.createdAt));
+}
+function dailyRowHTML(it, t){
+  const done = isDone(it); const editing = UI.dailyEdit === it.id;
+  if (editing) return `<li class="dt-row editing" data-id="${it.id}">
+      <div class="dt-edit"><label class="sr" for="dtEditTitle">Title</label><input id="dtEditTitle" type="text" maxlength="140" value="${esc(it.title)}">
+        <label class="sr" for="dtEditDesc">Description</label><input id="dtEditDesc" type="text" maxlength="300" placeholder="Short description (optional)" value="${esc(it.notes || "")}">
+        <div class="row-flex"><button class="btn primary sm" type="button" data-act="dailysave">Save</button><button class="btn ghost sm" type="button" data-act="dailycancel">Cancel</button></div></div></li>`;
+  return `<li class="dt-row${done ? " done" : ""}" data-id="${it.id}">
+      <button class="dt-check" type="button" data-act="dailytoggle" aria-pressed="${done}" aria-label="${done ? "Mark as not done" : "Mark as done"}: ${esc(it.title)}">${IC.check}</button>
+      <div class="dt-body"><span class="dt-t">${esc(it.title)}</span>${it.notes ? `<span class="dt-d">${esc(it.notes)}</span>` : ""}${it.plan && it.plan !== t ? `<span class="dt-day">${esc(fmtDate(it.plan + "T12:00"))}</span>` : ""}</div>
+      <div class="dt-acts"><button class="ib" type="button" data-act="dailyedit" aria-label="Edit ${esc(it.title)}" title="Edit">${IC.edit}</button><button class="ib del" type="button" data-act="dailydel" aria-label="Delete ${esc(it.title)}" title="Delete">${IC.trash}</button></div>
+    </li>`;
+}
+function viewDaily(){
+  const w = W(); const t = todayKey(CTX.now); const f = UI.dailyF || "all";
+  const all = dailyAll(w); const today = all.filter(i => i.plan === t);
+  const done = today.filter(isDone).length; const pct = today.length ? Math.round(done / today.length * 100) : 0;
+  const pending = all.filter(i => !isDone(i)).length, completed = all.length - pending;
+  const list = dailyFiltered(w, f, t);
+  const counts = { all: all.length, today: today.length, pending, completed };
+  const empty = { all: ["No tasks yet", "Add your first one above. Keep it short, like “Finish the project work”."], today: ["Nothing for today yet", "Anything you add goes on today's list."], pending: ["All caught up", "Nothing is waiting. Nice work."], completed: ["Nothing completed yet", "Tick a task when it's done and it shows here."] }[f];
+  return `<section class="daily-head">
+      <div class="dh-top"><div><p class="dh-date">${esc(new Date(CTX.now).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" }))}</p><h2>${today.length && done === today.length ? "All done for today" : "Today's progress"}</h2></div>
+        <p class="dh-counts" id="dailyCounts"><span><b>${pending}</b> pending</span><span><b>${completed}</b> completed</span></p></div>
+      <div class="dh-bar" role="progressbar" aria-label="Today's progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i id="dailyBar" style="width:${pct}%"></i></div>
+      <p class="dh-prog" id="dailyProgress">Progress: ${done} of ${today.length} completed — ${pct}%</p>
+    </section>
+    <form class="daily-form card" id="dailyForm" autocomplete="off">
+      <div class="df-fields"><label class="sr" for="dailyTitle">Task</label><input id="dailyTitle" type="text" maxlength="140" placeholder="What do you want to get done today?" value="${esc(UI.dailyDraft || "")}">
+        <label class="sr" for="dailyDesc">Short description (optional)</label><input id="dailyDesc" type="text" maxlength="300" placeholder="Short description (optional)" value="${esc(UI.dailyDesc || "")}"></div>
+      <button class="btn primary" type="button" id="dailyAdd" data-act="dailyadd">${IC.plus}Add task</button>
+    </form>
+    <section class="daily-list">
+      <div class="dl-bar"><div class="seg" role="group" aria-label="Show">${DAILY_F.map(([v, l]) => `<button type="button" data-act="dailyf" data-v="${v}" aria-pressed="${f === v}">${l} <span class="cnt">${counts[v]}</span></button>`).join("")}</div></div>
+      <ul class="dt-list" id="dailyList">${list.length ? list.map(i => dailyRowHTML(i, t)).join("") : `<li class="dt-empty"><span class="dt-empty-ico">${IC.todo}</span><h3>${empty[0]}</h3><p>${empty[1]}</p></li>`}</ul>
+    </section>`;
+}
+VIEWS.daily = viewDaily;
+PAGE.daily = "Daily tasks";
+function dailyAdd(){
+  const w = W(); const ti = $("#dailyTitle"), de = $("#dailyDesc");
+  const title = (ti ? ti.value : "").replace(/\s+/g, " ").trim();
+  if (!title) { toast("Give the task a title first.", null, null, "error"); if (ti) ti.focus(); return; }
+  const it = mkItem(w, { kind: "todo", title: title.slice(0, 140), notes: (de ? de.value : "").trim().slice(0, 300), plan: todayKey(Date.now()), due: null, reminders: [], assignee: viewerId(w), type: DEFAULT_TYPE[w.mode], priority: "medium", source: "daily" });
+  w.items.push(it); logItem(w, it, `Added "${it.title}"`);
+  UI.dailyDraft = ""; UI.dailyDesc = ""; if (UI.dailyF === "completed") UI.dailyF = "all";
+  save(); render(); sfx("success");
+  setTimeout(() => { const i = $("#dailyTitle"); if (i) i.focus(); }, 0);
+}
+function dailySave(id){
+  const w = W(); const it = findItem(id); if (!it) return;
+  const title = ($("#dtEditTitle").value || "").replace(/\s+/g, " ").trim();
+  if (!title) { toast("A task needs a title.", null, null, "error"); return; }
+  it.title = title.slice(0, 140); it.notes = ($("#dtEditDesc").value || "").trim().slice(0, 300); touch(it); logItem(w, it, `Edited "${it.title}"`);
+  UI.dailyEdit = null; save(); render(); toast("Saved.");
+}
+document.addEventListener("click", e => {
+  const a = e.target.closest("[data-act]"); if (!a || !state || !state.workspaces || !state.workspaces.length) return;
+  const row = a.closest(".dt-row"); const id = row && row.dataset.id; const w = W();
+  switch (a.dataset.act) {
+    case "dailyadd": dailyAdd(); break;
+    case "dailyf": UI.dailyF = a.dataset.v; UI.dailyEdit = null; render(); break;
+    case "dailytoggle": { const it = findItem(id); if (!it) break; const was = isDone(it);
+      it.status = was ? "todo" : "done"; it.doneAt = was ? null : nowIso(); touch(it); logItem(w, it, was ? `Reopened "${it.title}"` : `Completed "${it.title}"`);
+      save(); render(); if (!was) { sfx("success"); celebrateIfAllDone(w); } break; }
+    case "dailyedit": UI.dailyEdit = id; render(); setTimeout(() => { const i = $("#dtEditTitle"); if (i) { i.focus(); i.select(); } }, 0); break;
+    case "dailycancel": UI.dailyEdit = null; render(); break;
+    case "dailysave": dailySave(id); break;
+    case "dailydel": { const it = findItem(id); if (!it) break; const idx = w.items.indexOf(it); const before = clone(it);
+      w.items.splice(idx, 1); save(); render();
+      toast(`Deleted "${it.title}".`, () => { W().items.splice(idx, 0, before); save(); render(); }); break; }
+  }
+});
+document.addEventListener("keydown", e => {
+  const t = e.target;
+  if (e.key === "Enter" && (t.id === "dailyTitle" || t.id === "dailyDesc")) { e.preventDefault(); dailyAdd(); }
+  else if (t.id === "dtEditTitle" || t.id === "dtEditDesc") { if (e.key === "Enter") { e.preventDefault(); const r = t.closest(".dt-row"); if (r) dailySave(r.dataset.id); } else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); UI.dailyEdit = null; render(); } }
+}, true);
+document.addEventListener("input", e => { if (e.target.id === "dailyTitle") UI.dailyDraft = e.target.value; else if (e.target.id === "dailyDesc") UI.dailyDesc = e.target.value; });
+
 function todoDrawerHTML(w, it){
   const can = canEditItem(w, it); const dis = can ? "" : "disabled"; const now = CTX.now;
   const tab = UI.drawerTab === "activity" ? "activity" : "overview";
@@ -256,7 +348,7 @@ async function enableDesktop(){
     const p = window.Notification.permission === "granted" ? "granted" : await window.Notification.requestPermission();
     if (p === "granted") { state.desktopAlerts = true; save(); toast("Desktop alerts are on."); }
     else toast("Notifications weren't allowed. You can change this in your browser's site settings.");
-  } catch (e) { toast("This browser couldn't turn on notifications."); }
+  } catch (e) { toast("This browser couldn't turn on notifications.", null, null, "error"); }
   renderBell(); if (UI.route === "prefs") render();
 }
 function renderNotif(){
