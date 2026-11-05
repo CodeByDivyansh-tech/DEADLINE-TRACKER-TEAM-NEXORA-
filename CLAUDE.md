@@ -36,6 +36,9 @@ Docs: `docs/ARCHITECTURE.md` (modules, schema, rules), `docs/API.md`, `docs/DEPL
 9. Backend changes need API tests (`tests/api-*.test.js`, `tests/srv.js` starts a real server with a fake Gemini). Schema changes go in a new numbered migration in `lib/db.js`, never by editing an old one.
 10. UI copy: plain words, short sentences, no jargon. Simplicity over features.
 
+## Design
+Identity "Ivory & Copper" (see `docs/DESIGN-SYSTEM.md`): tokens at the top of `src/part1.html` (light: ivory `#f6f1e7`, copper `#a4501c`; dark: warm brown-black `#15110d`, copper `#e9a36e`). Fonts Bricolage Grotesque / IBM Plex Sans / IBM Plex Mono. GSAP motion in `src/motion.js`. Glass = `--glass` fill + `--glass-sheen` + `backdrop-filter` over the colour field in `body::before`; the shared design layer is the "Design system v2" block at the end of the stylesheet. Sounds: `sfx()` in `part4.js` (Web Audio, off switch in Settings). Never use navy/indigo again.
+
 ## Status
 Part A (merged task model, one Add box, calm Today, short sidebar, manager queue) is done. Backend done: accounts, task API, reminders while the app is closed, planning engine, Gemini Help with RAG, admin, statistics.
 Next ideas: Telegram/email delivery for reminders (needs a bot token or email provider in `.env`), team invites with real shared workspaces, PostgreSQL for several server instances.

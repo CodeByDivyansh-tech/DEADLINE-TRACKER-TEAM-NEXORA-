@@ -27,12 +27,23 @@ const HELP_SUGG = ["How do I create a task?", "How do reminders work?", "Task ka
 const looksPersonal = t => planIntent(t, W(), Date.now()) || /\b(my|mere|meri|mera|mujhe)\b[\s\S]*\b(tasks?|deadlines?|work|kaam|day|schedule|exams?|assignments?)\b[\s\S]*\b(today|tomorrow|aaj|kal|this week|pending|left|due)\b|\bwhat('s| is) (due|pending|left)\b|\bwhat should i (do|complete|finish|focus on|start)\b/i.test(t);
 
 function dwTime(iso){ try { return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); } catch (e) { return ""; } }
-// Help answers may contain line breaks and numbered steps; shown as plain, escaped text.
+// Answers may use a little Markdown: "## " headings, "- " or "1." lists, **bold**, *italic*, `code`.
+// Everything is escaped first, so nothing in an answer can run as HTML.
 function dwText(t){
-  const lines = esc(t).split(/\n+/).map(s => s.trim()).filter(Boolean);
-  const out = []; let list = null;
-  lines.forEach(l => { const m = l.match(/^(?:\d+[.)]|[-•*])\s+(.*)$/); if (m) { if (!list) { list = []; out.push(list); } list.push(m[1]); } else { list = null; out.push(l); } });
-  return out.map(x => Array.isArray(x) ? `<ol>${x.map(i => `<li>${i}</li>`).join("")}</ol>` : `<p>${x}</p>`).join("");
+  const inline = s => s.replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>").replace(/(^|[^*\w])\*([^*\n]+)\*(?!\w)/g, "$1<em>$2</em>").replace(/`([^`\n]+)`/g, "<code>$1</code>");
+  const out = []; let para = [], list = null;
+  const flushP = () => { if (para.length) { out.push(`<p>${inline(para.join(" "))}</p>`); para = []; } };
+  const flushL = () => { if (list) { out.push(`<${list.tag}>${list.items.map(i => `<li>${inline(i)}</li>`).join("")}</${list.tag}>`); list = null; } };
+  esc(String(t || "")).split("\n").forEach(raw => {
+    const l = raw.trim(); let m;
+    if (!l) { flushP(); flushL(); }
+    else if ((m = l.match(/^#{1,6}\s+(.*)$/))) { flushP(); flushL(); out.push(`<h4>${inline(m[1].replace(/\s*#+$/, ""))}</h4>`); }
+    else if ((m = l.match(/^(?:[-•*])\s+(.*)$/)) || (m = l.match(/^\d+[.)]\s+(.*)$/))) {
+      const tag = /^\d/.test(l) ? "ol" : "ul"; flushP(); if (list && list.tag !== tag) flushL(); if (!list) list = { tag, items: [] }; list.items.push(m[1]);
+    } else { flushL(); para.push(l); }
+  });
+  flushP(); flushL();
+  return `<div class="md">${out.join("")}</div>`;
 }
 function helpMsgHTML(m){
   if (m.role === "user") return `<div class="msg user"><div class="bubble">${esc(m.text)}<time>${dwTime(m.t)}</time></div></div>`;
@@ -124,10 +135,12 @@ async function sendHelp(text, opts = {}){
   }
   DW.busy = true; renderWidget();
   let r;
-  try { r = await apiJSON("POST", "/api/chat", { message: text, conversationId: DW.helpConv || undefined }); if (r.status === 404 && DW.helpConv) { DW.helpConv = null; r = await apiJSON("POST", "/api/chat", { message: text }); } }
+  const currency = (state.user && state.user.currency) || "INR";
+  try { r = await apiJSON("POST", "/api/chat", { message: text, conversationId: DW.helpConv || undefined, currency }); if (r.status === 404 && DW.helpConv) { DW.helpConv = null; r = await apiJSON("POST", "/api/chat", { message: text, currency }); } }
   catch (e) { r = { ok: false, json: { error: "Couldn't reach the server." } }; }
   DW.busy = false;
-  if (!r.ok) chat.push({ id: rid("h"), role: "ai", error: true, retry: text, t: nowIso(), text: `I couldn't answer just now (${r.json.error || "server error"}). Try again in a moment.` });
+  if (!r.ok) { chat.push({ id: rid("h"), role: "ai", error: true, retry: text, t: nowIso(), text: `Sorry, I couldn't answer just now. ${r.json.error || "The server didn't respond."} Please try again in a moment.` }); sfx("error"); }
+  else if (!r.json.message || !String(r.json.message.text || "").trim()) chat.push({ id: rid("h"), role: "ai", error: true, retry: text, t: nowIso(), text: "I didn't get an answer that time. Please try again." });
   else { DW.helpConv = r.json.conversationId; chat.push(fromServerMsg(r.json.message)); }
   DW.scroll = true; renderWidget();
 }

@@ -7,14 +7,16 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Deadline Tracker"%3E %3Cdefs%3E%3ClinearGradient id="dtg" x1="0" y1="0" x2="1" y2="1"%3E%3Cstop offset="0" stop-color="#c8723a"/%3E%3Cstop offset="1" stop-color="#8c4115"/%3E%3C/linearGradient%3E%3C/defs%3E %3Crect width="64" height="64" rx="16" fill="url%28#dtg%29"/%3E %3Ccircle cx="32" cy="33" r="17" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="5"/%3E %3Cpath d="M32 16 A17 17 0 1 1 17.28 24.5" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/%3E %3Cpath d="M24.5 33.5 30 39 40.5 27.5" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/%3E %3Ccircle cx="32" cy="16" r="4" fill="#ffc94d" stroke="#fff" stroke-width="1.5"/%3E %3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
-/* Layout idea: a deadline control room. Dark rail on the left for workspaces and sections; the main surface answers "what's due, what's at risk, what next" before any detail. Risk is a five-step scale used everywhere. */
-/* Light theme: frosted glass over a soft, airy wash. */
+/* Visual identity "Ivory & Copper": warm ivory with copper by day, a warm brown-black with copper light by night.
+   Glass panels sit over a living colour field (body::before), so the blur always has something to frost. */
+/* Light theme: warm ivory, dark ink, copper accent. */
 :root{
   --bg:#f6f1e7; --surface:#fffdf9; --surface-2:rgba(238,229,212,.7); --surface-3:#e7dcc8;
   --ink:#1f1a14; --ink-2:#463d33; --muted:#6a5e4f; --line:rgba(80,55,25,.13);
-  --accent:#a4501c; --accent-ink:#ffffff;
+  --accent:#a4501c; --accent-ink:#ffffff; --accent-2:#c98a2b; --accent-soft:rgba(164,80,28,.1); --blob-4:rgba(214,176,96,.18); --ease:cubic-bezier(.2,.8,.2,1);
+  --glass-sheen:linear-gradient(140deg,rgba(255,255,255,.55) 0%,rgba(255,255,255,.12) 42%,rgba(255,255,255,.04) 100%);
   --teal:#23715d; --amber:#9a6a00; --coral:#c2412d;   /* shared with the pitch (docs/DESIGN-SYSTEM.md): progress, deadline, risk */
   --side-bg:rgba(255,252,245,.58); --side-ink:#2a2219; --side-muted:#6e6252; --side-hover:rgba(164,80,28,.07); --side-active:rgba(164,80,28,.13); --side-active-ink:#8a3f12;
   --ok:#1b8f58; --att:#a87a00; --risk:#d4600a; --crit:#c2304f; --over:#bf281b;
@@ -30,12 +32,13 @@
   --shadow-lg:0 24px 64px rgba(48,30,12,.22);
   color-scheme:light;
 }
-/* Dark theme: smoked glass over deep navy with coloured glows. */
+/* Dark theme: warm brown-black, never navy; copper and amber light. */
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --bg:#15110d; --surface:#231c15; --surface-2:rgba(255,240,220,.06); --surface-3:rgba(255,240,220,.13);
     --ink:#f3ebdf; --ink-2:#d8ccbc; --muted:#ab9d8a; --line:rgba(255,235,210,.09);
-    --accent:#e9a36e; --accent-ink:#1d130b;
+    --accent:#e9a36e; --accent-ink:#1d130b; --accent-2:#f0c27a; --accent-soft:rgba(233,163,110,.13); --blob-4:rgba(201,160,80,.1);
+    --glass-sheen:linear-gradient(140deg,rgba(255,255,255,.08) 0%,rgba(255,255,255,.02) 45%,rgba(255,255,255,0) 100%);
     --teal:#5cc6a4; --amber:#fbbf4c; --coral:#ff7a6b;
     --side-bg:rgba(28,22,16,.64); --side-ink:#ece2d4; --side-muted:#a99b8a; --side-hover:rgba(255,255,255,.05); --side-active:rgba(233,163,110,.16); --side-active-ink:#ffffff;
     --ok:#3ccf8e; --att:#e6bb3c; --risk:#ff9a3d; --crit:#ff5c93; --over:#ff6b5e;
@@ -51,7 +54,8 @@
 :root[data-theme="dark"]{
   --bg:#15110d; --surface:#231c15; --surface-2:rgba(255,240,220,.06); --surface-3:rgba(255,240,220,.13);
   --ink:#f3ebdf; --ink-2:#d8ccbc; --muted:#ab9d8a; --line:rgba(255,235,210,.09);
-  --accent:#e9a36e; --accent-ink:#1d130b;
+  --accent:#e9a36e; --accent-ink:#1d130b; --accent-2:#f0c27a; --accent-soft:rgba(233,163,110,.13); --blob-4:rgba(201,160,80,.1);
+    --glass-sheen:linear-gradient(140deg,rgba(255,255,255,.08) 0%,rgba(255,255,255,.02) 45%,rgba(255,255,255,0) 100%);
   --teal:#5cc6a4; --amber:#fbbf4c; --coral:#ff7a6b;
   --side-bg:rgba(28,22,16,.64); --side-ink:#ece2d4; --side-muted:#a99b8a; --side-hover:rgba(255,255,255,.05); --side-active:rgba(233,163,110,.16); --side-active-ink:#ffffff;
   --ok:#3ccf8e; --att:#e6bb3c; --risk:#ff9a3d; --crit:#ff5c93; --over:#ff6b5e;
@@ -1175,6 +1179,172 @@ html:not(.gs) .app.rail .rail-handle svg{transform:rotate(180deg)}
 .landing h1.still .w3d{animation:none}
 @media (max-width:860px){.app,.app.rail{grid-template-columns:minmax(0,1fr)}.rail-handle{display:none}.app.rail .main{box-shadow:none}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none !important;transition:none !important}}
+/* =====================================================================
+   Design system v2 (Ivory & Copper tokens)
+   One layer, applied last, so every page shares the same identity.
+   ===================================================================== */
+body{font-size:15px;line-height:1.5;letter-spacing:-.003em;background:var(--bg)}
+h1,h2,h3,h4{font-family:var(--font-display);font-weight:650;letter-spacing:-.02em}
+::selection{background:color-mix(in srgb,var(--accent) 28%,transparent)}
+
+/* The colour field behind every glass panel: four soft lights that drift slowly, plus a fine grain. */
+body::before{content:"";position:fixed;inset:-20%;z-index:-2;pointer-events:none;
+  background:
+    radial-gradient(34% 30% at 14% 12%,var(--blob-1),transparent 70%),
+    radial-gradient(30% 32% at 88% 84%,var(--blob-2),transparent 70%),
+    radial-gradient(26% 28% at 80% 14%,var(--blob-3),transparent 70%),
+    radial-gradient(30% 26% at 30% 88%,var(--blob-4),transparent 70%);
+  animation:fieldDrift 38s ease-in-out infinite alternate}
+body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.05;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+@keyframes fieldDrift{0%{transform:translate3d(0,0,0) rotate(0)}50%{transform:translate3d(2%,-2%,0) rotate(4deg)}100%{transform:translate3d(-2%,2%,0) rotate(-3deg)}}
+
+/* Glass: tinted, blurred, with a light sheen from the top-left, a hairline edge and a soft inner highlight. */
+.card,.stat,.list,.cal,.kpi,.exam,.pday,.notif,.focus-card,.col,.filter-panel,.hero,.ai-chat,.addbox,.dw,.daily-head,.daily-list{
+  background-color:var(--glass);background-image:var(--glass-sheen);
+  -webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);
+  border:1px solid var(--glass-edge);
+  box-shadow:var(--glass-shadow),inset 0 1px 0 var(--glass-line),inset 0 0 0 1px color-mix(in srgb,var(--glass-line) 25%,transparent)}
+.hero{background-image:radial-gradient(60% 120% at 100% 0%,color-mix(in srgb,var(--accent-2) 20%,transparent),transparent 60%),radial-gradient(50% 120% at 0% 100%,color-mix(in srgb,var(--accent) 16%,transparent),transparent 60%),var(--glass-sheen)}
+.hero::after{display:none}
+.topbar{background-color:var(--glass);background-image:none;-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border-bottom:1px solid var(--glass-edge);box-shadow:inset 0 -1px 0 color-mix(in srgb,var(--glass-line) 30%,transparent)}
+.side{background-color:var(--side-bg);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border-right:1px solid var(--glass-edge);box-shadow:inset -1px 0 0 color-mix(in srgb,var(--glass-line) 30%,transparent)}
+.drawer,.modal,.ws-menu,.bnav{background-color:var(--glass-strong);background-image:var(--glass-sheen);-webkit-backdrop-filter:blur(28px) saturate(180%);backdrop-filter:blur(28px) saturate(180%);border:1px solid var(--glass-edge)}
+.modal-wrap.on,#modalWrap.on{background:color-mix(in srgb,var(--bg) 40%,transparent);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.card,.hero,.list,.cal,.dw{border-radius:20px}
+/* Cards that do something lift a little on hover. */
+.card,.exam,.pday,.kpi,.stat,.nd-row,.todo,.item{transition:transform .25s var(--ease),box-shadow .25s var(--ease),background-color .2s,border-color .2s}
+.exam:hover,.kpi:hover,.stat:hover{transform:translateY(-2px);box-shadow:var(--glass-shadow),0 18px 40px rgba(0,0,0,.08),inset 0 1px 0 var(--glass-line)}
+
+/* Panels arrive softly. */
+@keyframes riseIn{from{opacity:0;transform:translateY(10px) scale(.995)}to{opacity:1;transform:none}}
+.view-inner > *{animation:riseIn .45s var(--ease) both}
+.view-inner > *:nth-child(2){animation-delay:.05s}.view-inner > *:nth-child(3){animation-delay:.1s}.view-inner > *:nth-child(4){animation-delay:.15s}.view-inner > *:nth-child(5){animation-delay:.2s}
+
+/* Buttons: clear hierarchy, quick feedback. */
+.btn{border-radius:12px;font-weight:600;letter-spacing:-.005em;min-height:38px;
+  background-color:color-mix(in srgb,var(--surface) 78%,transparent);border:1px solid var(--line);
+  transition:transform .15s var(--ease),box-shadow .2s var(--ease),background-color .2s,border-color .2s,color .2s}
+.btn:hover{border-color:color-mix(in srgb,var(--accent) 45%,var(--line));background-color:var(--surface);transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,0,0,.07)}
+.btn:active{transform:translateY(0) scale(.97);box-shadow:none}
+.btn.primary{background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 88%,#fff),var(--accent));border-color:transparent;color:var(--accent-ink);
+  box-shadow:0 8px 22px color-mix(in srgb,var(--accent) 35%,transparent),inset 0 1px 0 rgba(255,255,255,.25)}
+.btn.primary:hover{filter:brightness(1.05) saturate(1.05);box-shadow:0 12px 28px color-mix(in srgb,var(--accent) 42%,transparent),inset 0 1px 0 rgba(255,255,255,.3)}
+.btn.ghost{background:transparent;border-color:transparent;box-shadow:none}
+.btn.ghost:hover{background:var(--accent-soft);border-color:transparent;box-shadow:none}
+.btn.danger,.btn.ghost.danger{color:var(--crit)}
+.btn:disabled{opacity:.5;transform:none;box-shadow:none;cursor:not-allowed}
+.ib,.iconbtn{transition:transform .15s var(--ease),background-color .2s,color .2s}
+.ib:hover,.iconbtn:hover{background:var(--accent-soft);color:var(--accent)}
+.ib:active,.iconbtn:active{transform:scale(.92)}
+
+/* Fields */
+input,select,textarea{background-color:color-mix(in srgb,var(--surface) 82%,transparent);border:1px solid var(--line);border-radius:12px;transition:border-color .2s,box-shadow .2s,background-color .2s}
+input:hover,select:hover,textarea:hover{border-color:color-mix(in srgb,var(--accent) 30%,var(--line))}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft);background-color:var(--surface)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.addbox:focus-within{border-color:color-mix(in srgb,var(--accent) 60%,transparent);box-shadow:0 0 0 5px var(--accent-soft),var(--glass-shadow)}
+
+/* Navigation: a lit pill for the current page. */
+.nav a{border-radius:12px;transition:background-color .2s,color .2s,transform .15s var(--ease)}
+.nav a:hover{background:var(--side-hover);transform:translateX(2px)}
+.nav a[aria-current="page"]{background:linear-gradient(90deg,var(--side-active),color-mix(in srgb,var(--side-active) 30%,transparent));color:var(--side-active-ink);font-weight:700;box-shadow:inset 3px 0 0 var(--accent)}
+.nav a[aria-current="page"] svg{color:var(--accent)}
+.ws-ico{border-radius:11px;box-shadow:0 4px 12px rgba(0,0,0,.12)}
+.brand-mark{background:linear-gradient(135deg,var(--accent),var(--accent-2))}
+
+/* Toast: a small dark glass pill. */
+.toast{background:color-mix(in srgb,#1f1a14 90%,transparent);color:#f6eee3;-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.1);border-radius:14px;box-shadow:0 18px 40px rgba(0,0,0,.28)}
+.toast button{background:rgba(255,255,255,.12);color:#fff;border-radius:9px}
+.toast.err{border-color:color-mix(in srgb,var(--crit) 60%,transparent)}
+.toast.ok{border-color:color-mix(in srgb,var(--ok) 55%,transparent)}
+
+/* Chips, pills, badges */
+.badge{background:var(--accent-2);color:#fff}
+.badge.soft{background:var(--accent-soft);color:var(--accent)}
+.seg{background:color-mix(in srgb,var(--surface-2) 80%,transparent);border-radius:12px;padding:3px}
+.seg button{border-radius:9px;transition:background-color .2s,color .2s}
+.seg button[aria-pressed="true"],.seg button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 2px 8px rgba(0,0,0,.08)}
+
+/* Progress rings and bars use the brand colours. */
+.pr-val{stroke:var(--accent)}
+.bar-fill{background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 60%,var(--accent-2)))}
+
+/* Login, sign-up and setup keep main's Ivory & Copper styling (earlier in this stylesheet). */
+
+/* Assistant chat bubbles and the Deadline AI window */
+.msg .bubble{border-radius:18px;line-height:1.55}
+.msg.user .bubble{background:linear-gradient(135deg,var(--accent),color-mix(in srgb,var(--accent) 70%,var(--accent-2)));color:var(--accent-ink);border-bottom-right-radius:6px}
+.msg.ai .bubble{background-color:color-mix(in srgb,var(--surface) 85%,transparent);border:1px solid var(--line);border-bottom-left-radius:6px}
+.md h4{font-size:15px;margin:10px 0 4px}.md h4:first-child{margin-top:0}
+.md p{margin:0 0 8px}.md p:last-child{margin-bottom:0}
+.md ul,.md ol{margin:4px 0 8px;padding-left:20px}.md li{margin:2px 0}
+.md strong{font-weight:700}
+.md code{font-family:var(--font-mono);font-size:.9em;background:var(--surface-2);padding:1px 5px;border-radius:6px}
+.typing i{background:var(--accent)}
+.dw-fab{background:linear-gradient(135deg,var(--accent),color-mix(in srgb,var(--accent) 60%,var(--accent-2)));color:var(--accent-ink);box-shadow:0 14px 34px color-mix(in srgb,var(--accent) 40%,transparent)}
+
+/* Setup steps sit on a glass card too. */
+.onb-card{padding:clamp(22px,4vw,40px);border-radius:26px;background:linear-gradient(160deg,rgba(255,255,255,.1),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.14);
+  -webkit-backdrop-filter:blur(22px) saturate(150%);backdrop-filter:blur(22px) saturate(150%);box-shadow:0 40px 90px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.18);animation:riseIn .45s var(--ease) both}
+.nav a.nav-ai svg{color:var(--accent-2)}
+
+/* Daily tasks */
+.daily-head{border-radius:22px;padding:20px 22px;display:grid;gap:12px;
+  background-image:radial-gradient(70% 140% at 100% 0%,color-mix(in srgb,var(--accent-2) 18%,transparent),transparent 60%),radial-gradient(60% 140% at 0% 100%,color-mix(in srgb,var(--accent) 15%,transparent),transparent 60%),var(--glass-sheen)}
+.dh-top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.dh-date{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.dh-top h2{font-size:26px}
+.dh-counts{display:flex;gap:8px;flex-wrap:wrap}
+.dh-counts span{padding:6px 12px;border-radius:999px;background:color-mix(in srgb,var(--surface) 70%,transparent);border:1px solid var(--line);font-size:13px;color:var(--muted)}
+.dh-counts b{color:var(--ink);font-family:var(--font-display)}
+.dh-bar{height:12px;border-radius:999px;background:color-mix(in srgb,var(--ink) 8%,transparent);overflow:hidden}
+.dh-bar i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 50%,var(--accent-2)));transition:width .6s var(--ease);box-shadow:0 0 18px color-mix(in srgb,var(--accent) 45%,transparent)}
+.dh-prog{font-weight:600;color:var(--ink-2)}
+.daily-form{display:flex;gap:10px;align-items:stretch;padding:12px}
+.df-fields{flex:1;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:10px;min-width:0}
+.df-fields input{min-height:44px;font-size:15px}
+.daily-form .btn{min-height:44px;padding:0 18px}
+.daily-list{border-radius:20px;padding:14px}
+.dl-bar{display:flex;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+.dl-bar .cnt{font-family:var(--font-mono);font-size:11px;opacity:.7}
+.dt-list{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.dt-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 12px;border-radius:14px;border:1px solid transparent;
+  background:color-mix(in srgb,var(--surface) 55%,transparent);transition:background-color .2s,border-color .2s,transform .2s var(--ease);animation:riseIn .3s var(--ease) both}
+.dt-row:hover{border-color:var(--line);background:color-mix(in srgb,var(--surface) 80%,transparent)}
+.dt-check{width:26px;height:26px;border-radius:9px;border:2px solid color-mix(in srgb,var(--accent) 55%,var(--line));background:transparent;display:grid;place-items:center;color:transparent;padding:0;transition:all .2s var(--ease)}
+.dt-check svg{width:15px;height:15px}
+.dt-check:hover{border-color:var(--accent);background:var(--accent-soft)}
+.dt-row.done .dt-check{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);animation:popIn .25s var(--ease)}
+.dt-body{display:grid;gap:2px;min-width:0}
+.dt-t{font-weight:600;overflow-wrap:anywhere}
+.dt-d{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.dt-day{font-size:11.5px;color:var(--muted);font-family:var(--font-mono)}
+.dt-row.done .dt-t{text-decoration:line-through;text-decoration-thickness:1.5px;color:var(--muted)}
+.dt-row.done{opacity:.78}
+.dt-acts{display:flex;gap:2px;opacity:.55;transition:opacity .2s}
+.dt-row:hover .dt-acts,.dt-row:focus-within .dt-acts{opacity:1}
+.dt-row.editing{grid-template-columns:1fr;border-color:color-mix(in srgb,var(--accent) 40%,transparent)}
+.dt-edit{display:grid;gap:8px}
+.dt-empty{display:grid;justify-items:center;gap:6px;text-align:center;padding:30px 12px;color:var(--muted)}
+.dt-empty-ico svg{width:34px;height:34px;color:var(--accent)}
+.dt-empty h3{color:var(--ink);font-size:17px}
+@media (max-width:860px){.daily-form{flex-direction:column}.df-fields{grid-template-columns:minmax(0,1fr)}.dt-acts{opacity:1}.dh-top h2{font-size:22px}}
+
+/* Sound toggle */
+.switch{display:flex;align-items:center;gap:12px;justify-content:space-between;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--surface-2)}
+.switch b{display:block}.switch span span{font-size:13px;color:var(--muted)}
+input[role=switch]{appearance:none;-webkit-appearance:none;flex:none;width:46px;height:26px;border-radius:999px;padding:0;margin:0;cursor:pointer;position:relative;
+  background:color-mix(in srgb,var(--ink) 18%,transparent);border:1px solid var(--line);transition:background-color .25s var(--ease)}
+input[role=switch]::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.25);transition:transform .25s var(--ease)}
+input[role=switch]:checked{background:var(--accent);border-color:transparent}
+input[role=switch]:checked::after{transform:translateX(20px)}
+
+@media (prefers-reduced-motion: reduce){
+  body::before,.view-inner > *{animation:none}
+  .btn,.nav a,.card,.ib{transition:none}
+  .btn:hover,.nav a:hover,.exam:hover,.kpi:hover,.stat:hover{transform:none}
+}
 </style>
 </head>
 <body>
@@ -1858,8 +2028,8 @@ async function flush(){
   try { await withRetry(() => Store.ref.set(clone(state))); }
   catch (e) {
     const c = e && e.code;
-    if (c === "quota_exceeded") toast("Your saved data is too large. Remove completed deadlines or old workspaces, then try again.");
-    else if (!warned) { warned = true; toast(c === "invalid_argument" || c === "revoked" ? "Changes can't be saved to your account in this view. They're kept in this browser." : "Couldn't save to your account. Check your connection; your changes are kept in this browser."); }
+    if (c === "quota_exceeded") toast("Your saved data is too large. Remove completed deadlines or old workspaces, then try again.", null, null, "error");
+    else if (!warned) { warned = true; toast(c === "invalid_argument" || c === "revoked" ? "Changes can't be saved to your account in this view. They're kept in this browser." : "Couldn't save to your account. Check your connection; your changes are kept in this browser.", null, null, "error"); }
   }
   Store.saving = false;
   if (Store.dirty) { Store.dirty = false; flush(); }
@@ -1983,19 +2153,19 @@ const IC = {
 // [route, label, inMore]: four main items (plus team pages for company), the rest folded under "More".
 function navFor(w){
   const M = true;
-  if (w.mode === "student") return [["overview", "Today"], ["assistant", "Assistant"], ["calendar", "Calendar"], ["deadlines", "Deadlines"], ["exams", "Exams", M], ["planner", "Study Planner", M], ["reports", "Reports", M], ["prefs", "Settings", M]];
+  if (w.mode === "student") return [["overview", "Today"], ["daily", "Daily tasks"], ["assistant", "Assistant"], ["calendar", "Calendar"], ["deadlines", "Deadlines"], ["exams", "Exams", M], ["planner", "Study Planner", M], ["reports", "Reports", M], ["prefs", "Settings", M]];
   if (w.mode === "company") {
-    const n = [["overview", "Today"], ["assistant", "Assistant"], ["calendar", "Calendar"], ["mywork", "My Work"], ["team", "Team Deadlines"]];
+    const n = [["overview", "Today"], ["daily", "Daily tasks"], ["assistant", "Assistant"], ["calendar", "Calendar"], ["mywork", "My Work"], ["team", "Team Deadlines"]];
     if (canManage(w)) n.push(["workload", "Workload"], ["approvals", "Needs attention"]);
     n.push(["planner", "My Planner", M]);
     if (canManage(w)) n.push(["reports", "Reports", M]);
     n.push(["prefs", "Settings", M]);
     return n;
   }
-  return [["overview", "Today"], ["assistant", "Assistant"], ["calendar", "Calendar"], ["deadlines", "Deadlines"], ["planner", "Planner", M], ["reports", "Reports", M], ["prefs", "Settings", M]];
+  return [["overview", "Today"], ["daily", "Daily tasks"], ["assistant", "Assistant"], ["calendar", "Calendar"], ["deadlines", "Deadlines"], ["planner", "Planner", M], ["reports", "Reports", M], ["prefs", "Settings", M]];
 }
 const NAV_GROUP = {};
-const NAV_ICON = { assistant: IC.assistant, todo: IC.todo, overview: IC.overview, deadlines: IC.list, mywork: IC.mywork, exams: IC.exam, calendar: IC.calendar, planner: IC.planner, reports: IC.reports, prefs: IC.prefs, team: IC.team, workload: IC.workload, approvals: IC.approvals };
+const NAV_ICON = { assistant: IC.assistant, todo: IC.todo, daily: IC.todo, overview: IC.overview, deadlines: IC.list, mywork: IC.mywork, exams: IC.exam, calendar: IC.calendar, planner: IC.planner, reports: IC.reports, prefs: IC.prefs, team: IC.team, workload: IC.workload, approvals: IC.approvals };
 function setRoute(r, push = true){
   const w = W();
   const valid = navFor(w).map(x => x[0]);
@@ -2112,8 +2282,9 @@ function renderTop(){
 }
 function renderBnav(){
   const w = W(); const nav = navFor(w);
-  const main = nav.filter(x => !x[2]).slice(0, 4);
-  $("#bnav").innerHTML = main.map(([r, l]) => `<a href="#${r}" data-route="${r}" aria-current="${UI.route === r ? "page" : "false"}">${NAV_ICON[r]}<span>${l.replace("My ", "").replace("Team Deadlines", "Team")}</span></a>`).join("") +
+  // phone bar: Today, Daily tasks, the deadlines list and the Assistant; everything else is under More
+  const pick = ["overview", "daily", "deadlines", "mywork", "assistant"]; const main = pick.map(r => nav.find(x => x[0] === r && !x[2])).filter(Boolean).slice(0, 4);
+  $("#bnav").innerHTML = main.map(([r, l]) => `<a href="#${r}" data-route="${r}" aria-current="${UI.route === r ? "page" : "false"}">${NAV_ICON[r]}<span>${l.replace("My ", "").replace("Team Deadlines", "Team").replace("Daily tasks", "Daily")}</span></a>`).join("") +
     `<button type="button" data-act="morenav">${IC.more}<span>More</span></button>`;
 }
 
@@ -2721,6 +2892,8 @@ function settingsHTML(w, s, gw, mgr, days){
         <div class="f2"><div class="field"><label for="pf-name">Your name</label><input type="text" id="pf-name" value="${esc(state.user.name)}" maxlength="60"></div>
         <div class="field"><label for="pf-ws">Workspace name</label><input type="text" id="pf-ws" value="${esc(w.name)}" maxlength="60" ${mgr ? "" : "disabled"}></div></div>
         <p class="muted" style="font-size:13px">${MODE_LABEL[w.mode]} workspace · created ${fmtDate(w.createdAt, { day: "numeric", month: "short", year: "numeric" })}. You belong to ${state.workspaces.length} workspace${state.workspaces.length > 1 ? "s" : ""}; switch from the top of the sidebar.</p>
+        <div class="field"><label for="pf-currency">Currency for money in answers</label><select id="pf-currency">${[["INR", "₹ Indian Rupee (INR)"], ["USD", "$ US Dollar (USD)"], ["EUR", "€ Euro (EUR)"], ["GBP", "£ British Pound (GBP)"], ["AED", "AED UAE Dirham"], ["SGD", "S$ Singapore Dollar"], ["AUD", "A$ Australian Dollar"], ["CAD", "C$ Canadian Dollar"], ["JPY", "¥ Japanese Yen"]].map(([v, l]) => `<option value="${v}" ${(state.user.currency || "INR") === v ? "selected" : ""}>${l}</option>`).join("")}</select></div>
+        <label class="switch" for="pf-sound"><span><b>Sound effects</b><span>Soft clicks and chimes when you act. Saved on this device.</span></span><input type="checkbox" id="pf-sound" role="switch" ${SFX.on ? "checked" : ""}></label>
         <div class="row-flex">${w.demo ? `<button class="btn sm" type="button" data-act="cleardemo">Clear sample data</button>` : ""}<button class="btn sm" type="button" data-act="wsnew">${IC.plus}New workspace</button>${state.workspaces.length > 1 && mgr ? `<button class="btn sm danger" type="button" data-act="wsdelete">Delete this workspace</button>` : ""}</div>
       ${ACCOUNT.user ? `<div class="acct-row">${IC.check}<span>Signed in as <b>${esc(ACCOUNT.user.email)}</b>${ACCOUNT.user.role === "admin" ? " · admin" : ""}</span>${ACCOUNT.user.role === "admin" ? `<a class="btn sm" href="/admin" target="_blank" rel="noopener">Open admin</a>` : ""}<button class="btn sm" type="button" data-act="pwopen" aria-expanded="${!!UI.pwOpen}" aria-controls="pwBox">Change password</button><button class="btn sm" type="button" data-act="logout">Log out</button></div>
       ${UI.pwOpen ? `<form class="pw-box" id="pwBox" novalidate><h4>Change password</h4>
@@ -2872,6 +3045,98 @@ function todoTabsHTML(w){
   return `<div class="todo-bar"><div class="seg" role="tablist" aria-label="Task views">${[["today", "Today"], ["upcoming", "Upcoming"], ["done", "Done"]].map(([v, l]) => `<button type="button" role="tab" data-act="todotab" data-v="${v}" aria-pressed="${tab === v}" aria-selected="${tab === v}">${l}${counts[v] ? ` <span class="cnt">${counts[v]}</span>` : ""}</button>`).join("")}</div></div>
     <div class="todo-list" id="todoList">${body}</div>`;
 }
+
+/* =========================================================
+   Daily tasks: a simple list for today's activities.
+   Plain tasks (no deadline) with a title and an optional short description; new ones go on today.
+   They're ordinary items, so they save with everything else (to the account when signed in).
+   ========================================================= */
+const DAILY_F = [["all", "All"], ["today", "Today"], ["pending", "Pending"], ["completed", "Completed"]];
+const dailyAll = w => myTasks(w).filter(i => !i.due);
+function dailyFiltered(w, f, t){
+  const all = dailyAll(w);
+  const list = f === "today" ? all.filter(i => i.plan === t) : f === "pending" ? all.filter(i => !isDone(i)) : f === "completed" ? all.filter(isDone) : all;
+  // pending first; then today's before older days; then the order they were added
+  return list.sort((a, b) => isDone(a) - isDone(b) || (b.plan || "").localeCompare(a.plan || "") || new Date(a.createdAt) - new Date(b.createdAt));
+}
+function dailyRowHTML(it, t){
+  const done = isDone(it); const editing = UI.dailyEdit === it.id;
+  if (editing) return `<li class="dt-row editing" data-id="${it.id}">
+      <div class="dt-edit"><label class="sr" for="dtEditTitle">Title</label><input id="dtEditTitle" type="text" maxlength="140" value="${esc(it.title)}">
+        <label class="sr" for="dtEditDesc">Description</label><input id="dtEditDesc" type="text" maxlength="300" placeholder="Short description (optional)" value="${esc(it.notes || "")}">
+        <div class="row-flex"><button class="btn primary sm" type="button" data-act="dailysave">Save</button><button class="btn ghost sm" type="button" data-act="dailycancel">Cancel</button></div></div></li>`;
+  return `<li class="dt-row${done ? " done" : ""}" data-id="${it.id}">
+      <button class="dt-check" type="button" data-act="dailytoggle" aria-pressed="${done}" aria-label="${done ? "Mark as not done" : "Mark as done"}: ${esc(it.title)}">${IC.check}</button>
+      <div class="dt-body"><span class="dt-t">${esc(it.title)}</span>${it.notes ? `<span class="dt-d">${esc(it.notes)}</span>` : ""}${it.plan && it.plan !== t ? `<span class="dt-day">${esc(fmtDate(it.plan + "T12:00"))}</span>` : ""}</div>
+      <div class="dt-acts"><button class="ib" type="button" data-act="dailyedit" aria-label="Edit ${esc(it.title)}" title="Edit">${IC.edit}</button><button class="ib del" type="button" data-act="dailydel" aria-label="Delete ${esc(it.title)}" title="Delete">${IC.trash}</button></div>
+    </li>`;
+}
+function viewDaily(){
+  const w = W(); const t = todayKey(CTX.now); const f = UI.dailyF || "all";
+  const all = dailyAll(w); const today = all.filter(i => i.plan === t);
+  const done = today.filter(isDone).length; const pct = today.length ? Math.round(done / today.length * 100) : 0;
+  const pending = all.filter(i => !isDone(i)).length, completed = all.length - pending;
+  const list = dailyFiltered(w, f, t);
+  const counts = { all: all.length, today: today.length, pending, completed };
+  const empty = { all: ["No tasks yet", "Add your first one above. Keep it short, like “Finish the project work”."], today: ["Nothing for today yet", "Anything you add goes on today's list."], pending: ["All caught up", "Nothing is waiting. Nice work."], completed: ["Nothing completed yet", "Tick a task when it's done and it shows here."] }[f];
+  return `<section class="daily-head">
+      <div class="dh-top"><div><p class="dh-date">${esc(new Date(CTX.now).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" }))}</p><h2>${today.length && done === today.length ? "All done for today" : "Today's progress"}</h2></div>
+        <p class="dh-counts" id="dailyCounts"><span><b>${pending}</b> pending</span><span><b>${completed}</b> completed</span></p></div>
+      <div class="dh-bar" role="progressbar" aria-label="Today's progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i id="dailyBar" style="width:${pct}%"></i></div>
+      <p class="dh-prog" id="dailyProgress">Progress: ${done} of ${today.length} completed — ${pct}%</p>
+    </section>
+    <form class="daily-form card" id="dailyForm" autocomplete="off">
+      <div class="df-fields"><label class="sr" for="dailyTitle">Task</label><input id="dailyTitle" type="text" maxlength="140" placeholder="What do you want to get done today?" value="${esc(UI.dailyDraft || "")}">
+        <label class="sr" for="dailyDesc">Short description (optional)</label><input id="dailyDesc" type="text" maxlength="300" placeholder="Short description (optional)" value="${esc(UI.dailyDesc || "")}"></div>
+      <button class="btn primary" type="button" id="dailyAdd" data-act="dailyadd">${IC.plus}Add task</button>
+    </form>
+    <section class="daily-list">
+      <div class="dl-bar"><div class="seg" role="group" aria-label="Show">${DAILY_F.map(([v, l]) => `<button type="button" data-act="dailyf" data-v="${v}" aria-pressed="${f === v}">${l} <span class="cnt">${counts[v]}</span></button>`).join("")}</div></div>
+      <ul class="dt-list" id="dailyList">${list.length ? list.map(i => dailyRowHTML(i, t)).join("") : `<li class="dt-empty"><span class="dt-empty-ico">${IC.todo}</span><h3>${empty[0]}</h3><p>${empty[1]}</p></li>`}</ul>
+    </section>`;
+}
+VIEWS.daily = viewDaily;
+PAGE.daily = "Daily tasks";
+function dailyAdd(){
+  const w = W(); const ti = $("#dailyTitle"), de = $("#dailyDesc");
+  const title = (ti ? ti.value : "").replace(/\s+/g, " ").trim();
+  if (!title) { toast("Give the task a title first.", null, null, "error"); if (ti) ti.focus(); return; }
+  const it = mkItem(w, { kind: "todo", title: title.slice(0, 140), notes: (de ? de.value : "").trim().slice(0, 300), plan: todayKey(Date.now()), due: null, reminders: [], assignee: viewerId(w), type: DEFAULT_TYPE[w.mode], priority: "medium", source: "daily" });
+  w.items.push(it); logItem(w, it, `Added "${it.title}"`);
+  UI.dailyDraft = ""; UI.dailyDesc = ""; if (UI.dailyF === "completed") UI.dailyF = "all";
+  save(); render(); sfx("success");
+  setTimeout(() => { const i = $("#dailyTitle"); if (i) i.focus(); }, 0);
+}
+function dailySave(id){
+  const w = W(); const it = findItem(id); if (!it) return;
+  const title = ($("#dtEditTitle").value || "").replace(/\s+/g, " ").trim();
+  if (!title) { toast("A task needs a title.", null, null, "error"); return; }
+  it.title = title.slice(0, 140); it.notes = ($("#dtEditDesc").value || "").trim().slice(0, 300); touch(it); logItem(w, it, `Edited "${it.title}"`);
+  UI.dailyEdit = null; save(); render(); toast("Saved.");
+}
+document.addEventListener("click", e => {
+  const a = e.target.closest("[data-act]"); if (!a || !state || !state.workspaces || !state.workspaces.length) return;
+  const row = a.closest(".dt-row"); const id = row && row.dataset.id; const w = W();
+  switch (a.dataset.act) {
+    case "dailyadd": dailyAdd(); break;
+    case "dailyf": UI.dailyF = a.dataset.v; UI.dailyEdit = null; render(); break;
+    case "dailytoggle": { const it = findItem(id); if (!it) break; const was = isDone(it);
+      it.status = was ? "todo" : "done"; it.doneAt = was ? null : nowIso(); touch(it); logItem(w, it, was ? `Reopened "${it.title}"` : `Completed "${it.title}"`);
+      save(); render(); if (!was) { sfx("success"); celebrateIfAllDone(w); } break; }
+    case "dailyedit": UI.dailyEdit = id; render(); setTimeout(() => { const i = $("#dtEditTitle"); if (i) { i.focus(); i.select(); } }, 0); break;
+    case "dailycancel": UI.dailyEdit = null; render(); break;
+    case "dailysave": dailySave(id); break;
+    case "dailydel": { const it = findItem(id); if (!it) break; const idx = w.items.indexOf(it); const before = clone(it);
+      w.items.splice(idx, 1); save(); render();
+      toast(`Deleted "${it.title}".`, () => { W().items.splice(idx, 0, before); save(); render(); }); break; }
+  }
+});
+document.addEventListener("keydown", e => {
+  const t = e.target;
+  if (e.key === "Enter" && (t.id === "dailyTitle" || t.id === "dailyDesc")) { e.preventDefault(); dailyAdd(); }
+  else if (t.id === "dtEditTitle" || t.id === "dtEditDesc") { if (e.key === "Enter") { e.preventDefault(); const r = t.closest(".dt-row"); if (r) dailySave(r.dataset.id); } else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); UI.dailyEdit = null; render(); } }
+}, true);
+document.addEventListener("input", e => { if (e.target.id === "dailyTitle") UI.dailyDraft = e.target.value; else if (e.target.id === "dailyDesc") UI.dailyDesc = e.target.value; });
 
 function todoDrawerHTML(w, it){
   const can = canEditItem(w, it); const dis = can ? "" : "disabled"; const now = CTX.now;
@@ -3034,7 +3299,7 @@ async function enableDesktop(){
     const p = window.Notification.permission === "granted" ? "granted" : await window.Notification.requestPermission();
     if (p === "granted") { state.desktopAlerts = true; save(); toast("Desktop alerts are on."); }
     else toast("Notifications weren't allowed. You can change this in your browser's site settings.");
-  } catch (e) { toast("This browser couldn't turn on notifications."); }
+  } catch (e) { toast("This browser couldn't turn on notifications.", null, null, "error"); }
   renderBell(); if (UI.route === "prefs") render();
 }
 function renderNotif(){
@@ -3323,7 +3588,7 @@ async function applyServerProposal(msg, discard){
   else send.actions = msg.proposal.actions.map(a => a.type === "create" ? { keep: !!a.keep, title: a.title, date: a.date || null, time: a.time || null, priority: a.priority } : { keep: !!a.keep, date: a._deadline || a.date || null });
   await flushNow();
   const r = await apiJSON("POST", "/api/plan/apply", send).catch(() => ({ ok: false, json: {} }));
-  if (!r.ok) { toast(r.json.error || "Couldn't save. Check your connection and try again."); return; }
+  if (!r.ok) { toast(r.json.error || "Couldn't save. Check your connection and try again.", null, null, "error"); return; }
   const id = msg.id;
   await reloadFromServer();
   const again = chatOf(W()).find(m => m.id === id) || msg;
@@ -3359,7 +3624,7 @@ function applyProposal(msg){
   });
   p.status = "saved"; p.result = { created, updated, done, removed, ids };
   save(); render(); celebrateIfAllDone(w);
-  toast([created && `Saved ${created} task${created === 1 ? "" : "s"}`, updated && `updated ${updated}`, done && `completed ${done}`, removed && `deleted ${removed}`].filter(Boolean).join(", ") + ".");
+  toast([created && `Saved ${created} task${created === 1 ? "" : "s"}`, updated && `updated ${updated}`, done && `completed ${done}`, removed && `deleted ${removed}`].filter(Boolean).join(", ") + ".", null, null, "success");
 }
 function proposalHTML(msg){
   const p = msg.proposal; if (!p) return "";
@@ -3481,7 +3746,7 @@ document.addEventListener("click", e => {
     case "propsave": case "propdiscard": {
       const box = a.closest(".proposal[data-msg]"); const msg = box && chatOf(w).find(m => m.id === box.dataset.msg);
       if (!msg) break;
-      if (a.dataset.act === "propsave") { if (!msg.proposal.actions.some(x => x.keep)) { toast("Tick at least one suggestion to save."); break; } if (msg.serverId) applyServerProposal(msg); else applyProposal(msg); }
+      if (a.dataset.act === "propsave") { if (!msg.proposal.actions.some(x => x.keep)) { toast("Tick at least one suggestion to save.", null, null, "error"); break; } if (msg.serverId) applyServerProposal(msg); else applyProposal(msg); }
       else if (msg.serverId) applyServerProposal(msg, true);
       else { msg.proposal.status = "discarded"; save(); render(); }
       break; }
@@ -3523,7 +3788,7 @@ function showWaking(){
     <h1>Starting up…</h1><p class="lead">The server is waking up. This can take up to a minute the first time; the page will continue by itself.</p><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span></div>`;
 }
 function hideWaking(){ const w = $("#waking"); if (w) { $("#onb").innerHTML = ""; $("#onb").hidden = true; } }
-function showWakingFailed(){ toast("Couldn't reach the server, so your changes are saved in this browser only. Reload the page to try again."); }
+function showWakingFailed(){ toast("Couldn't reach the server, so your changes are saved in this browser only. Reload the page to try again.", null, null, "error"); }
 async function apiJSON(method, url, body){
   const r = await fetch(url, { method, credentials: "same-origin", cache: "no-store", headers: body === undefined ? {} : { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
   let j = null; try { j = await r.json(); } catch (e) {}
@@ -3757,8 +4022,8 @@ async function flushServer(){
       ACCOUNT.version = r.json.version; if (r.json.state) { state = r.json.state; afterLoad(); }
       toast("Your tasks were changed on another device, so this page now shows the latest version. Please check your last change.");
       ACCOUNT.dirty = false;
-    } else if (r.status !== 401 && !ACCOUNT.warned) { ACCOUNT.warned = true; toast(r.json.error || "Couldn't save to your account. Your change will be retried."); ACCOUNT.dirty = true; }
-  } catch (e) { if (!ACCOUNT.warned) { ACCOUNT.warned = true; toast("Couldn't reach the server, so your last change isn't saved yet. Keep this tab open; it will retry."); } ACCOUNT.dirty = true; }
+    } else if (r.status !== 401 && !ACCOUNT.warned) { ACCOUNT.warned = true; toast(r.json.error || "Couldn't save to your account. Your change will be retried.", null, null, "error"); ACCOUNT.dirty = true; }
+  } catch (e) { if (!ACCOUNT.warned) { ACCOUNT.warned = true; toast("Couldn't reach the server, so your last change isn't saved yet. Keep this tab open; it will retry.", null, null, "error"); } ACCOUNT.dirty = true; }
   ACCOUNT.saving = false;
   if (ACCOUNT.dirty) { ACCOUNT.dirty = false; setTimeout(flushServer, 3000); }
 }
@@ -3792,7 +4057,7 @@ function syncPrefs(){
     const s = W().settings;
     const before = [...new Set(s.reminders.concat(s.customReminder ? [s.customReminder] : []))].filter(m => PREF_CHOICES.includes(m)).slice(0, 6);
     apiJSON("PATCH", "/api/profile", { notifyPrefs: { before, overdue: !!s.overdueAlerts, dailySummary: s.dailySummary !== false, dueToday: s.dueToday !== false, highDone: s.highDone !== false, quietOn: !!s.quietOn, quietFrom: s.quietFrom, quietTo: s.quietTo } })
-      .then(r => { if (r.ok) ACCOUNT.user = r.json.user; else toast(r.json.error || "Couldn't save your reminder settings."); }).catch(() => {});
+      .then(r => { if (r.ok) ACCOUNT.user = r.json.user; else toast(r.json.error || "Couldn't save your reminder settings.", null, null, "error"); }).catch(() => {});
   }, 400);
 }
 // Notifications come from the server's reminder job (they're created even while the app is closed).
@@ -3881,12 +4146,23 @@ const HELP_SUGG = ["How do I create a task?", "How do reminders work?", "Task ka
 const looksPersonal = t => planIntent(t, W(), Date.now()) || /\b(my|mere|meri|mera|mujhe)\b[\s\S]*\b(tasks?|deadlines?|work|kaam|day|schedule|exams?|assignments?)\b[\s\S]*\b(today|tomorrow|aaj|kal|this week|pending|left|due)\b|\bwhat('s| is) (due|pending|left)\b|\bwhat should i (do|complete|finish|focus on|start)\b/i.test(t);
 
 function dwTime(iso){ try { return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); } catch (e) { return ""; } }
-// Help answers may contain line breaks and numbered steps; shown as plain, escaped text.
+// Answers may use a little Markdown: "## " headings, "- " or "1." lists, **bold**, *italic*, `code`.
+// Everything is escaped first, so nothing in an answer can run as HTML.
 function dwText(t){
-  const lines = esc(t).split(/\n+/).map(s => s.trim()).filter(Boolean);
-  const out = []; let list = null;
-  lines.forEach(l => { const m = l.match(/^(?:\d+[.)]|[-•*])\s+(.*)$/); if (m) { if (!list) { list = []; out.push(list); } list.push(m[1]); } else { list = null; out.push(l); } });
-  return out.map(x => Array.isArray(x) ? `<ol>${x.map(i => `<li>${i}</li>`).join("")}</ol>` : `<p>${x}</p>`).join("");
+  const inline = s => s.replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>").replace(/(^|[^*\w])\*([^*\n]+)\*(?!\w)/g, "$1<em>$2</em>").replace(/`([^`\n]+)`/g, "<code>$1</code>");
+  const out = []; let para = [], list = null;
+  const flushP = () => { if (para.length) { out.push(`<p>${inline(para.join(" "))}</p>`); para = []; } };
+  const flushL = () => { if (list) { out.push(`<${list.tag}>${list.items.map(i => `<li>${inline(i)}</li>`).join("")}</${list.tag}>`); list = null; } };
+  esc(String(t || "")).split("\n").forEach(raw => {
+    const l = raw.trim(); let m;
+    if (!l) { flushP(); flushL(); }
+    else if ((m = l.match(/^#{1,6}\s+(.*)$/))) { flushP(); flushL(); out.push(`<h4>${inline(m[1].replace(/\s*#+$/, ""))}</h4>`); }
+    else if ((m = l.match(/^(?:[-•*])\s+(.*)$/)) || (m = l.match(/^\d+[.)]\s+(.*)$/))) {
+      const tag = /^\d/.test(l) ? "ol" : "ul"; flushP(); if (list && list.tag !== tag) flushL(); if (!list) list = { tag, items: [] }; list.items.push(m[1]);
+    } else { flushL(); para.push(l); }
+  });
+  flushP(); flushL();
+  return `<div class="md">${out.join("")}</div>`;
 }
 function helpMsgHTML(m){
   if (m.role === "user") return `<div class="msg user"><div class="bubble">${esc(m.text)}<time>${dwTime(m.t)}</time></div></div>`;
@@ -3978,10 +4254,12 @@ async function sendHelp(text, opts = {}){
   }
   DW.busy = true; renderWidget();
   let r;
-  try { r = await apiJSON("POST", "/api/chat", { message: text, conversationId: DW.helpConv || undefined }); if (r.status === 404 && DW.helpConv) { DW.helpConv = null; r = await apiJSON("POST", "/api/chat", { message: text }); } }
+  const currency = (state.user && state.user.currency) || "INR";
+  try { r = await apiJSON("POST", "/api/chat", { message: text, conversationId: DW.helpConv || undefined, currency }); if (r.status === 404 && DW.helpConv) { DW.helpConv = null; r = await apiJSON("POST", "/api/chat", { message: text, currency }); } }
   catch (e) { r = { ok: false, json: { error: "Couldn't reach the server." } }; }
   DW.busy = false;
-  if (!r.ok) chat.push({ id: rid("h"), role: "ai", error: true, retry: text, t: nowIso(), text: `I couldn't answer just now (${r.json.error || "server error"}). Try again in a moment.` });
+  if (!r.ok) { chat.push({ id: rid("h"), role: "ai", error: true, retry: text, t: nowIso(), text: `Sorry, I couldn't answer just now. ${r.json.error || "The server didn't respond."} Please try again in a moment.` }); sfx("error"); }
+  else if (!r.json.message || !String(r.json.message.text || "").trim()) chat.push({ id: rid("h"), role: "ai", error: true, retry: text, t: nowIso(), text: "I didn't get an answer that time. Please try again." });
   else { DW.helpConv = r.json.conversationId; chat.push(fromServerMsg(r.json.message)); }
   DW.scroll = true; renderWidget();
 }
@@ -4224,7 +4502,40 @@ const listRoute = () => { const w = W(); return w.mode === "company" ? (canManag
    Toast, burst, modal helpers
    ========================================================= */
 let toastT = null, undoFn = null;
-function toast(msg, undo, label){
+/* Sounds: tiny tones made with Web Audio (no files). Silent until the first click or key press (browsers require it),
+   never while typing, and switched off in Settings (remembered on this device). */
+const SND_KEY = "dt-sound";
+const SFX = { ctx: null, on: true, armed: false, last: 0, log: [] };
+try { SFX.on = localStorage.getItem(SND_KEY) !== "off"; } catch (e) {}
+function tone(c, t0, f, dur, gain, type, f2){
+  const o = c.createOscillator(), g = c.createGain(); o.type = type || "sine";
+  o.frequency.setValueAtTime(f, t0); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t0 + dur);
+  g.gain.setValueAtTime(.0001, t0); g.gain.exponentialRampToValueAtTime(gain, t0 + .008); g.gain.exponentialRampToValueAtTime(.0001, t0 + dur);
+  o.connect(g).connect(c.destination); o.start(t0); o.stop(t0 + dur + .02);
+}
+function sfx(kind){
+  if (!SFX.on || !SFX.armed) return;
+  const t = performance.now(); if (kind === "click" && t - SFX.last < 70) return; SFX.last = t;
+  SFX.log.push(kind); if (SFX.log.length > 50) SFX.log.shift();
+  try {
+    const C = window.AudioContext || window.webkitAudioContext; if (!C) return;
+    const c = SFX.ctx || (SFX.ctx = new C()); if (c.state === "suspended") c.resume();
+    const s = c.currentTime + .005;
+    if (kind === "click") tone(c, s, 1900, .04, .035, "sine", 1400);
+    else if (kind === "success") { tone(c, s, 784, .14, .05); tone(c, s + .075, 1175, .22, .045); }
+    else if (kind === "error") { tone(c, s, 311, .14, .05, "triangle", 277); tone(c, s + .1, 233, .2, .045, "triangle", 208); }
+  } catch (e) {}
+}
+["pointerdown", "keydown"].forEach(ev => document.addEventListener(ev, () => { SFX.armed = true; }, { capture: true, once: true }));
+// A soft click for anything you press that acts; fields, typing and scrolling stay silent.
+document.addEventListener("click", e => {
+  const b = e.target.closest && e.target.closest("button, [role=button], [role=tab], a[data-route], a[href], summary, [data-act]");
+  if (!b || b.disabled || b.matches("input, textarea, select, label") || b.closest("[data-nosfx]")) return;
+  sfx("click");
+}, true);
+function toast(msg, undo, label, kind){
+  if (kind === "error") sfx("error"); else if (kind === "success") sfx("success");
+  $("#toast").classList.toggle("err", kind === "error"); $("#toast").classList.toggle("ok", kind === "success");
   $("#toastMsg").textContent = msg; undoFn = undo || null;
   const b = $("#toastUndo"); b.hidden = !undo; b.textContent = label || "Undo";
   $("#toast").classList.add("on"); clearTimeout(toastT);
@@ -4270,7 +4581,7 @@ function addRepeat(due, rep){
 }
 function completeItem(id, el){
   const w = W(); const it = findItem(id); if (!it) return;
-  if (!canEditItem(w, it)) { toast("Only the assignee or a manager can change this."); return; }
+  if (!canEditItem(w, it)) { toast("Only the assignee or a manager can change this.", null, null, "error"); return; }
   if (isDone(it)) {
     const before = clone(it);
     it.status = progressOf({ ...it, status: "todo" }) > 0 ? "doing" : "todo"; it.doneAt = null; touch(it);
@@ -4294,7 +4605,7 @@ function completeItem(id, el){
   burst(el); save(); render(); celebrateIfAllDone(w);
   toast(spawned ? (spawned.due ? `Done. The next one is due ${fmtDate(spawned.due)}.` : `Done. The next one is on ${fmtDate(spawned.plan + "T12:00")}.`) : `Nice. "${it.title}" is done${late || !it.due ? "" : " on time"}.`, () => {
     replaceItem(w, before); if (spawned) w.items = w.items.filter(x => x.id !== spawned.id); save(); render();
-  });
+  }, undefined, "success");
 }
 function deleteItem(id){
   const w = W(); const it = findItem(id); if (!it) return;
@@ -4306,7 +4617,7 @@ function deleteItem(id){
 }
 function setStatus(id, st){
   const w = W(); const it = findItem(id); if (!it || it.status === st) return;
-  if (!canEditItem(w, it)) { toast("You can only move your own cards."); return; }
+  if (!canEditItem(w, it)) { toast("You can only move your own cards.", null, null, "error"); return; }
   if (st === "done") { completeItem(id); return; }
   if (st === "review") { if (!canManage(w) || !it.evidence) { openDrawer(id, "proof"); toast("Add evidence and submit it for review."); return; } }
   const before = clone(it); const from = STATUSES[it.status];
@@ -4518,18 +4829,18 @@ function refreshAddHint(id){ const h = document.getElementById(id + "-hint"); if
 function submitAddBox(id){
   const w = W(); const acts = addActions(id);
   const el = document.getElementById(id);
-  if (!acts.length) { toast("Type what you need to do."); if (el) el.focus(); return; }
+  if (!acts.length) { toast("Type what you need to do.", null, null, "error"); if (el) el.focus(); return; }
   const made = acts.map(a => { const it = taskFromAction(w, a, { day: addDay(id) }); logItem(w, it, `Added "${it.title}"`); return it; });
   AB.drafts[id] = ""; if (el) { el.value = ""; el.style.height = ""; }
   const inModal = id === "qaText"; if (inModal) closeModal();
   save(); render(); refreshAddHint(id);
   const one = made[0]; const now = Date.now();
   const where = it => it.due ? `due ${fmtDue(it.due)}` : `for ${it.plan === ymd(now) ? "today" : it.plan === ymd(addDays(startOfDay(now), 1)) ? "tomorrow" : fmtDate(it.plan + "T12:00")}`;
-  toast(made.length === 1 ? `Added "${one.title}" ${where(one)}.` : `Added ${made.length} things.`, () => { const ids = made.map(x => x.id); W().items = W().items.filter(x => !ids.includes(x.id)); save(); render(); });
+  toast(made.length === 1 ? `Added "${one.title}" ${where(one)}.` : `Added ${made.length} things.`, () => { const ids = made.map(x => x.id); W().items = W().items.filter(x => !ids.includes(x.id)); save(); render(); }, undefined, "success");
   if (!inModal) setTimeout(() => { const i = document.getElementById(id); if (i) i.focus({ preventScroll: true }); }, 0);
 }
 function askFromAddBox(id){
-  const t = (AB.drafts[id] || "").trim(); if (!t) { toast("Type what you want to ask the assistant."); return; }
+  const t = (AB.drafts[id] || "").trim(); if (!t) { toast("Type what you want to ask the assistant.", null, null, "error"); return; }
   AB.drafts[id] = ""; if (modalKind) closeModal();
   setRoute("assistant"); sendToAssistant(t);
 }
@@ -4972,7 +5283,7 @@ document.addEventListener("change", e => {
     const v = t.value; let txt = null;
     switch (id) {
       case "dr-title": if (!v.trim()) { t.value = it.title; return; } it.title = v.trim().slice(0, 140); break;
-      case "dr-date": case "dr-time": { const dv = $("#dr-date").value, tv = $("#dr-time").value || "23:59"; if (!dv) { toast("A deadline needs a date."); render(); return; } const old = it.due; it.due = `${dv}T${tv}`; if (old !== it.due) txt = `Changed the deadline from ${fmtDue(old)} to ${fmtDue(it.due)}`; break; }
+      case "dr-date": case "dr-time": { const dv = $("#dr-date").value, tv = $("#dr-time").value || "23:59"; if (!dv) { toast("A deadline needs a date.", null, null, "error"); render(); return; } const old = it.due; it.due = `${dv}T${tv}`; if (old !== it.due) txt = `Changed the deadline from ${fmtDue(old)} to ${fmtDue(it.due)}`; break; }
       case "dr-type": it.type = v; break;
       case "dr-group": it.groupId = v || null; break;
       case "dr-pri": it.priority = v; txt = `Set priority to ${PRI[v].label}`; break;
@@ -5001,6 +5312,8 @@ document.addEventListener("change", e => {
   if (id === "sortSel") { UI.sort = t.value; render(); return; }
   if (id === "whoSel") { UI.f.who = t.value; render(); return; }
   if (id === "boardGroup") { UI.boardGroup = t.value; render(); return; }
+  if (id === "pf-currency") { state.user.currency = t.value; save(); toast(`Money in answers will be shown in ${t.options[t.selectedIndex].text}.`); return; }
+  if (id === "pf-sound") { SFX.on = t.checked; try { localStorage.setItem(SND_KEY, t.checked ? "on" : "off"); } catch (err) {} if (t.checked) sfx("success"); toast(t.checked ? "Sound effects on." : "Sound effects off."); return; }
   // settings
   const s = w.settings;
   if (id === "pf-name") { state.user.name = t.value.trim(); state.workspaces.forEach(x => { const me = memberOf(x, "me"); if (me && t.value.trim()) me.name = t.value.trim(); }); }
@@ -5116,7 +5429,7 @@ function closeModalIfOnb(){ $("#onb").hidden = true; }
 /* Test seam: only exposed when the page is opened with ?dt-test (used by the automated tests). */
 if (/[?&]dt-test\b/.test(location.search)) {
   window.__DT_TEST__ = { motion: MOTION, showAuth: () => { ACCOUNT.mode = "login"; showAuth(); }, weekStats, parseQuick, extractFromText, radar, estimateInsight, checkinCandidate, rulesPlan, runReminders, AI, planFor, backwardPlan, chunkPlan, conflicts, notifs, availHours, progressOf, remainingH, mkItem, newWorkspace, levelOf,
-    get state(){ return state; }, set state(v){ state = v; }, W, render, save };
+    SFX, get state(){ return state; }, set state(v){ state = v; }, W, render, save };
 }
 // Start: with the Deadline Tracker server you log in and your data comes from your account;
 // anywhere else (claude.ai, a plain file server) it's saved in this browser as before.

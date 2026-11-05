@@ -16,7 +16,8 @@ test("plan chat: turns a sentence into suggested tasks; nothing is saved until c
   assert.equal(r.status, 200);
   const m = r.json.message; const acts = m.proposal.actions;
   assert.equal(m.via, "engine"); assert.match(m.text, /suggested plan/);
-  assert.deepEqual(acts.filter(x => !x.suggested).map(x => [x.title, x.isDeadline]), [["Java assignment", true], ["Maths test", true]]);
+  // order-free: on a Thursday "tomorrow" and "Friday" are the same day and the engine may list either first
+  assert.deepEqual(acts.filter(x => !x.suggested).map(x => [x.title, x.isDeadline]).sort(), [["Java assignment", true], ["Maths test", true]]);
   assert.equal((await a.get("/api/tasks")).json.total, 0, "nothing saved yet");
   const ok = await a.post("/api/plan/apply", { messageId: m.id });
   assert.equal(ok.json.status, "saved"); assert.equal(ok.json.result.created, acts.filter(x => x.keep).length);

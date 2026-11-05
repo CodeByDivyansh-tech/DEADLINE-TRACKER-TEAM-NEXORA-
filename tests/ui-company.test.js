@@ -13,9 +13,9 @@ const navRoutes = () => page.$$eval("#side .nav a", as => as.map(a => a.dataset.
 const viewAs = async v => { await page.selectOption("#viewAs", v); await page.waitForTimeout(120); };
 
 test("managers see Workload, Approvals and Reports; employees don't", async () => {
-  assert.deepEqual(await navRoutes(), ["overview", "assistant", "calendar", "mywork", "team", "workload", "approvals", "planner", "reports", "prefs"]);
+  assert.deepEqual(await navRoutes(), ["overview", "daily", "assistant", "calendar", "mywork", "team", "workload", "approvals", "planner", "reports", "prefs"]);
   await viewAs("p");
-  assert.deepEqual(await navRoutes(), ["overview", "assistant", "calendar", "mywork", "team", "planner", "prefs"]);
+  assert.deepEqual(await navRoutes(), ["overview", "daily", "assistant", "calendar", "mywork", "team", "planner", "prefs"]);
 });
 
 test("an employee who opens a manager-only page by address is sent to Overview", async () => {

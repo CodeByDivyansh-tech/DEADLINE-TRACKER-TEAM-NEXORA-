@@ -641,8 +641,8 @@ async function flush(){
   try { await withRetry(() => Store.ref.set(clone(state))); }
   catch (e) {
     const c = e && e.code;
-    if (c === "quota_exceeded") toast("Your saved data is too large. Remove completed deadlines or old workspaces, then try again.");
-    else if (!warned) { warned = true; toast(c === "invalid_argument" || c === "revoked" ? "Changes can't be saved to your account in this view. They're kept in this browser." : "Couldn't save to your account. Check your connection; your changes are kept in this browser."); }
+    if (c === "quota_exceeded") toast("Your saved data is too large. Remove completed deadlines or old workspaces, then try again.", null, null, "error");
+    else if (!warned) { warned = true; toast(c === "invalid_argument" || c === "revoked" ? "Changes can't be saved to your account in this view. They're kept in this browser." : "Couldn't save to your account. Check your connection; your changes are kept in this browser.", null, null, "error"); }
   }
   Store.saving = false;
   if (Store.dirty) { Store.dirty = false; flush(); }

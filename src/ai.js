@@ -238,7 +238,7 @@ async function applyServerProposal(msg, discard){
   else send.actions = msg.proposal.actions.map(a => a.type === "create" ? { keep: !!a.keep, title: a.title, date: a.date || null, time: a.time || null, priority: a.priority } : { keep: !!a.keep, date: a._deadline || a.date || null });
   await flushNow();
   const r = await apiJSON("POST", "/api/plan/apply", send).catch(() => ({ ok: false, json: {} }));
-  if (!r.ok) { toast(r.json.error || "Couldn't save. Check your connection and try again."); return; }
+  if (!r.ok) { toast(r.json.error || "Couldn't save. Check your connection and try again.", null, null, "error"); return; }
   const id = msg.id;
   await reloadFromServer();
   const again = chatOf(W()).find(m => m.id === id) || msg;
@@ -274,7 +274,7 @@ function applyProposal(msg){
   });
   p.status = "saved"; p.result = { created, updated, done, removed, ids };
   save(); render(); celebrateIfAllDone(w);
-  toast([created && `Saved ${created} task${created === 1 ? "" : "s"}`, updated && `updated ${updated}`, done && `completed ${done}`, removed && `deleted ${removed}`].filter(Boolean).join(", ") + ".");
+  toast([created && `Saved ${created} task${created === 1 ? "" : "s"}`, updated && `updated ${updated}`, done && `completed ${done}`, removed && `deleted ${removed}`].filter(Boolean).join(", ") + ".", null, null, "success");
 }
 function proposalHTML(msg){
   const p = msg.proposal; if (!p) return "";
@@ -396,7 +396,7 @@ document.addEventListener("click", e => {
     case "propsave": case "propdiscard": {
       const box = a.closest(".proposal[data-msg]"); const msg = box && chatOf(w).find(m => m.id === box.dataset.msg);
       if (!msg) break;
-      if (a.dataset.act === "propsave") { if (!msg.proposal.actions.some(x => x.keep)) { toast("Tick at least one suggestion to save."); break; } if (msg.serverId) applyServerProposal(msg); else applyProposal(msg); }
+      if (a.dataset.act === "propsave") { if (!msg.proposal.actions.some(x => x.keep)) { toast("Tick at least one suggestion to save.", null, null, "error"); break; } if (msg.serverId) applyServerProposal(msg); else applyProposal(msg); }
       else if (msg.serverId) applyServerProposal(msg, true);
       else { msg.proposal.status = "discarded"; save(); render(); }
       break; }

@@ -7,14 +7,16 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Deadline Tracker"%3E %3Cdefs%3E%3ClinearGradient id="dtg" x1="0" y1="0" x2="1" y2="1"%3E%3Cstop offset="0" stop-color="#c8723a"/%3E%3Cstop offset="1" stop-color="#8c4115"/%3E%3C/linearGradient%3E%3C/defs%3E %3Crect width="64" height="64" rx="16" fill="url%28#dtg%29"/%3E %3Ccircle cx="32" cy="33" r="17" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="5"/%3E %3Cpath d="M32 16 A17 17 0 1 1 17.28 24.5" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/%3E %3Cpath d="M24.5 33.5 30 39 40.5 27.5" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/%3E %3Ccircle cx="32" cy="16" r="4" fill="#ffc94d" stroke="#fff" stroke-width="1.5"/%3E %3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
-/* Layout idea: a deadline control room. Dark rail on the left for workspaces and sections; the main surface answers "what's due, what's at risk, what next" before any detail. Risk is a five-step scale used everywhere. */
-/* Light theme: frosted glass over a soft, airy wash. */
+/* Visual identity "Ivory & Copper": warm ivory with copper by day, a warm brown-black with copper light by night.
+   Glass panels sit over a living colour field (body::before), so the blur always has something to frost. */
+/* Light theme: warm ivory, dark ink, copper accent. */
 :root{
   --bg:#f6f1e7; --surface:#fffdf9; --surface-2:rgba(238,229,212,.7); --surface-3:#e7dcc8;
   --ink:#1f1a14; --ink-2:#463d33; --muted:#6a5e4f; --line:rgba(80,55,25,.13);
-  --accent:#a4501c; --accent-ink:#ffffff;
+  --accent:#a4501c; --accent-ink:#ffffff; --accent-2:#c98a2b; --accent-soft:rgba(164,80,28,.1); --blob-4:rgba(214,176,96,.18); --ease:cubic-bezier(.2,.8,.2,1);
+  --glass-sheen:linear-gradient(140deg,rgba(255,255,255,.55) 0%,rgba(255,255,255,.12) 42%,rgba(255,255,255,.04) 100%);
   --teal:#23715d; --amber:#9a6a00; --coral:#c2412d;   /* shared with the pitch (docs/DESIGN-SYSTEM.md): progress, deadline, risk */
   --side-bg:rgba(255,252,245,.58); --side-ink:#2a2219; --side-muted:#6e6252; --side-hover:rgba(164,80,28,.07); --side-active:rgba(164,80,28,.13); --side-active-ink:#8a3f12;
   --ok:#1b8f58; --att:#a87a00; --risk:#d4600a; --crit:#c2304f; --over:#bf281b;
@@ -30,12 +32,13 @@
   --shadow-lg:0 24px 64px rgba(48,30,12,.22);
   color-scheme:light;
 }
-/* Dark theme: smoked glass over deep navy with coloured glows. */
+/* Dark theme: warm brown-black, never navy; copper and amber light. */
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --bg:#15110d; --surface:#231c15; --surface-2:rgba(255,240,220,.06); --surface-3:rgba(255,240,220,.13);
     --ink:#f3ebdf; --ink-2:#d8ccbc; --muted:#ab9d8a; --line:rgba(255,235,210,.09);
-    --accent:#e9a36e; --accent-ink:#1d130b;
+    --accent:#e9a36e; --accent-ink:#1d130b; --accent-2:#f0c27a; --accent-soft:rgba(233,163,110,.13); --blob-4:rgba(201,160,80,.1);
+    --glass-sheen:linear-gradient(140deg,rgba(255,255,255,.08) 0%,rgba(255,255,255,.02) 45%,rgba(255,255,255,0) 100%);
     --teal:#5cc6a4; --amber:#fbbf4c; --coral:#ff7a6b;
     --side-bg:rgba(28,22,16,.64); --side-ink:#ece2d4; --side-muted:#a99b8a; --side-hover:rgba(255,255,255,.05); --side-active:rgba(233,163,110,.16); --side-active-ink:#ffffff;
     --ok:#3ccf8e; --att:#e6bb3c; --risk:#ff9a3d; --crit:#ff5c93; --over:#ff6b5e;
@@ -51,7 +54,8 @@
 :root[data-theme="dark"]{
   --bg:#15110d; --surface:#231c15; --surface-2:rgba(255,240,220,.06); --surface-3:rgba(255,240,220,.13);
   --ink:#f3ebdf; --ink-2:#d8ccbc; --muted:#ab9d8a; --line:rgba(255,235,210,.09);
-  --accent:#e9a36e; --accent-ink:#1d130b;
+  --accent:#e9a36e; --accent-ink:#1d130b; --accent-2:#f0c27a; --accent-soft:rgba(233,163,110,.13); --blob-4:rgba(201,160,80,.1);
+    --glass-sheen:linear-gradient(140deg,rgba(255,255,255,.08) 0%,rgba(255,255,255,.02) 45%,rgba(255,255,255,0) 100%);
   --teal:#5cc6a4; --amber:#fbbf4c; --coral:#ff7a6b;
   --side-bg:rgba(28,22,16,.64); --side-ink:#ece2d4; --side-muted:#a99b8a; --side-hover:rgba(255,255,255,.05); --side-active:rgba(233,163,110,.16); --side-active-ink:#ffffff;
   --ok:#3ccf8e; --att:#e6bb3c; --risk:#ff9a3d; --crit:#ff5c93; --over:#ff6b5e;
@@ -1175,6 +1179,172 @@ html:not(.gs) .app.rail .rail-handle svg{transform:rotate(180deg)}
 .landing h1.still .w3d{animation:none}
 @media (max-width:860px){.app,.app.rail{grid-template-columns:minmax(0,1fr)}.rail-handle{display:none}.app.rail .main{box-shadow:none}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none !important;transition:none !important}}
+/* =====================================================================
+   Design system v2 (Ivory & Copper tokens)
+   One layer, applied last, so every page shares the same identity.
+   ===================================================================== */
+body{font-size:15px;line-height:1.5;letter-spacing:-.003em;background:var(--bg)}
+h1,h2,h3,h4{font-family:var(--font-display);font-weight:650;letter-spacing:-.02em}
+::selection{background:color-mix(in srgb,var(--accent) 28%,transparent)}
+
+/* The colour field behind every glass panel: four soft lights that drift slowly, plus a fine grain. */
+body::before{content:"";position:fixed;inset:-20%;z-index:-2;pointer-events:none;
+  background:
+    radial-gradient(34% 30% at 14% 12%,var(--blob-1),transparent 70%),
+    radial-gradient(30% 32% at 88% 84%,var(--blob-2),transparent 70%),
+    radial-gradient(26% 28% at 80% 14%,var(--blob-3),transparent 70%),
+    radial-gradient(30% 26% at 30% 88%,var(--blob-4),transparent 70%);
+  animation:fieldDrift 38s ease-in-out infinite alternate}
+body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.05;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+@keyframes fieldDrift{0%{transform:translate3d(0,0,0) rotate(0)}50%{transform:translate3d(2%,-2%,0) rotate(4deg)}100%{transform:translate3d(-2%,2%,0) rotate(-3deg)}}
+
+/* Glass: tinted, blurred, with a light sheen from the top-left, a hairline edge and a soft inner highlight. */
+.card,.stat,.list,.cal,.kpi,.exam,.pday,.notif,.focus-card,.col,.filter-panel,.hero,.ai-chat,.addbox,.dw,.daily-head,.daily-list{
+  background-color:var(--glass);background-image:var(--glass-sheen);
+  -webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);
+  border:1px solid var(--glass-edge);
+  box-shadow:var(--glass-shadow),inset 0 1px 0 var(--glass-line),inset 0 0 0 1px color-mix(in srgb,var(--glass-line) 25%,transparent)}
+.hero{background-image:radial-gradient(60% 120% at 100% 0%,color-mix(in srgb,var(--accent-2) 20%,transparent),transparent 60%),radial-gradient(50% 120% at 0% 100%,color-mix(in srgb,var(--accent) 16%,transparent),transparent 60%),var(--glass-sheen)}
+.hero::after{display:none}
+.topbar{background-color:var(--glass);background-image:none;-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border-bottom:1px solid var(--glass-edge);box-shadow:inset 0 -1px 0 color-mix(in srgb,var(--glass-line) 30%,transparent)}
+.side{background-color:var(--side-bg);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border-right:1px solid var(--glass-edge);box-shadow:inset -1px 0 0 color-mix(in srgb,var(--glass-line) 30%,transparent)}
+.drawer,.modal,.ws-menu,.bnav{background-color:var(--glass-strong);background-image:var(--glass-sheen);-webkit-backdrop-filter:blur(28px) saturate(180%);backdrop-filter:blur(28px) saturate(180%);border:1px solid var(--glass-edge)}
+.modal-wrap.on,#modalWrap.on{background:color-mix(in srgb,var(--bg) 40%,transparent);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.card,.hero,.list,.cal,.dw{border-radius:20px}
+/* Cards that do something lift a little on hover. */
+.card,.exam,.pday,.kpi,.stat,.nd-row,.todo,.item{transition:transform .25s var(--ease),box-shadow .25s var(--ease),background-color .2s,border-color .2s}
+.exam:hover,.kpi:hover,.stat:hover{transform:translateY(-2px);box-shadow:var(--glass-shadow),0 18px 40px rgba(0,0,0,.08),inset 0 1px 0 var(--glass-line)}
+
+/* Panels arrive softly. */
+@keyframes riseIn{from{opacity:0;transform:translateY(10px) scale(.995)}to{opacity:1;transform:none}}
+.view-inner > *{animation:riseIn .45s var(--ease) both}
+.view-inner > *:nth-child(2){animation-delay:.05s}.view-inner > *:nth-child(3){animation-delay:.1s}.view-inner > *:nth-child(4){animation-delay:.15s}.view-inner > *:nth-child(5){animation-delay:.2s}
+
+/* Buttons: clear hierarchy, quick feedback. */
+.btn{border-radius:12px;font-weight:600;letter-spacing:-.005em;min-height:38px;
+  background-color:color-mix(in srgb,var(--surface) 78%,transparent);border:1px solid var(--line);
+  transition:transform .15s var(--ease),box-shadow .2s var(--ease),background-color .2s,border-color .2s,color .2s}
+.btn:hover{border-color:color-mix(in srgb,var(--accent) 45%,var(--line));background-color:var(--surface);transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,0,0,.07)}
+.btn:active{transform:translateY(0) scale(.97);box-shadow:none}
+.btn.primary{background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 88%,#fff),var(--accent));border-color:transparent;color:var(--accent-ink);
+  box-shadow:0 8px 22px color-mix(in srgb,var(--accent) 35%,transparent),inset 0 1px 0 rgba(255,255,255,.25)}
+.btn.primary:hover{filter:brightness(1.05) saturate(1.05);box-shadow:0 12px 28px color-mix(in srgb,var(--accent) 42%,transparent),inset 0 1px 0 rgba(255,255,255,.3)}
+.btn.ghost{background:transparent;border-color:transparent;box-shadow:none}
+.btn.ghost:hover{background:var(--accent-soft);border-color:transparent;box-shadow:none}
+.btn.danger,.btn.ghost.danger{color:var(--crit)}
+.btn:disabled{opacity:.5;transform:none;box-shadow:none;cursor:not-allowed}
+.ib,.iconbtn{transition:transform .15s var(--ease),background-color .2s,color .2s}
+.ib:hover,.iconbtn:hover{background:var(--accent-soft);color:var(--accent)}
+.ib:active,.iconbtn:active{transform:scale(.92)}
+
+/* Fields */
+input,select,textarea{background-color:color-mix(in srgb,var(--surface) 82%,transparent);border:1px solid var(--line);border-radius:12px;transition:border-color .2s,box-shadow .2s,background-color .2s}
+input:hover,select:hover,textarea:hover{border-color:color-mix(in srgb,var(--accent) 30%,var(--line))}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft);background-color:var(--surface)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.addbox:focus-within{border-color:color-mix(in srgb,var(--accent) 60%,transparent);box-shadow:0 0 0 5px var(--accent-soft),var(--glass-shadow)}
+
+/* Navigation: a lit pill for the current page. */
+.nav a{border-radius:12px;transition:background-color .2s,color .2s,transform .15s var(--ease)}
+.nav a:hover{background:var(--side-hover);transform:translateX(2px)}
+.nav a[aria-current="page"]{background:linear-gradient(90deg,var(--side-active),color-mix(in srgb,var(--side-active) 30%,transparent));color:var(--side-active-ink);font-weight:700;box-shadow:inset 3px 0 0 var(--accent)}
+.nav a[aria-current="page"] svg{color:var(--accent)}
+.ws-ico{border-radius:11px;box-shadow:0 4px 12px rgba(0,0,0,.12)}
+.brand-mark{background:linear-gradient(135deg,var(--accent),var(--accent-2))}
+
+/* Toast: a small dark glass pill. */
+.toast{background:color-mix(in srgb,#1f1a14 90%,transparent);color:#f6eee3;-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.1);border-radius:14px;box-shadow:0 18px 40px rgba(0,0,0,.28)}
+.toast button{background:rgba(255,255,255,.12);color:#fff;border-radius:9px}
+.toast.err{border-color:color-mix(in srgb,var(--crit) 60%,transparent)}
+.toast.ok{border-color:color-mix(in srgb,var(--ok) 55%,transparent)}
+
+/* Chips, pills, badges */
+.badge{background:var(--accent-2);color:#fff}
+.badge.soft{background:var(--accent-soft);color:var(--accent)}
+.seg{background:color-mix(in srgb,var(--surface-2) 80%,transparent);border-radius:12px;padding:3px}
+.seg button{border-radius:9px;transition:background-color .2s,color .2s}
+.seg button[aria-pressed="true"],.seg button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 2px 8px rgba(0,0,0,.08)}
+
+/* Progress rings and bars use the brand colours. */
+.pr-val{stroke:var(--accent)}
+.bar-fill{background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 60%,var(--accent-2)))}
+
+/* Login, sign-up and setup keep main's Ivory & Copper styling (earlier in this stylesheet). */
+
+/* Assistant chat bubbles and the Deadline AI window */
+.msg .bubble{border-radius:18px;line-height:1.55}
+.msg.user .bubble{background:linear-gradient(135deg,var(--accent),color-mix(in srgb,var(--accent) 70%,var(--accent-2)));color:var(--accent-ink);border-bottom-right-radius:6px}
+.msg.ai .bubble{background-color:color-mix(in srgb,var(--surface) 85%,transparent);border:1px solid var(--line);border-bottom-left-radius:6px}
+.md h4{font-size:15px;margin:10px 0 4px}.md h4:first-child{margin-top:0}
+.md p{margin:0 0 8px}.md p:last-child{margin-bottom:0}
+.md ul,.md ol{margin:4px 0 8px;padding-left:20px}.md li{margin:2px 0}
+.md strong{font-weight:700}
+.md code{font-family:var(--font-mono);font-size:.9em;background:var(--surface-2);padding:1px 5px;border-radius:6px}
+.typing i{background:var(--accent)}
+.dw-fab{background:linear-gradient(135deg,var(--accent),color-mix(in srgb,var(--accent) 60%,var(--accent-2)));color:var(--accent-ink);box-shadow:0 14px 34px color-mix(in srgb,var(--accent) 40%,transparent)}
+
+/* Setup steps sit on a glass card too. */
+.onb-card{padding:clamp(22px,4vw,40px);border-radius:26px;background:linear-gradient(160deg,rgba(255,255,255,.1),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.14);
+  -webkit-backdrop-filter:blur(22px) saturate(150%);backdrop-filter:blur(22px) saturate(150%);box-shadow:0 40px 90px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.18);animation:riseIn .45s var(--ease) both}
+.nav a.nav-ai svg{color:var(--accent-2)}
+
+/* Daily tasks */
+.daily-head{border-radius:22px;padding:20px 22px;display:grid;gap:12px;
+  background-image:radial-gradient(70% 140% at 100% 0%,color-mix(in srgb,var(--accent-2) 18%,transparent),transparent 60%),radial-gradient(60% 140% at 0% 100%,color-mix(in srgb,var(--accent) 15%,transparent),transparent 60%),var(--glass-sheen)}
+.dh-top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.dh-date{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.dh-top h2{font-size:26px}
+.dh-counts{display:flex;gap:8px;flex-wrap:wrap}
+.dh-counts span{padding:6px 12px;border-radius:999px;background:color-mix(in srgb,var(--surface) 70%,transparent);border:1px solid var(--line);font-size:13px;color:var(--muted)}
+.dh-counts b{color:var(--ink);font-family:var(--font-display)}
+.dh-bar{height:12px;border-radius:999px;background:color-mix(in srgb,var(--ink) 8%,transparent);overflow:hidden}
+.dh-bar i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 50%,var(--accent-2)));transition:width .6s var(--ease);box-shadow:0 0 18px color-mix(in srgb,var(--accent) 45%,transparent)}
+.dh-prog{font-weight:600;color:var(--ink-2)}
+.daily-form{display:flex;gap:10px;align-items:stretch;padding:12px}
+.df-fields{flex:1;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:10px;min-width:0}
+.df-fields input{min-height:44px;font-size:15px}
+.daily-form .btn{min-height:44px;padding:0 18px}
+.daily-list{border-radius:20px;padding:14px}
+.dl-bar{display:flex;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+.dl-bar .cnt{font-family:var(--font-mono);font-size:11px;opacity:.7}
+.dt-list{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.dt-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 12px;border-radius:14px;border:1px solid transparent;
+  background:color-mix(in srgb,var(--surface) 55%,transparent);transition:background-color .2s,border-color .2s,transform .2s var(--ease);animation:riseIn .3s var(--ease) both}
+.dt-row:hover{border-color:var(--line);background:color-mix(in srgb,var(--surface) 80%,transparent)}
+.dt-check{width:26px;height:26px;border-radius:9px;border:2px solid color-mix(in srgb,var(--accent) 55%,var(--line));background:transparent;display:grid;place-items:center;color:transparent;padding:0;transition:all .2s var(--ease)}
+.dt-check svg{width:15px;height:15px}
+.dt-check:hover{border-color:var(--accent);background:var(--accent-soft)}
+.dt-row.done .dt-check{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);animation:popIn .25s var(--ease)}
+.dt-body{display:grid;gap:2px;min-width:0}
+.dt-t{font-weight:600;overflow-wrap:anywhere}
+.dt-d{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.dt-day{font-size:11.5px;color:var(--muted);font-family:var(--font-mono)}
+.dt-row.done .dt-t{text-decoration:line-through;text-decoration-thickness:1.5px;color:var(--muted)}
+.dt-row.done{opacity:.78}
+.dt-acts{display:flex;gap:2px;opacity:.55;transition:opacity .2s}
+.dt-row:hover .dt-acts,.dt-row:focus-within .dt-acts{opacity:1}
+.dt-row.editing{grid-template-columns:1fr;border-color:color-mix(in srgb,var(--accent) 40%,transparent)}
+.dt-edit{display:grid;gap:8px}
+.dt-empty{display:grid;justify-items:center;gap:6px;text-align:center;padding:30px 12px;color:var(--muted)}
+.dt-empty-ico svg{width:34px;height:34px;color:var(--accent)}
+.dt-empty h3{color:var(--ink);font-size:17px}
+@media (max-width:860px){.daily-form{flex-direction:column}.df-fields{grid-template-columns:minmax(0,1fr)}.dt-acts{opacity:1}.dh-top h2{font-size:22px}}
+
+/* Sound toggle */
+.switch{display:flex;align-items:center;gap:12px;justify-content:space-between;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--surface-2)}
+.switch b{display:block}.switch span span{font-size:13px;color:var(--muted)}
+input[role=switch]{appearance:none;-webkit-appearance:none;flex:none;width:46px;height:26px;border-radius:999px;padding:0;margin:0;cursor:pointer;position:relative;
+  background:color-mix(in srgb,var(--ink) 18%,transparent);border:1px solid var(--line);transition:background-color .25s var(--ease)}
+input[role=switch]::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.25);transition:transform .25s var(--ease)}
+input[role=switch]:checked{background:var(--accent);border-color:transparent}
+input[role=switch]:checked::after{transform:translateX(20px)}
+
+@media (prefers-reduced-motion: reduce){
+  body::before,.view-inner > *{animation:none}
+  .btn,.nav a,.card,.ib{transition:none}
+  .btn:hover,.nav a:hover,.exam:hover,.kpi:hover,.stat:hover{transform:none}
+}
 </style>
 </head>
 <body>
