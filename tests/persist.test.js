@@ -62,6 +62,10 @@ test("safety: an older server still running during a redeploy doesn't overwrite 
     let v = savedVersion(); await waitSaved(v - 1); v = savedVersion();
     await signup(oldS.base, "Old", "old@example.com");   // a write on the old instance
     await wait(900);
+    const hp = (await client(oldS.base).get("/api/health")).json.persistence, hn = (await client(newS.base).get("/api/health")).json.persistence;
+    assert.equal(hp.stoppedBecauseNewer, true, "the old server stopped saving");
+    assert.equal(hp.newer.instance, hn.instance.id, "and says which newer server took over");
+    assert.ok(Date.parse(hp.newer.startedAt) > Date.parse(hp.instance.startedAt));
     const fresh = await startServer(neon.env());
     try {
       assert.equal((await client(fresh.base).post("/api/auth/login", { email: "new@example.com", password: "password123" })).status, 200, "the newer instance's data is kept");
