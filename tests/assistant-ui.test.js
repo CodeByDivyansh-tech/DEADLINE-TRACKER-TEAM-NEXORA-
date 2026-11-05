@@ -43,6 +43,7 @@ test("assistant window: headings, lists and bold render; ₹ by default; HTML st
 
 test("assistant window: the currency chosen in Settings is used", async () => {
   await page.click("[data-act=dwclose]");
+  await page.waitForSelector("#dw", { state: "hidden" }); // the window folds back into its button first
   await page.evaluate(() => { location.hash = "prefs"; }); await page.waitForSelector("#pf-currency");
   await page.selectOption("#pf-currency", "GBP");
   g.respond = () => ({ text: JSON.stringify({ found: true, kind: "general", answer: "Put $200 aside each week.", sources: [] }) });
