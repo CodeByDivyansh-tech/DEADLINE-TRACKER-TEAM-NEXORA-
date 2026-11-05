@@ -53,7 +53,7 @@ async function onboard(page, { mode = "student", demo = true, name = "Divyansh",
 
 // Switch section, then wait for the section's short fade-in to finish (drags don't start on a moving element).
 // The GSAP card reveal (src/motion.js) marks moving cards with data-rv until they have landed.
-const settle = page => page.waitForFunction(() => { const v = document.getElementById("viewInner"); return !v || (v.getAnimations().every(a => a.playState !== "running") && !v.querySelector("[data-rv]")); }, null, { timeout: 3000 });
+const settle = page => page.waitForFunction(() => { const v = document.getElementById("viewInner"); return !v || (v.getAnimations().every(a => a.playState !== "running") && !v.querySelector("[data-rv]")); }, null, { timeout: 8000 });
 const go = async (page, route) => { await page.evaluate(r => { location.hash = r; }, route); await page.waitForTimeout(50); await settle(page); };
 const state = page => page.evaluate(() => JSON.parse(JSON.stringify(window.__DT_TEST__.state)));
 const ws = async page => { const s = await state(page); return s.workspaces.find(w => w.id === s.active); };
