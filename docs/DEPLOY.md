@@ -82,6 +82,8 @@ The connection string is a password: keep it only in Render's Environment, never
 3. `/api/health` shows `"telegram": {"configured": true, "mode": "webhook", ...}`. In the app: Settings → Notifications → Connect Telegram → press Start in the bot. "Send test" sends a message.
 Without the token, the Telegram row says it isn't set up; nothing is faked.
 
+**Keeping the site fast:** the free Render server sleeps after 15 minutes without visits and then takes ~30-60 s to answer. `.github/workflows/keep-awake.yml` visits `/api/health` every 5 minutes (free on GitHub for public repositories), so it stays awake. GitHub may delay or skip scheduled runs at busy times, and turns schedules off after 60 days without commits (re-enable under Actions). One always-on free service uses about 730 of Render's 750 free hours a month, so don't run a second free Render service alongside it.
+
 **Other Render free plan limits:**
 - The service **sleeps after 15 minutes without visits**; the next visit takes up to a minute (the app shows "Starting up…"). While it sleeps, the reminder job doesn't run; reminders catch up when it wakes.
 
