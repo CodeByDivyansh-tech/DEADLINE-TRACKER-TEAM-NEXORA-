@@ -80,6 +80,7 @@ function setRoute(r, push = true){
    ========================================================= */
 let CTX = null;
 function render(opts = {}){
+  const bs = document.getElementById("bootSplash"); if (bs) bs.remove();   // the loading screen is only for the first start
   if (ACCOUNT.on && !ACCOUNT.user) return; // the log in screen stays until you log in
   queueMicrotask(renderWidget);
   if (!state || !state.workspaces || !state.workspaces.length) { showOnboarding(); return; }

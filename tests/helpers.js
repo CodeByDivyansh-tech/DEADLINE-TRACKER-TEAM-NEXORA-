@@ -14,7 +14,7 @@ function startServer() {
     if (p === "/") p = "/index.html";
     const f = path.join(ROOT, p);
     if (!f.startsWith(ROOT) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); return res.end("Not found"); }
-    res.writeHead(200, { "Content-Type": f.endsWith(".html") ? "text/html; charset=utf-8" : "application/octet-stream", "Cache-Control": "no-store" });
+    res.writeHead(200, { "Content-Type": f.endsWith(".html") ? "text/html; charset=utf-8" : f.endsWith(".js") ? "text/javascript; charset=utf-8" : "application/octet-stream", "Cache-Control": "no-store" });
     fs.createReadStream(f).pipe(res);
   });
   return new Promise(r => srv.listen(0, "127.0.0.1", () => r({ srv, url: `http://127.0.0.1:${srv.address().port}/` })));

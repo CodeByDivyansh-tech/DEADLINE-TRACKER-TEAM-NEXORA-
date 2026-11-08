@@ -628,6 +628,7 @@ function lsGet(k){ try { const v = localStorage.getItem(k); return v ? JSON.pars
 function save(){
   if (!state) return;
   state.updatedAt = Date.now(); state.writer = CLIENT;
+  try { (state.workspaces || []).forEach(recordDay); } catch (e) {}   // today's progress record (todo.js)
   if (Store.mode === "server") { saveServer(); return; }
   if (Store.mode === "local" || Store.mode === "db") { try { localStorage.setItem(LS_V2, JSON.stringify(state)); } catch (e) {} }
   if (Store.mode === "db") { clearTimeout(Store.timer); Store.timer = setTimeout(flush, 600); }

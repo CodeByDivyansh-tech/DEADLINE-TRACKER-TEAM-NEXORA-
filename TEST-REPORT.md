@@ -1,6 +1,6 @@
 # Test report: Deadline Tracker
 
-**Result: 140 of 140 tests pass** (two full runs in a row, about 3.5 minutes each).
+**Latest full run (9 Nov 2026): 420 of 420 tests pass, twice in a row.** Earlier first report: 140 of 140 (two full runs in a row, about 3.5 minutes each).
 Every test runs the real app in Chromium with the clock fixed at **Friday 30 Oct 2026, 12:00 IST**, so dates are predictable.
 
 ## How it was done (test-driven)
@@ -342,3 +342,30 @@ After resolving: motion, sound, daily, menu, Today, theme/contrast, phone, logo 
 
 ## Release 5 Nov 2026: email/Telegram + the laptop's redesign branch
 Merged `email-telegram` (email and Telegram notifications, stronger password hashing, sign-ups refused while storage is broken) with the laptop's `feature/redesign` (Daily tasks, sound effects, rupee-aware assistant; Ivory & Copper kept). One conflict (this report). Full suite: 401/402 (a 3-second animation wait in the shared `settle` helper ran out under load; raised to 8 s, a maximum only), then **402/402 twice in a row**. Screenshots checked: Today, Daily tasks, Settings in light, dark and 390 px; no browser errors, no sideways scrolling.
+
+## 9 Nov 2026: faster loading, Help language, Incomplete/Completed, daily progress and history
+**Speed** (`tests/load/speed.js`: real server, Chromium at 4× slower CPU, 100 ms latency, 10 Mbit/s; median of 5):
+| Visit | Before: first paint · usable · downloaded | After |
+|---|---|---|
+| Visitor, first visit | 676 ms · 1100 ms · 553 KB | 328 ms · 650 ms · 162 KB |
+| Visitor, return visit | 736 ms · 1113 ms · 553 KB | 336 ms · 583 ms · 1 KB |
+| Member (logged in), return visit | 704 ms · 1557 ms · 568 KB | 332 ms · ~850 ms · 16 KB |
+
+Causes found: (1) all 436 KB of code was inside the page and sent with `no-store`, so every visit downloaded and re-read everything; (2) the Google Fonts stylesheet blocked the first paint; (3) `/api/me` and `/api/state` only started after the whole script had been read (≈400 ms); (4) nothing was compressed by our server.
+Changes: the build writes the code to content-named files (`assets/app.<hash>.js`, `assets/gsap.<hash>.js`, `defer`, in `<head>`), cached for a year (`immutable`) by `server.js` and Vercel; the page uses `no-cache` + ETag (unchanged → 304); text files are gzip-compressed (kept until the file changes); fonts load without blocking; a tiny script in `<head>` starts `/api/me` and `/api/state` at once and the app uses those answers; a "Opening Deadline Tracker…" screen appears only if starting takes over ~0.45 s. `standalone.html` keeps the old one-file build for previews.
+**Deadline AI Help:** the live check showed Gemini working (200, ~1.7 s) but answering an English question in Hinglish. Cause: the instructions said "reply in Hinglish if the user writes Hinglish" and the earlier Help messages were sent along, so one Hinglish question set the language for later ones. Fix: a fixed rule after the (admin-editable) instructions: reply in the language of the latest message (English / Hinglish / Hindi, detected on the server). Key handling was checked: key only in the server's environment, sent as `x-goog-api-key` header, never in the page or app files (tested); missing key → answers come from the help guide and Settings says "Gemini is off… add GEMINI_API_KEY"; invalid key, quota, timeouts and bad answers already had tests.
+**Daily tasks:** Incomplete and Completed sections with counts (the tick moves a task between them), overdue tasks first and marked, "Move to tomorrow" and "Move to a day" (same task, notes kept, the old day recorded once in `movedFrom`, Undo, past days refused). Nothing is completed, moved or deleted by itself.
+**Progress and history:** today's Total / Completed / Incomplete / % and bar; History card with Today, Yesterday, any past day, comparison with the day before, 7-day chart. Each day's numbers are saved in the workspace (`dayLog`, saved with the account through `/api/state`) while that day is today and never changed afterwards. No schema change.
+**Bug found by a time-dependent test failure (real, fixed):** an email sent straight away (welcome, confirm, reset) was stored as "queued" while being sent; with a slow email service the background job could send a second copy whose text was the "[not stored]" placeholder. Now direct sends are never picked up by the job. New test with a slow fake mail service: red before, green after.
+**Test fixed (app was right):** "each reminder once" failed only just after midnight India time, when a correct "Due today" message also arrives; it now checks for duplicates per message.
+
+| Area | Test file | Red first |
+|---|---|---|
+| Asset build, caching, ETag/304, gzip, private files, no secrets | api-assets (7) | server part failed |
+| Help reply language | api-help-gemini (+2) | 2/2 failed |
+| Sections, overdue, move to tomorrow/date | daily (rewritten, 9) | 8/9 failed |
+| Progress + history | progress (5) | 5/5 failed |
+| Slow email duplicate | api-channels (+1) | failed |
+
+Screenshots checked: Daily tasks in light, dark, and 390 px (light and dark): no sideways scrolling, no browser errors.
+**Not covered / open:** real email and Telegram still untested with real credentials (not set on Render yet); speed was measured locally, not on Render/Vercel; days before this release have no saved record, so their history is worked out from the tasks (tasks deleted earlier aren't counted).

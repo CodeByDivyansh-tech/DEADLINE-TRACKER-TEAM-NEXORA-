@@ -7,6 +7,8 @@
    keeps working as before, saving in this browser.
    ========================================================= */
 const ACCOUNT = { on: false, user: null, version: 0, timer: null, saving: false, dirty: false, poll: null, mode: "login" };
+// The page's first lines already asked for /api/me and /api/state (index.html head); use those answers once.
+const BOOT = (() => { const b = window.__dtBoot || {}; try { delete window.__dtBoot; } catch (e) {} return b; })();
 async function checkAccounts(){
   if (!/^https?:$/.test(location.protocol)) return null;
   const local = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
@@ -14,7 +16,8 @@ async function checkAccounts(){
   // rather than quietly saving in this browser only.
   for (let k = 0; ; k++) {
     let r = null;
-    try { r = await fetch("/api/me", { cache: "no-store", credentials: "same-origin" }); } catch (e) {}
+    try { r = k === 0 && BOOT.me ? await BOOT.me : await fetch("/api/me", { cache: "no-store", credentials: "same-origin" }); } catch (e) {}
+    BOOT.me = null;
     if (r && r.ok) { let j = null; try { j = await r.json(); } catch (e) {} hideWaking(); return j && j.accounts ? j : null; }
     if (r && r.status === 404) { hideWaking(); return null; }   // a plain file host: no server here
     if (local || k >= 40) { hideWaking(); if (!local && k >= 40) showWakingFailed(); return null; }
@@ -206,7 +209,9 @@ async function logout(){
 /* ---------- loading and saving your data ---------- */
 async function initServerStore(){
   Store.mode = "server";
-  const r = await apiJSON("GET", "/api/state");
+  let r = null;
+  if (BOOT.state) { try { const x = await BOOT.state; if (x.ok) r = { ok: true, status: x.status, json: await x.json() }; } catch (e) {} BOOT.state = null; }
+  if (!r) r = await apiJSON("GET", "/api/state");
   ACCOUNT.version = r.json.version || 0;
   state = r.json.state || null;
   // Used the app in this browser before having an account? Offer to bring that data in (once).

@@ -131,3 +131,32 @@ test("without a Gemini key, Help answers straight from the guide (labelled), and
     assert.match((await ask(c, "What's the capital of France?")).json.message.text, /don't know/);
   } finally { s3.stop(); }
 });
+
+/* ---------- Reply language (bug: an English question got a Hinglish answer) ---------- */
+// The old prompt said "If the user writes in Hinglish, reply in Hinglish" and also sent the earlier Help messages,
+// so one Hinglish question earlier made later English questions come back in Hinglish.
+const sysOf = () => g.chats().pop().body.systemInstruction.parts[0].text;
+test("language: an English question gets an English answer, even after earlier Hinglish messages", async () => {
+  const c = await signup(s.base, "Lang", "lang@example.com");
+  g.respond = () => ({ text: JSON.stringify({ found: true, kind: "general", answer: "ok", sources: [] }) });
+  const r1 = await ask(c, "task kaise delete kare bhai, mujhe samajh nahi aa raha");
+  assert.match(sysOf(), /LATEST message is in Hinglish/);
+  await ask(c, "How do I set a reminder for tomorrow?", r1.json.conversationId);
+  const sys = sysOf();
+  assert.match(sys, /LATEST message is in English/);
+  assert.match(sys, /Reply in English/);
+  assert.doesNotMatch(sys, /If the user writes in Hinglish, reply in simple Hinglish; otherwise reply in English\./, "the old rule is gone from the default");
+});
+test("language: Hindi in Devanagari gets Hindi; the rule can't be removed by the admin's instructions", async () => {
+  const c = await signup(s.base, "Lang2", "lang2@example.com");
+  g.respond = () => ({ text: JSON.stringify({ found: true, kind: "general", answer: "ok", sources: [] }) });
+  await ask(c, "मैं पढ़ाई का समय कैसे बनाऊँ?");
+  assert.match(sysOf(), /LATEST message is in Hindi/);
+  assert.equal((await admin.put("/api/admin/settings", { instructions: "Always answer in Hinglish." })).status, 200);
+  try {
+    await ask(c, "What is a good way to plan my week?");
+    const sys = sysOf();
+    assert.ok(sys.indexOf("Always answer in Hinglish.") < sys.indexOf("LATEST message is in English"), "the fixed language rule comes after the admin's text");
+    assert.match(sys, /This rule overrides/);
+  } finally { await admin.put("/api/admin/settings", { instructions: (await admin.get("/api/admin/settings")).json.default }); }
+});

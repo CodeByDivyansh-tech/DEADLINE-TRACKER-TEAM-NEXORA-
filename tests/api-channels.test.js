@@ -24,7 +24,7 @@ const db = () => { const d = new DatabaseSync(path.join(s.dataDir, "deadline.db"
 const mailsTo = to => mail.sent.filter(m => JSON.stringify(m.body.to || "").includes(to));
 const verifyTokenFor = to => { const m = [...mailsTo(to)].reverse().find(x => /#verify=/.test(JSON.stringify(x.body))); return m && JSON.stringify(m.body).match(/#verify=([A-Za-z0-9_-]{43})/)[1]; };
 const hook = (update, secret = SECRET) => fetch(s.base + "/api/telegram/webhook", { method: "POST", headers: Object.assign({ "Content-Type": "application/json" }, secret ? { "X-Telegram-Bot-Api-Secret-Token": secret } : {}), body: JSON.stringify(update) });
-async function verified(name, email){ const c = await signup(s.base, name, email); const t = await until(() => verifyTokenFor(email)); assert.equal((await client(s.base).post("/api/auth/verify-email", { token: t })).status, 200); return c; }
+async function verified(name, email){ const c = await signup(s.base, name, email); const t = await until(() => verifyTokenFor(email)); const r = await client(s.base).post("/api/auth/verify-email", { token: t }); assert.equal(r.status, 200, JSON.stringify(r.json) + " " + JSON.stringify(mailsTo(email).map(m => m.body.subject))); return c; }
 async function linkTelegram(c, chat){
   const l = await c.post("/api/telegram/link"); assert.equal(l.status, 200, JSON.stringify(l.json));
   const token = l.json.url.split("start=")[1];
@@ -36,7 +36,8 @@ const dueSoon = (mins = 30) => { const d = new Date(Date.now() + mins * 60e3); c
 test("email: sign-up sends one branded welcome email with a one-time confirm link (and never the password)", async () => {
   await signup(s.base, "Asha Rao", "asha@example.com", "secret-pass-123");
   const m = await until(() => mailsTo("asha@example.com")[0]);
-  assert.equal(mailsTo("asha@example.com").length, 1);
+  const subj = mailsTo("asha@example.com").map(x => x.body.subject);
+  assert.equal(subj.filter(x => /Welcome/.test(x)).length, 1, "one welcome email: " + JSON.stringify(subj));
   assert.match(m.body.subject, /Welcome to Deadline Tracker, Asha/);
   assert.match(m.body.htmlContent, /Confirm my email/); assert.match(m.body.htmlContent, /#a4501c/, "site branding");
   assert.match(m.body.textContent, /https:\/\/site\.example\/#verify=[A-Za-z0-9_-]{43}/);
@@ -45,6 +46,23 @@ test("email: sign-up sends one branded welcome email with a one-time confirm lin
   const v = d.prepare("SELECT token_hash FROM email_verifications").all(); d.close();
   assert.equal(row.status, "sent"); assert.doesNotMatch(row.body_text, /verify=/, "the link isn't stored");
   assert.ok(v.every(x => x.token_hash.length === 64), "only token hashes stored");
+});
+
+test("email: a slow email service doesn't cause a second copy (the background job leaves direct sends alone)", async () => {
+  // its own server and mail service (this file's server is near its sign-up limit of 20 per 15 minutes)
+  const m2 = await fakeMail().start(); m2.delay = 700;   // several runs of the outbox job (every 150 ms) happen while the welcome email is being sent
+  const s2 = await startServer({ EMAIL_PROVIDER: "brevo", EMAIL_API_KEY: "k", EMAIL_FROM: "Deadline Tracker <noreply@example.com>", EMAIL_API_URL: m2.url + "/v3/smtp/email", APP_BASE_URL: "https://site.example", OUTBOX_INTERVAL_MS: "150" });
+  try {
+    await signup(s2.base, "Slow Mail", "slow@example.com");
+    await until(() => m2.sent.length);
+    await wait(1200);
+    const got = m2.sent;
+    assert.equal(got.length, 1, "one email: " + JSON.stringify(got.map(m => m.body.subject)));
+    assert.doesNotMatch(JSON.stringify(got[0].body), /not stored/, "never the placeholder text");
+    const d = new DatabaseSync(path.join(s2.dataDir, "deadline.db")); d.exec("PRAGMA busy_timeout = 5000");
+    const r = d.prepare("SELECT o.status FROM outbox o JOIN users u ON u.id = o.user_id WHERE u.email = ? AND o.kind = 'welcome'").get("slow@example.com"); d.close();
+    assert.equal(r.status, "sent");
+  } finally { s2.stop(); m2.close(); }
 });
 
 test("email: the confirm link works once, then says it's used; tampered and expired links are refused", async () => {
@@ -80,8 +98,14 @@ test("reminders: email and Telegram get each reminder once; an unconfirmed email
   assert.ok(await until(() => mailsTo("kiran@example.com").some(m => /Java lab report/.test(m.body.textContent))), "reminder email");
   assert.ok(await until(() => tg.to(5001).some(m => /Java lab report/.test(m.text))), "reminder in Telegram");
   await wait(900);   // several more runs of both jobs
-  assert.equal(mailsTo("kiran@example.com").filter(m => /Java lab report/.test(m.body.textContent)).length, 1, "no duplicate email");
-  assert.equal(tg.to(5001).filter(m => /Java lab report/.test(m.text)).length, 1, "no duplicate Telegram message");
+  // Each kind of reminder arrives once. (Just after midnight India time a "Due today" message is also correct,
+  // so the check is per message, not per task: that made this test fail at night only.)
+  const em = mailsTo("kiran@example.com").filter(m => /Java lab report/.test(m.body.textContent)).map(m => m.body.subject);
+  assert.equal(em.length, new Set(em).size, "no duplicate email: " + JSON.stringify(em));
+  assert.ok(em.includes("Deadline reminder"));
+  const tm = tg.to(5001).filter(m => /Java lab report/.test(m.text)).map(m => m.text);
+  assert.equal(tm.length, new Set(tm).size, "no duplicate Telegram message");
+  assert.equal(tm.length, em.length, "the same reminders on both channels");
   assert.ok(!mailsTo("unconf@example.com").some(m => /Unconfirmed task/.test(JSON.stringify(m.body))), "unconfirmed address gets no reminders");
   const d = db(); const sk = d.prepare("SELECT o.status, o.last_error FROM outbox o JOIN users x ON x.id = o.user_id WHERE x.email = ? AND o.channel = 'email' AND o.kind = 'reminder'").get("unconf@example.com"); d.close();
   assert.equal(sk.status, "skipped"); assert.match(sk.last_error, /not confirmed/);

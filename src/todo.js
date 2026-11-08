@@ -100,49 +100,124 @@ function todoTabsHTML(w){
    Plain tasks (no deadline) with a title and an optional short description; new ones go on today.
    They're ordinary items, so they save with everything else (to the account when signed in).
    ========================================================= */
-const DAILY_F = [["all", "All"], ["today", "Today"], ["pending", "Pending"], ["completed", "Completed"]];
 const dailyAll = w => myTasks(w).filter(i => !i.due);
-function dailyFiltered(w, f, t){
-  const all = dailyAll(w);
-  const list = f === "today" ? all.filter(i => i.plan === t) : f === "pending" ? all.filter(i => !isDone(i)) : f === "completed" ? all.filter(isDone) : all;
-  // pending first; then today's before older days; then the order they were added
-  return list.sort((a, b) => isDone(a) - isDone(b) || (b.plan || "").localeCompare(a.plan || "") || new Date(a.createdAt) - new Date(b.createdAt));
+
+/* ---------- Day statistics (Daily progress + history) ----------
+   A task counts for day D when it was completed on D, or when it is planned for D and wasn't already finished
+   before D. Completed on D = finished that day. A task planned for D but finished later still counts as not done
+   for D (and as done on the day it was finished). Tasks moved away from D are shown as "moved", not in the total.
+   Each day's numbers are saved in w.dayLog[day] while that day is today; once the day is over the saved record is
+   never changed, so history isn't rewritten by later edits or deletions. */
+const doneDay = i => isDone(i) ? (i.doneAt ? ymd(i.doneAt) : i.plan || null) : null;
+function dayStatsLive(w, d){
+  let total = 0, done = 0, moved = 0;
+  for (const i of dailyAll(w)) {
+    const dd = doneDay(i);
+    if (dd === d) { total++; done++; }
+    else if (i.plan === d && !(dd && dd < d)) total++;
+    else if ((i.movedFrom || []).includes(d)) moved++;
+  }
+  return { total, done, moved };
 }
+function dayStats(w, d){
+  const t = todayKey(CTX.now);
+  if (d < t && w.dayLog && w.dayLog[d]) { const r = w.dayLog[d]; return { total: +r.total || 0, done: +r.done || 0, moved: +r.moved || 0, saved: true }; }
+  return dayStatsLive(w, d);
+}
+const pctOf = s => s.total ? Math.round(s.done / s.total * 100) : 0;
+// called from save(): keeps today's record up to date; past days are left exactly as they were
+function recordDay(w){
+  if (!w || !Array.isArray(w.items)) return;
+  const t = todayKey(Date.now()), s = dayStatsLive(w, t);
+  if (!s.total && !s.moved && !(w.dayLog && w.dayLog[t])) return;
+  w.dayLog = w.dayLog || {};
+  w.dayLog[t] = s;
+  const keys = Object.keys(w.dayLog).sort(); if (keys.length > 800) keys.slice(0, keys.length - 800).forEach(k => delete w.dayLog[k]);   // about two years
+}
+const dShort = k => new Date(k + "T12:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }).replace(",", "");
+const dLong = k => { const d = new Date(k + "T12:00"); return `${d.toLocaleDateString("en-GB", { weekday: "long" })}, ${d.getDate()} ${d.toLocaleDateString("en-GB", { month: "long" })}`; };
+const shiftDay = (k, n) => ymd(addDays(new Date(k + "T12:00"), n));
+function statLine(s){ return s.total ? `${s.done} of ${s.total} completed — ${pctOf(s)}%` : "No tasks on this day"; }
+function historyHTML(w){
+  const t = todayKey(CTX.now), y = shiftDay(t, -1);
+  const d = UI.histDay && UI.histDay <= t ? UI.histDay : t;
+  const s = dayStats(w, d), p = shiftDay(d, -1), ps = dayStats(w, p);
+  const diff = pctOf(s) - pctOf(ps);
+  const cmp = !s.total ? "" : !ps.total ? `No tasks on ${dShort(p)} to compare with.`
+    : diff === 0 ? `Same as ${dShort(p)} (${pctOf(ps)}%).` : `${diff > 0 ? "Up" : "Down"} ${Math.abs(diff)} points from ${dShort(p)} (${pctOf(ps)}%).`;
+  const days = Array.from({ length: 7 }, (_, k) => shiftDay(d, k - 6)).map(k => ({ k, s: dayStats(w, k) }));
+  const H = 96;
+  const bars = days.map(({ k, s }, n) => {
+    const pc = pctOf(s), h = s.total ? Math.max(4, Math.round(pc / 100 * H)) : 0;
+    const lab = s.total ? `${dShort(k)}: ${s.done} of ${s.total} completed (${pc}%)` : `${dShort(k)}: no tasks`;
+    return `<li class="hc-col${k === d ? " sel" : ""}" data-day="${k}" aria-label="${esc(lab)}" title="${esc(lab)}">
+        <span class="hc-v">${s.total ? pc + "%" : "–"}</span><span class="hc-track"><i style="height:${h}px"></i></span>
+        <span class="hc-d">${esc(new Date(k + "T12:00").toLocaleDateString("en-GB", { weekday: "narrow" }))}<b>${new Date(k + "T12:00").getDate()}</b></span><span class="hc-n">${s.total ? `${s.done}/${s.total}` : ""}</span></li>`;
+  }).join("");
+  return `<section class="card hist-card" id="histCard" aria-labelledby="histTitle">
+      <div class="hist-top"><div><p class="dh-date">History</p><h2 id="histTitle">${esc(dLong(d))}</h2></div>
+        <div class="hist-pick"><div class="seg" role="group" aria-label="Day">${[["today", "Today", t], ["yesterday", "Yesterday", y]].map(([v, l, k]) => `<button type="button" data-act="histday" data-v="${v}" aria-pressed="${d === k}">${l}</button>`).join("")}</div>
+          <label class="sr" for="histDate">Pick a day</label><input type="date" id="histDate" value="${d}" max="${t}"></div></div>
+      <p class="hist-stats" id="histStats"><b>${esc(statLine(s))}</b>${s.moved ? ` · ${s.moved} moved to another day` : ""}</p>
+      <div class="dh-bar sm" role="progressbar" aria-label="Completed on ${esc(dShort(d))}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pctOf(s)}"><i style="width:${pctOf(s)}%"></i></div>
+      <p class="hist-cmp" id="histCompare">${esc(cmp)}</p>
+      <h3 class="hc-h">7 days to ${esc(dShort(d))} <span>% completed each day</span></h3>
+      <ol class="hist-chart" id="histChart">${bars}</ol>
+    </section>`;
+}
+
 function dailyRowHTML(it, t){
-  const done = isDone(it); const editing = UI.dailyEdit === it.id;
+  const done = isDone(it); const editing = UI.dailyEdit === it.id; const over = !done && it.plan && it.plan < t;
   if (editing) return `<li class="dt-row editing" data-id="${it.id}">
       <div class="dt-edit"><label class="sr" for="dtEditTitle">Title</label><input id="dtEditTitle" type="text" maxlength="140" value="${esc(it.title)}">
         <label class="sr" for="dtEditDesc">Description</label><input id="dtEditDesc" type="text" maxlength="300" placeholder="Short description (optional)" value="${esc(it.notes || "")}">
         <div class="row-flex"><button class="btn primary sm" type="button" data-act="dailysave">Save</button><button class="btn ghost sm" type="button" data-act="dailycancel">Cancel</button></div></div></li>`;
-  return `<li class="dt-row${done ? " done" : ""}" data-id="${it.id}">
+  const moving = UI.dailyMove === it.id && !done;
+  const day = !done && it.plan && it.plan !== t ? `<span class="dt-day">${over ? `<b class="dt-over">Overdue</b> · was due ` : ""}${esc(fmtDate(it.plan + "T12:00"))}</span>` : "";
+  const acts = done ? "" : `<button class="ib" type="button" data-act="dailytomorrow" aria-label="Move ${esc(it.title)} to tomorrow" title="Move to tomorrow" ${it.plan === tomorrowKey(CTX.now) ? "hidden" : ""}>${IC.forward}</button><button class="ib" type="button" data-act="dailymove" aria-label="Move ${esc(it.title)} to another day" title="Move to a day" aria-expanded="${moving}">${IC.calendar}</button>`;
+  return `<li class="dt-row${done ? " done" : ""}${over ? " overdue" : ""}" data-id="${it.id}">
       <button class="dt-check" type="button" data-act="dailytoggle" aria-pressed="${done}" aria-label="${done ? "Mark as not done" : "Mark as done"}: ${esc(it.title)}">${IC.check}</button>
-      <div class="dt-body"><span class="dt-t">${esc(it.title)}</span>${it.notes ? `<span class="dt-d">${esc(it.notes)}</span>` : ""}${it.plan && it.plan !== t ? `<span class="dt-day">${esc(fmtDate(it.plan + "T12:00"))}</span>` : ""}</div>
-      <div class="dt-acts"><button class="ib" type="button" data-act="dailyedit" aria-label="Edit ${esc(it.title)}" title="Edit">${IC.edit}</button><button class="ib del" type="button" data-act="dailydel" aria-label="Delete ${esc(it.title)}" title="Delete">${IC.trash}</button></div>
+      <div class="dt-body"><span class="dt-t">${esc(it.title)}</span>${it.notes ? `<span class="dt-d">${esc(it.notes)}</span>` : ""}${day}${done && it.doneAt ? `<span class="dt-day">Done ${esc(fmtDate(it.doneAt))}</span>` : ""}</div>
+      <div class="dt-acts">${acts}<button class="ib" type="button" data-act="dailyedit" aria-label="Edit ${esc(it.title)}" title="Edit">${IC.edit}</button><button class="ib del" type="button" data-act="dailydel" aria-label="Delete ${esc(it.title)}" title="Delete">${IC.trash}</button></div>
+      ${moving ? `<div class="dt-move"><label for="dtMoveDate">Move to</label><input type="date" id="dtMoveDate" min="${t}" value="${tomorrowKey(CTX.now)}"><button class="btn primary sm" type="button" data-act="dailymovego">Move</button><button class="btn ghost sm" type="button" data-act="dailymovecancel">Cancel</button></div>` : ""}
     </li>`;
 }
 function viewDaily(){
-  const w = W(); const t = todayKey(CTX.now); const f = UI.dailyF || "all";
-  const all = dailyAll(w); const today = all.filter(i => i.plan === t);
-  const done = today.filter(isDone).length; const pct = today.length ? Math.round(done / today.length * 100) : 0;
-  const pending = all.filter(i => !isDone(i)).length, completed = all.length - pending;
-  const list = dailyFiltered(w, f, t);
-  const counts = { all: all.length, today: today.length, pending, completed };
-  const empty = { all: ["No tasks yet", "Add your first one above. Keep it short, like “Finish the project work”."], today: ["Nothing for today yet", "Anything you add goes on today's list."], pending: ["All caught up", "Nothing is waiting. Nice work."], completed: ["Nothing completed yet", "Tick a task when it's done and it shows here."] }[f];
-  return `<section class="daily-head">
-      <div class="dh-top"><div><p class="dh-date">${esc(new Date(CTX.now).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" }))}</p><h2>${today.length && done === today.length ? "All done for today" : "Today's progress"}</h2></div>
-        <p class="dh-counts" id="dailyCounts"><span><b>${pending}</b> pending</span><span><b>${completed}</b> completed</span></p></div>
+  const w = W(); const t = todayKey(CTX.now);
+  const all = dailyAll(w);
+  const s = dayStatsLive(w, t), pct = pctOf(s);
+  // Incomplete: overdue first (oldest first), then today, then later days, then undated; Completed: newest first
+  const rank = i => !i.plan ? 3 : i.plan < t ? 0 : i.plan === t ? 1 : 2;
+  const open = all.filter(i => !isDone(i)).sort((a, b) => rank(a) - rank(b) || (a.plan || "").localeCompare(b.plan || "") || new Date(a.createdAt) - new Date(b.createdAt));
+  const doneAll = all.filter(isDone).sort((a, b) => new Date(b.doneAt || 0) - new Date(a.doneAt || 0));
+  const doneShown = doneAll.slice(0, UI.dailyMoreDone ? 500 : 30);
+  const overdue = open.filter(i => i.plan && i.plan < t).length;
+  const empty = (h, p) => `<li class="dt-empty"><span class="dt-empty-ico">${IC.todo}</span><h3>${h}</h3><p>${p}</p></li>`;
+  return `<div class="daily-grid">
+    <div class="daily-main">
+    <section class="daily-head" aria-labelledby="dailyHeadT">
+      <div class="dh-top"><div><p class="dh-date">${esc(new Date(CTX.now).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" }))}</p><h2 id="dailyHeadT">${s.total && s.done === s.total ? "All done for today" : "Today's progress"}</h2></div>
+</div>
+      <div class="dh-stats" id="dailyStats">${[["Total", s.total], ["Completed", s.done], ["Incomplete", s.total - s.done], ["Done", s.total ? pct + "%" : "–"]].map(([l, v]) => `<div><b>${v}</b><span>${l}</span></div>`).join("")}</div>
       <div class="dh-bar" role="progressbar" aria-label="Today's progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i id="dailyBar" style="width:${pct}%"></i></div>
-      <p class="dh-prog" id="dailyProgress">Progress: ${done} of ${today.length} completed — ${pct}%</p>
+      <p class="dh-prog" id="dailyProgress">${s.total ? `Progress: ${s.done} of ${s.total} completed — ${pct}%` : "No tasks for today yet. Add one below."}</p>
+      ${overdue ? `<p class="dh-over" id="dailyOverdue">${IC.alert}<span>${overdue} overdue from earlier days. They're at the top of Incomplete; move them or tick them off.</span></p>` : ""}
     </section>
     <form class="daily-form card" id="dailyForm" autocomplete="off">
       <div class="df-fields"><label class="sr" for="dailyTitle">Task</label><input id="dailyTitle" type="text" maxlength="140" placeholder="What do you want to get done today?" value="${esc(UI.dailyDraft || "")}">
         <label class="sr" for="dailyDesc">Short description (optional)</label><input id="dailyDesc" type="text" maxlength="300" placeholder="Short description (optional)" value="${esc(UI.dailyDesc || "")}"></div>
       <button class="btn primary" type="button" id="dailyAdd" data-act="dailyadd">${IC.plus}Add task</button>
     </form>
-    <section class="daily-list">
-      <div class="dl-bar"><div class="seg" role="group" aria-label="Show">${DAILY_F.map(([v, l]) => `<button type="button" data-act="dailyf" data-v="${v}" aria-pressed="${f === v}">${l} <span class="cnt">${counts[v]}</span></button>`).join("")}</div></div>
-      <ul class="dt-list" id="dailyList">${list.length ? list.map(i => dailyRowHTML(i, t)).join("") : `<li class="dt-empty"><span class="dt-empty-ico">${IC.todo}</span><h3>${empty[0]}</h3><p>${empty[1]}</p></li>`}</ul>
-    </section>`;
+    <div class="daily-list" id="dailyList">
+      <section class="dl-sec" aria-labelledby="dailyOpenH"><h3 class="dl-h" id="dailyOpenH">Incomplete <span class="cnt">${open.length}</span></h3>
+        <ul class="dt-list" id="dailyOpen">${open.length ? open.map(i => dailyRowHTML(i, t)).join("") : all.length ? empty("All caught up", "Nothing is waiting. Nice work.") : empty("No tasks yet", "Add your first one above. Keep it short, like “Finish the project work”.")}</ul></section>
+      <section class="dl-sec" aria-labelledby="dailyDoneH"><h3 class="dl-h" id="dailyDoneH">Completed <span class="cnt">${doneAll.length}</span></h3>
+        <ul class="dt-list" id="dailyDone">${doneShown.length ? doneShown.map(i => dailyRowHTML(i, t)).join("") : `<li class="dt-none">Tick a task when it's done and it moves here.</li>`}</ul>
+        ${doneAll.length > doneShown.length ? `<button class="btn ghost sm" type="button" data-act="dailymoredone">Show all ${doneAll.length} completed</button>` : ""}</section>
+    </div>
+    </div>
+    <div class="daily-side">${historyHTML(w)}</div>
+  </div>`;
 }
 VIEWS.daily = viewDaily;
 PAGE.daily = "Daily tasks";
@@ -152,7 +227,7 @@ function dailyAdd(){
   if (!title) { toast("Give the task a title first.", null, null, "error"); if (ti) ti.focus(); return; }
   const it = mkItem(w, { kind: "todo", title: title.slice(0, 140), notes: (de ? de.value : "").trim().slice(0, 300), plan: todayKey(Date.now()), due: null, reminders: [], assignee: viewerId(w), type: DEFAULT_TYPE[w.mode], priority: "medium", source: "daily" });
   w.items.push(it); logItem(w, it, `Added "${it.title}"`);
-  UI.dailyDraft = ""; UI.dailyDesc = ""; if (UI.dailyF === "completed") UI.dailyF = "all";
+  UI.dailyDraft = ""; UI.dailyDesc = "";
   save(); render(); sfx("success");
   setTimeout(() => { const i = $("#dailyTitle"); if (i) i.focus(); }, 0);
 }
@@ -168,7 +243,20 @@ document.addEventListener("click", e => {
   const row = a.closest(".dt-row"); const id = row && row.dataset.id; const w = W();
   switch (a.dataset.act) {
     case "dailyadd": dailyAdd(); break;
-    case "dailyf": UI.dailyF = a.dataset.v; UI.dailyEdit = null; render(); break;
+    case "dailymoredone": UI.dailyMoreDone = true; render(); break;
+    case "histday": UI.histDay = a.dataset.v === "yesterday" ? shiftDay(todayKey(CTX.now), -1) : todayKey(CTX.now); render(); break;
+    case "dailytomorrow": { const it = findItem(id); if (!it || isDone(it)) break; UI.dailyMove = null;
+      const before = moveTodo(it, tomorrowKey(Date.now())); save(); render();
+      toast(`Moved "${it.title}" to tomorrow.`, () => { replaceItem(W(), before); save(); render(); }); break; }
+    case "dailymove": UI.dailyMove = UI.dailyMove === id ? null : id; render(); setTimeout(() => { const i = $("#dtMoveDate"); if (i) i.focus(); }, 0); break;
+    case "dailymovecancel": UI.dailyMove = null; render(); break;
+    case "dailymovego": { const it = findItem(id); const v = ($("#dtMoveDate") || {}).value || "";
+      if (!it || isDone(it)) break;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) { toast("Pick a day first.", null, null, "error"); break; }
+      if (v < todayKey(Date.now())) { toast("Pick today or a later day.", null, null, "error"); break; }
+      UI.dailyMove = null; if (v === it.plan) { render(); break; }
+      const before = moveTodo(it, v); save(); render();
+      toast(`Moved "${it.title}" to ${fmtDate(v + "T12:00")}.`, () => { replaceItem(W(), before); save(); render(); }); break; }
     case "dailytoggle": { const it = findItem(id); if (!it) break; const was = isDone(it);
       it.status = was ? "todo" : "done"; it.doneAt = was ? null : nowIso(); touch(it); logItem(w, it, was ? `Reopened "${it.title}"` : `Completed "${it.title}"`);
       save(); render(); if (!was) { sfx("success"); celebrateIfAllDone(w); } break; }
@@ -183,8 +271,14 @@ document.addEventListener("click", e => {
 document.addEventListener("keydown", e => {
   const t = e.target;
   if (e.key === "Enter" && (t.id === "dailyTitle" || t.id === "dailyDesc")) { e.preventDefault(); dailyAdd(); }
+  else if (t.id === "dtMoveDate" && (e.key === "Enter" || e.key === "Escape")) { e.preventDefault(); const b = t.closest(".dt-row").querySelector(e.key === "Enter" ? "[data-act=dailymovego]" : "[data-act=dailymovecancel]"); if (b) b.click(); }
   else if (t.id === "dtEditTitle" || t.id === "dtEditDesc") { if (e.key === "Enter") { e.preventDefault(); const r = t.closest(".dt-row"); if (r) dailySave(r.dataset.id); } else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); UI.dailyEdit = null; render(); } }
 }, true);
+document.addEventListener("change", e => {
+  if (e.target.id !== "histDate") return;
+  const v = e.target.value, t = todayKey(CTX.now);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) { UI.histDay = v > t ? t : v; render(); }
+});
 document.addEventListener("input", e => { if (e.target.id === "dailyTitle") UI.dailyDraft = e.target.value; else if (e.target.id === "dailyDesc") UI.dailyDesc = e.target.value; });
 
 function todoDrawerHTML(w, it){
@@ -220,6 +314,8 @@ function todoDrawerHTML(w, it){
 }
 function moveTodo(it, dayKey, why){
   const w = W(); const before = clone(it);
+  // the same task moves (no copy); the day it left is remembered once, for the history
+  if (it.plan && it.plan !== dayKey) { const m = Array.isArray(it.movedFrom) ? it.movedFrom.slice() : []; if (!m.includes(it.plan)) m.push(it.plan); it.movedFrom = m.slice(-60); }
   it.plan = dayKey; if (it.status === "done") { it.status = "todo"; it.doneAt = null; } touch(it);
   logItem(w, it, why || `Moved "${it.title}" to ${fmtDate(dayKey + "T12:00")}`);
   return before;

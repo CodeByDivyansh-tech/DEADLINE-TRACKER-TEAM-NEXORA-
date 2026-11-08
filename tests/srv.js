@@ -104,11 +104,11 @@ function fakeNeon(){
 }
 // Fake email provider (Brevo- or Resend-style JSON API): records every message instead of sending it.
 function fakeMail(){
-  const f = { sent: [], fail: false };
+  const f = { sent: [], fail: false, delay: 0 };   // delay: ms before answering (a slow email service)
   f.server = http.createServer((req, res) => {
     let b = ""; req.on("data", c => b += c); req.on("end", () => {
       const body = JSON.parse(b || "{}"); f.sent.push({ url: req.url, headers: req.headers, body });
-      res.writeHead(f.fail ? 500 : 201, { "Content-Type": "application/json" }); res.end(JSON.stringify(f.fail ? { message: "down" } : { messageId: "m" + f.sent.length }));
+      setTimeout(() => res.writeHead(f.fail ? 500 : 201, { "Content-Type": "application/json" }) && res.end(JSON.stringify(f.fail ? { message: "down" } : { messageId: "m" + f.sent.length })), f.delay || 0);
     });
   });
   f.start = () => new Promise(r => f.server.listen(0, "127.0.0.1", () => { f.url = `http://127.0.0.1:${f.server.address().port}`; r(f); }));

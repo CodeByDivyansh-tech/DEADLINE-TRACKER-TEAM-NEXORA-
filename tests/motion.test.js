@@ -21,7 +21,9 @@ const idle = () => page.waitForFunction(() => !document.querySelector("[data-rv]
 
 test("GSAP is part of the page itself (no outside download) and drives the motion", async () => {
   const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
-  assert.match(html, /GSAP 3\.\d+\.\d+/, "GSAP inlined by the build");
+  const g = (html.match(/src="\/assets\/(gsap\.[0-9a-f]{10}\.js)"/) || [])[1];
+  assert.ok(g, "GSAP is served from our own site by the build");
+  assert.match(fs.readFileSync(path.join(__dirname, "..", "assets", g), "utf8"), /GSAP 3\.\d+\.\d+/);
   assert.doesNotMatch(html, /<script[^>]+src=["']https?:/i, "no script from another site");
   assert.ok(await page.evaluate(() => typeof window.gsap === "object" && window.__DT_TEST__.motion.on()));
 });

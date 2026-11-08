@@ -17,16 +17,17 @@ async function add(title, desc) {
   if (desc) await page.fill("#dailyDesc", desc);
   await page.click("#dailyAdd"); await page.waitForTimeout(60);
 }
-const rows = () => page.$$eval("#dailyList .dt-row", rs => rs.map(r => ({ t: r.querySelector(".dt-t").textContent.trim(), done: r.classList.contains("done") })));
+const rows = () => page.$$eval("#dailyOpen .dt-row, #dailyDone .dt-row", rs => rs.map(r => ({ t: r.querySelector(".dt-t").textContent.trim(), done: r.classList.contains("done") })));
 const progress = () => page.textContent("#dailyProgress");
 
-test("daily: a 'Daily tasks' page in the main menu with a simple add form and filters", async () => {
+test("daily: a 'Daily tasks' page in the main menu with a simple add form and Incomplete / Completed sections", async () => {
   await open();
   assert.equal(await page.textContent("#pageTitle"), "Daily tasks");
   assert.equal(await page.locator("#side .nav > a[data-route=daily]").count(), 1, "in the main menu");
   for (const id of ["#dailyTitle", "#dailyDesc", "#dailyAdd"]) assert.equal(await page.isVisible(id), true, id);
-  assert.deepEqual(await page.$$eval("[data-act=dailyf]", b => b.map(x => x.textContent.trim().replace(/\s*\d+$/, ""))), ["All", "Today", "Pending", "Completed"]);
-  assert.match(await page.textContent("#dailyList"), /No tasks yet/i);
+  assert.match(await page.textContent("#dailyOpenH"), /Incomplete\s*0/);
+  assert.match(await page.textContent("#dailyDoneH"), /Completed\s*0/);
+  assert.match(await page.textContent("#dailyOpen"), /No tasks yet/i);
   assert.equal(await page.locator("#modal input[type=date], #dailyForm input[type=date], #dailyForm input[type=time]").count(), 0, "no date or time options");
 });
 
@@ -35,14 +36,14 @@ test("daily: add four tasks, tick one, progress shows 1 of 4 — 25%; untick und
   await add("Complete today's study plan", "Chapters 3 and 4");
   await add("Finish the project work"); await add("Attend the scheduled meeting"); await add("Review today's progress");
   assert.equal((await rows()).length, 4);
-  assert.match(await page.textContent("#dailyList"), /Chapters 3 and 4/, "description shown");
+  assert.match(await page.textContent("#dailyOpen"), /Chapters 3 and 4/, "description shown");
   assert.match(await progress(), /0 of 4 completed\s*[—-]\s*0%/);
-  assert.match(await page.textContent("#dailyCounts"), /4 pending/); assert.match(await page.textContent("#dailyCounts"), /0 completed/);
+  assert.match(await page.textContent("#dailyStats"), /4\s*Incomplete/); assert.match(await page.textContent("#dailyStats"), /0\s*Completed/);
   await page.locator(".dt-row", { hasText: "Complete today's study plan" }).locator(".dt-check").click();
   assert.match(await progress(), /1 of 4 completed\s*[—-]\s*25%/);
   assert.equal(await page.$eval("#dailyBar", b => b.style.width), "25%");
   assert.ok((await rows()).find(r => r.t === "Complete today's study plan").done, "looks completed");
-  assert.match(await page.textContent("#dailyCounts"), /3 pending/); assert.match(await page.textContent("#dailyCounts"), /1 completed/);
+  assert.match(await page.textContent("#dailyStats"), /3\s*Incomplete/); assert.match(await page.textContent("#dailyStats"), /1\s*Completed/);
   await page.locator(".dt-row", { hasText: "Complete today's study plan" }).locator(".dt-check").click();
   assert.match(await progress(), /0 of 4 completed/);
   assert.equal((await ws(page)).items.find(i => i.title === "Complete today's study plan").status, "todo");
@@ -63,16 +64,69 @@ test("daily: edit and delete (with Undo)", async () => {
   assert.equal((await rows()).length, 1);
 });
 
-test("daily: filters All, Today, Pending, Completed", async () => {
+const sec = async id => (await page.$$eval(`#${id} .dt-row .dt-t`, r => r.map(x => x.textContent.trim())));
+const seed = (title, plan, extra) => page.evaluate(([title, plan, extra]) => { const T = window.__DT_TEST__; const w = T.W(); w.items.push(T.mkItem(w, Object.assign({ kind: "todo", title, plan }, extra || {}))); T.save(); T.render(); }, [title, plan, extra || null]);
+
+test("daily: ticking moves a task between Incomplete and Completed, with counts; unticking moves it back", async () => {
   await open();
-  await page.evaluate(() => { const T = window.__DT_TEST__; const w = T.W(); w.items.push(T.mkItem(w, { kind: "todo", title: "Yesterday's reading", plan: "2026-10-29" })); T.save(); T.render(); });
   await add("Today A"); await add("Today B");
+  assert.deepEqual((await sec("dailyOpen")).sort(), ["Today A", "Today B"]);
   await page.locator(".dt-row", { hasText: "Today A" }).locator(".dt-check").click();
-  const f = async v => { await page.click(`[data-act=dailyf][data-v=${v}]`); await page.waitForTimeout(40); return (await rows()).map(r => r.t).sort(); };
-  assert.deepEqual(await f("all"), ["Today A", "Today B", "Yesterday's reading"]);
-  assert.deepEqual(await f("today"), ["Today A", "Today B"]);
-  assert.deepEqual(await f("pending"), ["Today B", "Yesterday's reading"]);
-  assert.deepEqual(await f("completed"), ["Today A"]);
+  assert.deepEqual(await sec("dailyOpen"), ["Today B"]);
+  assert.deepEqual(await sec("dailyDone"), ["Today A"]);
+  assert.match(await page.textContent("#dailyOpenH"), /Incomplete\s*1/); assert.match(await page.textContent("#dailyDoneH"), /Completed\s*1/);
+  await page.locator("#dailyDone .dt-row", { hasText: "Today A" }).locator(".dt-check").click();
+  assert.deepEqual((await sec("dailyOpen")).sort(), ["Today A", "Today B"]);
+  assert.deepEqual(await sec("dailyDone"), []);
+});
+
+test("daily: overdue tasks stay in Incomplete, first and clearly marked; nothing is completed or deleted by itself", async () => {
+  await open();
+  await seed("Yesterday's reading", "2026-10-29"); await add("Today A"); await seed("Next week", "2026-11-05");
+  assert.deepEqual(await sec("dailyOpen"), ["Yesterday's reading", "Today A", "Next week"]);
+  const over = page.locator("#dailyOpen .dt-row", { hasText: "Yesterday's reading" });
+  assert.ok(await over.evaluate(r => r.classList.contains("overdue")));
+  assert.match(await over.textContent(), /Overdue/);
+  assert.doesNotMatch(await page.locator("#dailyOpen .dt-row", { hasText: "Today A" }).textContent(), /Overdue/);
+  const it = (await ws(page)).items.find(i => i.title === "Yesterday's reading");
+  assert.equal(it.status, "todo"); assert.equal(it.plan, "2026-10-29", "not moved by itself");
+  assert.match(await page.textContent("#dailyOverdue"), /1 overdue/);
+});
+
+test("daily: move to tomorrow keeps the same task (same id, notes), records where it came from, no duplicate", async () => {
+  await open();
+  await seed("Read chapter 5", "2026-10-29", { notes: "pages 40-60", priority: "high" });
+  const id0 = (await ws(page)).items.find(i => i.title === "Read chapter 5").id;
+  await page.locator("#dailyOpen .dt-row", { hasText: "Read chapter 5" }).locator("[data-act=dailytomorrow]").click();
+  const items = (await ws(page)).items.filter(i => i.title === "Read chapter 5");
+  assert.equal(items.length, 1, "no copy made");
+  assert.equal(items[0].id, id0); assert.equal(items[0].plan, "2026-10-31"); assert.equal(items[0].notes, "pages 40-60"); assert.equal(items[0].priority, "high");
+  assert.deepEqual(items[0].movedFrom, ["2026-10-29"]);
+  assert.equal(items[0].status, "todo", "still incomplete");
+  assert.doesNotMatch(await page.locator("#dailyOpen .dt-row", { hasText: "Read chapter 5" }).textContent(), /Overdue/);
+  assert.match(await page.textContent("#toastMsg"), /tomorrow/i);
+  await page.click("#toastUndo");
+  const back = (await ws(page)).items.find(i => i.title === "Read chapter 5");
+  assert.equal(back.plan, "2026-10-29"); assert.ok(!back.movedFrom || !back.movedFrom.length, "undo restores it exactly");
+});
+
+test("daily: move to a chosen date; past dates are refused; moving twice doesn't repeat the history", async () => {
+  await open();
+  await add("Plan the trip");
+  const row = () => page.locator("#dailyOpen .dt-row", { hasText: "Plan the trip" });
+  await row().locator("[data-act=dailymove]").click();
+  await page.fill("#dtMoveDate", "2026-10-20"); await page.click("[data-act=dailymovego]");
+  assert.match(await page.textContent("#toastMsg"), /today or a later day/i);
+  assert.equal((await ws(page)).items.find(i => i.title === "Plan the trip").plan, "2026-10-30");
+  await page.fill("#dtMoveDate", "2026-11-04"); await page.click("[data-act=dailymovego]");
+  let it = (await ws(page)).items.find(i => i.title === "Plan the trip");
+  assert.equal(it.plan, "2026-11-04"); assert.deepEqual(it.movedFrom, ["2026-10-30"]);
+  assert.match(await row().textContent(), /4 Nov/);
+  await row().locator("[data-act=dailytomorrow]").click();
+  await row().locator("[data-act=dailymove]").click(); await page.fill("#dtMoveDate", "2026-11-04"); await page.click("[data-act=dailymovego]");
+  it = (await ws(page)).items.find(i => i.title === "Plan the trip");
+  assert.deepEqual(it.movedFrom, ["2026-10-30", "2026-11-04", "2026-10-31"], "each day once, in order");
+  assert.equal((await ws(page)).items.filter(i => i.title === "Plan the trip").length, 1);
 });
 
 test("daily: empty title is refused politely; everything survives a reload", async () => {

@@ -170,7 +170,7 @@ test("home: the Add box's 'Ask the assistant' sends the message to the assistant
 
 /* ---------- No outside AI for private planning ---------- */
 test("privacy: the page contains no AI keys and the planner makes no outside AI calls", async () => {
-  const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
+  const html = fs.readFileSync(path.join(__dirname, "..", "standalone.html"), "utf8");   // page + all app code in one file
   assert.doesNotMatch(html, /sk-ant-|x-api-key|x-goog-api-key|AIza|anthropic|generativelanguage/i, "no key, key header or AI provider in the page");
   await open();
   const calls = []; page.on("request", r => { if (!r.url().startsWith(env.base)) calls.push(r.url()); });
