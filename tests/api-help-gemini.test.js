@@ -223,3 +223,15 @@ test("a slow AI: the server stops waiting at its time limit and offers 'Try agai
     assert.match(r.json.message.text, /took too long/i);
   } finally { s4.stop(); }
 });
+
+test("website answers: guide numbers written inside sentences ('… study hours [4].') become sources, not text", async () => {
+  // seen live on 9 Nov: Gemini cited "[4]" in the middle of a sentence instead of in a last "Sources:" line
+  g.respond = () => ({ text: "Open the bell at the top to see reminders [1]. They also arrive by email if you turn it on [1][2].\n\n```python\nprint(items[1])\n```" });
+  const c = await signup(s.base, "Cite", "cite@example.com");   // its own user: the shared one has used its daily AI allowance by now
+  const r = await ask(c, "How do reminders work?");
+  const t = r.json.message.text;
+  assert.doesNotMatch(t.replace(/```[\s\S]*?```/g, ""), /\[\d+\]/, "no [n] left in the text: " + t);
+  assert.match(t, /see reminders\. They also arrive by email if you turn it on\./);
+  assert.match(t, /print\(items\[1\]\)/, "code is untouched");
+  assert.ok(r.json.message.sources.length >= 1); assert.equal(r.json.message.kind, "website");
+});

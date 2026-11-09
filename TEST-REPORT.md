@@ -1,6 +1,6 @@
 # Test report: Deadline Tracker
 
-**Latest full run (9 Nov 2026, Deadline AI + to-do tracking): 444 of 444 tests pass, twice in a row.** Earlier first report: 140 of 140 (two full runs in a row, about 3.5 minutes each).
+**Latest full run (9 Nov 2026, inline citations): 445 of 445 tests pass, twice in a row.** Earlier first report: 140 of 140 (two full runs in a row, about 3.5 minutes each).
 Every test runs the real app in Chromium with the clock fixed at **Friday 30 Oct 2026, 12:00 IST**, so dates are predictable.
 
 ## How it was done (test-driven)
@@ -404,3 +404,7 @@ The Vercel deploy of the redesign failed (Render was fine). Cause: Vercel allows
 | Owner's checklist on the real server: 5 tasks, 2 done = 40%, untick = 20%, database status, refresh, edit, delete; round buttons; weekly line | todo-tracking (3) | 3/3 failed |
 
 **Not tested here:** real Gemini answers (the test server uses a fake Gemini; real answers can only be checked on the live site after deploying). No streaming (answers appear whole after "Thinking…").
+
+## 9 Nov 2026 (5): live check after deploy, and inline citations
+Deployed `223acc8` (Vercel + Render). Live tests with the real Gemini through the owner's account (they appear in the owner's Help history): general knowledge ("capital of Australia, and why not Sydney?") answered in 2.1 s; a Python prime checker with a code block in 3.1 s; the follow-up "Now write the same thing in Java." understood in 2.3 s (same conversation); the question that failed in the morning ("make a schulde time table next seven days") answered fully with all 7 days in 2.6 s.
+Found live: Gemini sometimes cites guide numbers inside sentences ("… study hours [4]."), which showed as "[4]" in the text. Fix (branch `inline-sources`): such numbers become "From the help guide" sources and are removed from the text (not inside code). Test: api-help-gemini (red first).
