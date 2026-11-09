@@ -1,6 +1,6 @@
 # Test report: Deadline Tracker
 
-**Latest full run (9 Nov 2026): 420 of 420 tests pass, twice in a row.** Earlier first report: 140 of 140 (two full runs in a row, about 3.5 minutes each).
+**Latest full run (9 Nov 2026, Portale redesign): 428 of 428 tests pass, twice in a row.** Earlier first report: 140 of 140 (two full runs in a row, about 3.5 minutes each).
 Every test runs the real app in Chromium with the clock fixed at **Friday 30 Oct 2026, 12:00 IST**, so dates are predictable.
 
 ## How it was done (test-driven)
@@ -369,3 +369,18 @@ Changes: the build writes the code to content-named files (`assets/app.<hash>.js
 
 Screenshots checked: Daily tasks in light, dark, and 390 px (light and dark): no sideways scrolling, no browser errors.
 **Not covered / open:** real email and Telegram still untested with real credentials (not set on Render yet); speed was measured locally, not on Render/Vercel; days before this release have no saved record, so their history is worked out from the tasks (tasks deleted earlier aren't counted).
+
+## 9 Nov 2026 (2): "Portale" redesign: new look for the whole app + landing page
+**What changed:** colours, type and shapes for every page, the log-in and setup screens: white and near-black ink, soft grey glass, pale steel-blue accent (`#99b6d2`, with `#46617a` for steel text), Geist / Geist Mono, pill buttons (main buttons ink). Dark theme: neutral near-black (no navy). New landing page for logged-out visitors (`src/portal.js`): loader counting to 100%, a sunset desert drawn in SVG with a glass Deadline Tracker card, the headline blurring in word by word, then scrolling through the card into a white second screen ("Everything Planned / Before It's Due") that leads to sign-up. No outside images; the card shows today's real date only. Email branding changed from copper to ink.
+**Not changed:** app code structure, features, accounts, data. No React rewrite (the prompt's stack); the landing is plain JS like the rest of the app.
+
+| Area | Test | Red first |
+|---|---|---|
+| Palette: white/ink, neutral dark, steel accent; no navy/indigo/violet anywhere in `src/` | motion.test.js (rewritten palette test) | failed |
+| Geist + Geist Mono loaded, pill-shaped main buttons | ui-redesign.test.js (+1) | failed |
+| Landing: counter never goes back and reaches 100%, words revealed with no leftover blur, Log in / Get started open the right mode, scroll covers the screen and reveals the second screen, scroll back reverses, reduced motion, 390 px phone, who skips it | landing.test.js (7) | 7/7 failed |
+| Email branding | api-channels | failed |
+
+Updated for the intended design change: page title, flat headline (no 3D shadow), tests that open "/" now click "Log in" on the landing first.
+Screenshots checked: landing at 1440×900 (loader, intro, 5 scroll points), 390×844, 1280×720, 1920×1080, 2560×1080, 768×1024, 375×667 (no sideways scrolling, no errors, Geist loaded); app pages light/dark/phone; log-in light/dark/phone; setup. Fixed after looking: headline running off phones, card covering the headline, sideways tick on the card, a spinner-like ring, phone copy sliding under the nav, white-on-white log-in headline.
+**Open:** the pitch page keeps its older look; the landing is light-only (like the original), the app follows the chosen theme.

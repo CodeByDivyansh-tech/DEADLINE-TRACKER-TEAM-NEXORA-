@@ -69,6 +69,15 @@ test("text stays readable in both themes", async () => {
   }
 });
 
+test("type: Geist for headings and text, Geist Mono for numbers; main buttons are ink pills", async () => {
+  await onboard(page);
+  const f = await page.evaluate(() => ({ body: getComputedStyle(document.body).fontFamily, h: getComputedStyle(document.querySelector("h1, h2")).fontFamily, mono: getComputedStyle(document.documentElement).getPropertyValue("--font-mono") }));
+  assert.match(f.body, /^"?Geist"?,/); assert.match(f.h, /^"?Geist"?,/); assert.match(f.mono, /Geist Mono/);
+  assert.match(await page.evaluate(() => [...document.querySelectorAll('link[href*="fonts.googleapis.com"]')].map(l => l.href).join(" ")), /family=Geist:wght@300;400;500;600.*family=Geist\+Mono/);
+  const b = await page.$eval(".btn.primary", el => { const c = getComputedStyle(el); return { r: parseFloat(c.borderTopLeftRadius), h: el.getBoundingClientRect().height }; });
+  assert.ok(b.r >= b.h / 2 - 1, "pill-shaped");
+});
+
 test("panels are glass: translucent with a background blur", async () => {
   await onboard(page);
   for (const sel of [".card", ".hero", ".topbar", "#side"]) {

@@ -1,4 +1,33 @@
-# NEXORA / Deadline Tracker design system
+# Deadline Tracker design system: "Portale" (app, log-in and landing page, since 9 Nov 2026)
+
+Calm and professional: white and near-black ink, soft grey glass, one pale steel-blue accent, Geist type. The pitch (`/pitch`) keeps its own older look, described further down.
+
+## Colour
+| Role | Light | Dark | Used for |
+|---|---|---|---|
+| Background | `#ffffff` | `#0d0e0f` (neutral, never navy) | pages |
+| Ink | `#151515` / `#3a3a3a` / `#646464` | `#f2f2f0` / `#d2d2cf` / `#a3a3a0` | main / secondary / quiet text |
+| Main button (`--btn`) | `#161616` fill, white text | `#f2f2f0` fill, `#121212` text | one main action per area, pill-shaped |
+| Steel (`--steel`) | `#99b6d2` | `#99b6d2` | bars, rings, highlights, selected chips (never text on white: 1.9:1) |
+| Steel text (`--steel-ink`) | `#46617a` | `#b9cfe3` | links, focus rings, accent text |
+| Glass | `rgba(255,255,255,.66)` + blur 20px | `rgba(28,29,31,.62)` + blur | cards, sidebar, top bar |
+| Status | ok `#1b8a55`, attention `#946c00`, risk `#c4580a`, critical `#c2304f`, overdue `#bf281b` | brighter versions | meaning only, never decoration |
+
+Rules: blues only as soft steel (hue 195–220, saturation under 0.5); no navy, indigo or violet (a test checks every colour in `src/`). Text stays at 4.5:1 or more in both themes (tested).
+
+## Type
+Geist (300, 400, 500, 600) for everything, Geist Mono (400, 500) for numbers and small labels. Headings weight 400–500 with −0.02em tracking.
+
+## Shape and motion
+Buttons, tabs and chips are pills (100px radius). Cards 22px radius. Hover: buttons scale to 1.03 over 200 ms, `cubic-bezier(.22,1,.36,1)`.
+
+## Landing page (`src/portal.js`)
+Loader (pale wordmark + counter to 100%), a sunset desert drawn in SVG with a glass Deadline Tracker card, words blurring in, then scrolling through the card (it turns, lights, fills white and grows) into a white screen with a floating steel card and "Create free account". Sizes in design pixels: 1u = 1/1440 of the width (1/415 on phones), shrinking on short screens. Reduced motion: no counter, no zoom, a cross-fade. Shown only to logged-out visitors.
+
+---
+
+# Older identity (pitch only)
+
 
 One identity for the pitch (`/pitch`) and the app. It comes from the Deadline Tracker logo: a countdown ring that is almost full, a check mark, and a gold dot where time runs out.
 

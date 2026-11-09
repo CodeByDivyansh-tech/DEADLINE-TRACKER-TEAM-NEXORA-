@@ -39,7 +39,7 @@ test("email: sign-up sends one branded welcome email with a one-time confirm lin
   const subj = mailsTo("asha@example.com").map(x => x.body.subject);
   assert.equal(subj.filter(x => /Welcome/.test(x)).length, 1, "one welcome email: " + JSON.stringify(subj));
   assert.match(m.body.subject, /Welcome to Deadline Tracker, Asha/);
-  assert.match(m.body.htmlContent, /Confirm my email/); assert.match(m.body.htmlContent, /#a4501c/, "site branding");
+  assert.match(m.body.htmlContent, /Confirm my email/); assert.match(m.body.htmlContent, /#151515/, "site branding (ink)"); assert.doesNotMatch(m.body.htmlContent, /#a4501c/, "old copper gone");
   assert.match(m.body.textContent, /https:\/\/site\.example\/#verify=[A-Za-z0-9_-]{43}/);
   assert.doesNotMatch(JSON.stringify(m.body), /secret-pass-123/);
   const d = db(); const row = d.prepare("SELECT o.* FROM outbox o JOIN users u ON u.id = o.user_id WHERE u.email = ? AND kind = 'welcome'").get("asha@example.com");

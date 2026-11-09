@@ -10,7 +10,7 @@ after(() => s.stop());
 
 test("server: serves the app and the admin page, but never source, data, settings or keys", async () => {
   const r = await fetch(s.base + "/");
-  assert.equal(r.status, 200); assert.match(await r.text(), /<title>Deadline Tracker<\/title>/);
+  assert.equal(r.status, 200); assert.match(await r.text(), /<title>Deadline Tracker[^<]*<\/title>/);
   assert.match(r.headers.get("content-security-policy"), /frame-ancestors 'none'/);
   assert.equal(r.headers.get("x-content-type-options"), "nosniff");
   assert.equal((await fetch(s.base + "/admin")).status, 200);

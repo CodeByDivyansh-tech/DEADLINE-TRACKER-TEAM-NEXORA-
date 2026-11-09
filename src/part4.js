@@ -952,7 +952,12 @@ if (/[?&]dt-test\b/.test(location.search)) {
   if (acct) {
     ACCOUNT.on = true; ACCOUNT.user = acct.user;
     const verified = await takeVerifyToken();
-    if (takeResetToken() || !acct.user) { showAuth(null, false, verified); detectAI(); return; }
+    const resetting = takeResetToken();
+    if (resetting || !acct.user) {
+      if (!resetting && !verified && portalWanted()) showPortal();   // logged-out visitors first see the landing page
+      else showAuth(null, false, verified);
+      detectAI(); return;
+    }
     if (verified) setTimeout(() => toast(verified), 600);
     await initServerStore();
   } else initStore();

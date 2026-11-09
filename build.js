@@ -9,7 +9,7 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const ROOT = __dirname, ASSETS = path.join(ROOT, "assets");
-const parts = ["part1.html", "part2.js", "part3.js", "todo.js", "ai.js", "account.js", "widget.js", "motion.js", "part4.js"];
+const parts = ["part1.html", "part2.js", "part3.js", "todo.js", "ai.js", "account.js", "widget.js", "motion.js", "portal.js", "part4.js"];
 const read = p => fs.readFileSync(path.join(ROOT, "src", p), "utf8");
 
 const html = read("part1.html");

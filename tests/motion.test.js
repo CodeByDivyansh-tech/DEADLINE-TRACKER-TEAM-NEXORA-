@@ -163,16 +163,18 @@ test("log-in screen: the tab pill slides and the form is revealed from the side 
   assert.ok(await page.locator("#au-name").isVisible());
 });
 
-test("palette: warm ivory and copper in light, espresso and copper in dark; no black-and-blue", async () => {
+test("palette (Portale): white and near-black ink in light, neutral near-black in dark, a pale steel-blue accent; never navy or indigo", async () => {
   await onboard(page);
-  const hue = v => page.evaluate(v => { const c = document.createElement("canvas").getContext("2d"); c.fillStyle = getComputedStyle(document.documentElement).getPropertyValue(v).trim(); const h = c.fillStyle; const [r, g, b] = h.startsWith("#") ? [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255) : h.match(/[\d.]+/g).slice(0, 3).map(x => x / 255); const mx = Math.max(r, g, b), mn = Math.min(r, g, b); if (mx === mn) return { h: 0, s: 0 }; const d = mx - mn; let hh = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return { h: (hh * 60 + 360) % 360, s: d / (1 - Math.abs(mx + mn - 1)) }; }, v);
+  const col = v => page.evaluate(v => { const c = document.createElement("canvas").getContext("2d"); c.fillStyle = getComputedStyle(document.documentElement).getPropertyValue(v).trim(); const h = c.fillStyle; const [r, g, b] = h.startsWith("#") ? [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255) : h.match(/[\d.]+/g).slice(0, 3).map(x => x / 255); const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2; if (mx === mn) return { h: 0, s: 0, l }; const d = mx - mn; let hh = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return { h: (hh * 60 + 360) % 360, s: d / (1 - Math.abs(2 * l - 1)), l }; }, v);
   for (const t of ["light", "dark"]) {
     await page.evaluate(t => document.documentElement.setAttribute("data-theme", t), t);
-    const acc = await hue("--accent"), bg = await hue("--bg");
-    assert.ok(acc.h >= 10 && acc.h <= 45, `${t}: accent is copper, hue ${acc.h}`);
-    assert.ok(bg.s < .15 || (bg.h >= 15 && bg.h <= 50), `${t}: background is warm or neutral, hue ${bg.h}`);
+    const bg = await col("--bg"), ink = await col("--ink"), acc = await col("--steel");
+    assert.ok(bg.s < .1, `${t}: background is neutral (saturation ${bg.s.toFixed(2)})`);
+    assert.ok(t === "light" ? bg.l > .97 && ink.l < .12 : bg.l < .09 && ink.l > .9, `${t}: white/ink or ink/white`);
+    assert.ok(acc.h >= 195 && acc.h <= 220 && acc.s < .5, `${t}: steel accent (hue ${acc.h.toFixed(0)}, saturation ${acc.s.toFixed(2)})`);
   }
-  const src = ["part1.html", "part2.js", "part3.js", "account.js", "widget.js"].map(f => fs.readFileSync(path.join(__dirname, "..", "src", f), "utf8")).join("");
-  const blues = (src.match(/#[0-9a-f]{6}\b/gi) || []).filter(h => { const [r, g, b] = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255); const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; if (d < .2) return false; const hh = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; const deg = (hh * 60 + 360) % 360; return deg >= 200 && deg <= 290; });
-  assert.deepEqual([...new Set(blues)], [], "no blue or violet colours left in the app's code");
+  // CLAUDE.md: never navy or indigo. Blues are allowed only as soft steel (hue 195–220, saturation under 0.5); no violet at all.
+  const src = ["part1.html", "part2.js", "part3.js", "todo.js", "account.js", "widget.js", "portal.js"].map(f => fs.readFileSync(path.join(__dirname, "..", "src", f), "utf8")).join("");
+  const bad = (src.match(/#[0-9a-f]{6}\b/gi) || []).filter(h => { const [r, g, b] = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255); const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, l = (mx + mn) / 2; if (d < .12) return false; const sat = d / (1 - Math.abs(2 * l - 1)); const hh = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; const deg = (hh * 60 + 360) % 360; return (deg > 220 && deg <= 290) || (deg >= 195 && deg <= 220 && sat >= .5); });
+  assert.deepEqual([...new Set(bad)], [], "no navy, indigo or violet in the app's code");
 });

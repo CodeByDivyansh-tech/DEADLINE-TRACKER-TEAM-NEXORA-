@@ -104,7 +104,7 @@ test("admin page: 'Reset link' makes a one-time link to give to someone who can'
     await signup(sa.base, "Lena", "lena@example.com", "lena-password-1");
     const ctx = await browser.newContext(); ctx.__errors = []; ctxs.push(ctx);
     const page = await ctx.newPage(); page.on("pageerror", e => ctx.__errors.push(e.message));
-    await page.goto(sa.base + "/"); await page.waitForSelector(".auth-card");
+    await page.goto(sa.base + "/"); await page.click('#ptNav [data-pt="login"]'); await page.waitForSelector(".auth-card");   // logged-out visitors first see the landing page
     await page.fill("#au-email", "boss@example.com"); await page.fill("#au-pass", "admin-password"); await page.click("#authGo");
     await page.waitForSelector("#onb-name, #app:not([hidden])");
     await page.goto(sa.base + "/admin"); await page.click("[data-tab=users]");
