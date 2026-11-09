@@ -39,3 +39,20 @@ const single = html + (gsapJs ? `<script>\n${gsapJs}\n</script>\n` : "") + `<scr
 fs.writeFileSync(path.join(ROOT, "standalone.html"), single);
 const kb = n => (n / 1024).toFixed(0) + " KB";
 console.log(`Built index.html (${kb(page.length)}) + assets/${files.join(", assets/")} (${kb(appJs.length + gsapJs.length)}); standalone.html (${kb(single.length)})`);
+
+// `node build.js --public` (Vercel): also make public/ with only what the site serves. Kept here because
+// Vercel's build command may be at most 256 characters (a longer one made the 9 Nov deploy fail).
+if (process.argv.includes("--public")) {
+  const PUB = path.join(ROOT, "public");
+  fs.rmSync(PUB, { recursive: true, force: true });
+  fs.mkdirSync(path.join(PUB, "pitch-assets"), { recursive: true });
+  for (const f of ["index.html", "admin.html", "pitch.html", "logo.svg"]) fs.copyFileSync(path.join(ROOT, f), path.join(PUB, f));
+  fs.cpSync(ASSETS, path.join(PUB, "assets"), { recursive: true });
+  const PA = path.join(ROOT, "pitch-assets");
+  for (const f of fs.readdirSync(PA)) {
+    const src = path.join(PA, f);
+    if (fs.statSync(src).isDirectory()) { if (f === "screens" || f === "3d") fs.cpSync(src, path.join(PUB, "pitch-assets", f), { recursive: true }); }
+    else if (/\.(js|webp)$/.test(f)) fs.copyFileSync(src, path.join(PUB, "pitch-assets", f));
+  }
+  console.log("Made public/ for Vercel");
+}

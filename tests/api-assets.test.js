@@ -90,3 +90,21 @@ test("server: no keys or tokens in the page or the app files", async () => {
     assert.doesNotMatch(t, /AIza[0-9A-Za-z_-]{20,}|sk-ant-|xkeysib-|re_[A-Za-z0-9]{20,}|\d{8,10}:AA[0-9A-Za-z_-]{30,}|postgres(ql)?:\/\/[^"'\s]*:[^"'\s]*@/, f);
   }
 });
+
+test("Vercel: the build command fits Vercel's 256-character limit, and 'build.js --public' makes the whole site folder", () => {
+  // The deploy of 9 Nov failed only because the command had grown to 274 characters.
+  const v = JSON.parse(fs.readFileSync(path.join(ROOT, "vercel.json"), "utf8"));
+  assert.ok(v.buildCommand.length <= 256, `build command is ${v.buildCommand.length} characters`);
+  assert.equal(v.outputDirectory, "public");
+  const { execFileSync } = require("child_process");
+  const tmp = fs.mkdtempSync(path.join(require("os").tmpdir(), "vsim-"));
+  // only what .vercelignore lets through
+  for (const f of ["index.html", "admin.html", "pitch.html", "logo.svg", "pitch-assets", "vercel.json", "build.js", "src", "vendor", "package.json"]) fs.cpSync(path.join(ROOT, f), path.join(tmp, f), { recursive: true });
+  execFileSync("bash", ["-c", v.buildCommand], { cwd: tmp, stdio: "pipe" });
+  const pub = path.join(tmp, "public"), page = fs.readFileSync(path.join(pub, "index.html"), "utf8");
+  for (const f of [...page.matchAll(/src="\/assets\/([\w.]+\.js)"/g)].map(m => m[1])) assert.ok(fs.existsSync(path.join(pub, "assets", f)), f);
+  for (const f of ["admin.html", "pitch.html", "logo.svg", "pitch-assets/screens", "pitch-assets/3d"]) assert.ok(fs.existsSync(path.join(pub, f)), f);
+  assert.ok(fs.readdirSync(path.join(pub, "pitch-assets")).some(f => f.endsWith(".js")));
+  for (const f of ["src", "build.js", "vercel.json", "standalone.html", "package.json"]) assert.ok(!fs.existsSync(path.join(pub, f)), "not published: " + f);
+  fs.rmSync(tmp, { recursive: true, force: true });
+});

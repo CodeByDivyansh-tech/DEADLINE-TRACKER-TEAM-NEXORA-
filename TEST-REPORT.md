@@ -384,3 +384,6 @@ Screenshots checked: Daily tasks in light, dark, and 390 px (light and dark): no
 Updated for the intended design change: page title, flat headline (no 3D shadow), tests that open "/" now click "Log in" on the landing first.
 Screenshots checked: landing at 1440×900 (loader, intro, 5 scroll points), 390×844, 1280×720, 1920×1080, 2560×1080, 768×1024, 375×667 (no sideways scrolling, no errors, Geist loaded); app pages light/dark/phone; log-in light/dark/phone; setup. Fixed after looking: headline running off phones, card covering the headline, sideways tick on the card, a spinner-like ring, phone copy sliding under the nav, white-on-white log-in headline.
 **Open:** the pitch page keeps its older look; the landing is light-only (like the original), the app follows the chosen theme.
+
+## 9 Nov 2026 (3): deploy fix
+The Vercel deploy of the redesign failed (Render was fine). Cause: Vercel allows a build command of at most 256 characters, and adding the `assets/` copy made it 274. Fix: the copying moved into `node build.js --public`; `vercel.json` now runs only that. New test (api-assets): the command fits the limit, and running it on exactly the files `.vercelignore` uploads produces a complete `public/` (app files, admin, pitch) without source files. The page and app files are byte-identical to before.
