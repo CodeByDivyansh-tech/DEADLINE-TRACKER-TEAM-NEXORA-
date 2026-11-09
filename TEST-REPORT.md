@@ -1,6 +1,6 @@
 # Test report: Deadline Tracker
 
-**Latest full run (9 Nov 2026, Portale redesign): 428 of 428 tests pass, twice in a row.** Earlier first report: 140 of 140 (two full runs in a row, about 3.5 minutes each).
+**Latest full run (9 Nov 2026, Deadline AI + to-do tracking): 444 of 444 tests pass, twice in a row.** Earlier first report: 140 of 140 (two full runs in a row, about 3.5 minutes each).
 Every test runs the real app in Chromium with the clock fixed at **Friday 30 Oct 2026, 12:00 IST**, so dates are predictable.
 
 ## How it was done (test-driven)
@@ -387,3 +387,20 @@ Screenshots checked: landing at 1440×900 (loader, intro, 5 scroll points), 390�
 
 ## 9 Nov 2026 (3): deploy fix
 The Vercel deploy of the redesign failed (Render was fine). Cause: Vercel allows a build command of at most 256 characters, and adding the `assets/` copy made it 274. Fix: the copying moved into `node build.js --public`; `vercel.json` now runs only that. New test (api-assets): the command fits the limit, and running it on exactly the files `.vercelignore` uploads produces a complete `public/` (app files, admin, pitch) without source files. The page and app files are byte-identical to before.
+
+## 9 Nov 2026 (4): Deadline AI as a general assistant; to-do completion tracking
+**Why Deadline AI "didn't answer"** (checked on the live server's own logs: Google answered every call that morning; the answers were lost in our code):
+1. Every answer had to be a JSON object and was capped at 900 tokens. Long answers (timetables, code, explanations) were cut off, the JSON broke, and people saw "I don't know that one" or a pasted help-guide paragraph. Live example: "make a schedule time table next seven days" got a help-guide paragraph.
+2. The model could mark normal questions (even "hallo") as "not found" → "I don't know".
+3. The style rules forbade code and tables, and the money converter turned "$" in code into "₹".
+4. The browser waited forever if the server didn't answer (e.g. asleep).
+**Fixes:** plain Markdown answers; up to 4096 tokens (GEMINI_MAX_TOKENS) and 12,000 characters, with a "cut short, ask me to continue" note if Google stops early; code blocks and tables allowed and shown properly (language label, Copy button, sideways scroll inside the block); money conversion skips code; 12 earlier messages for follow-ups (max ~16,000 characters); website questions still only from the guide (`NOT_IN_GUIDE` → honest answer + admin sees it; "Sources: [n]" line → "From the help guide"); server time limit 30 s, browser 60 s; every failure (outage, quota, timeout, network) gets a plain message and "Try again"; "Thinking…" while waiting; one request per question even with double presses. Tasks are still never sent to Gemini (test).
+**To-do:** round 30 px tick buttons (bigger touch area), short arrival animation, "Pending" wording, Progress tile, and a weekly line under the 7-day chart ("Last 7 days: X of Y completed (Z%) · Best day").
+
+| Area | Test | Red first |
+|---|---|---|
+| Code/$ kept, no JSON mode, long answers, cut-short note, greetings, sources/NOT_IN_GUIDE, 12-message history, server timeout | api-help-gemini (+6, 3 updated) | 6/6 failed |
+| Code block + Copy + table, Thinking…, no double send, several messages, failure + Try again, browser timeout, network failure, nothing spills out of the window | help-ui (6) | 4/5 failed; overflow test confirmed red against the old CSS |
+| Owner's checklist on the real server: 5 tasks, 2 done = 40%, untick = 20%, database status, refresh, edit, delete; round buttons; weekly line | todo-tracking (3) | 3/3 failed |
+
+**Not tested here:** real Gemini answers (the test server uses a fake Gemini; real answers can only be checked on the live site after deploying). No streaming (answers appear whole after "Thinking…").

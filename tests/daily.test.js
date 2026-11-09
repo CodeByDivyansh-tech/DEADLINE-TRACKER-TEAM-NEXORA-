@@ -20,12 +20,12 @@ async function add(title, desc) {
 const rows = () => page.$$eval("#dailyOpen .dt-row, #dailyDone .dt-row", rs => rs.map(r => ({ t: r.querySelector(".dt-t").textContent.trim(), done: r.classList.contains("done") })));
 const progress = () => page.textContent("#dailyProgress");
 
-test("daily: a 'Daily tasks' page in the main menu with a simple add form and Incomplete / Completed sections", async () => {
+test("daily: a 'Daily tasks' page in the main menu with a simple add form and Pending / Completed sections", async () => {
   await open();
   assert.equal(await page.textContent("#pageTitle"), "Daily tasks");
   assert.equal(await page.locator("#side .nav > a[data-route=daily]").count(), 1, "in the main menu");
   for (const id of ["#dailyTitle", "#dailyDesc", "#dailyAdd"]) assert.equal(await page.isVisible(id), true, id);
-  assert.match(await page.textContent("#dailyOpenH"), /Incomplete\s*0/);
+  assert.match(await page.textContent("#dailyOpenH"), /Pending\s*0/);
   assert.match(await page.textContent("#dailyDoneH"), /Completed\s*0/);
   assert.match(await page.textContent("#dailyOpen"), /No tasks yet/i);
   assert.equal(await page.locator("#modal input[type=date], #dailyForm input[type=date], #dailyForm input[type=time]").count(), 0, "no date or time options");
@@ -38,12 +38,12 @@ test("daily: add four tasks, tick one, progress shows 1 of 4 — 25%; untick und
   assert.equal((await rows()).length, 4);
   assert.match(await page.textContent("#dailyOpen"), /Chapters 3 and 4/, "description shown");
   assert.match(await progress(), /0 of 4 completed\s*[—-]\s*0%/);
-  assert.match(await page.textContent("#dailyStats"), /4\s*Incomplete/); assert.match(await page.textContent("#dailyStats"), /0\s*Completed/);
+  assert.match(await page.textContent("#dailyStats"), /4\s*Pending/); assert.match(await page.textContent("#dailyStats"), /0\s*Completed/);
   await page.locator(".dt-row", { hasText: "Complete today's study plan" }).locator(".dt-check").click();
   assert.match(await progress(), /1 of 4 completed\s*[—-]\s*25%/);
   assert.equal(await page.$eval("#dailyBar", b => b.style.width), "25%");
   assert.ok((await rows()).find(r => r.t === "Complete today's study plan").done, "looks completed");
-  assert.match(await page.textContent("#dailyStats"), /3\s*Incomplete/); assert.match(await page.textContent("#dailyStats"), /1\s*Completed/);
+  assert.match(await page.textContent("#dailyStats"), /3\s*Pending/); assert.match(await page.textContent("#dailyStats"), /1\s*Completed/);
   await page.locator(".dt-row", { hasText: "Complete today's study plan" }).locator(".dt-check").click();
   assert.match(await progress(), /0 of 4 completed/);
   assert.equal((await ws(page)).items.find(i => i.title === "Complete today's study plan").status, "todo");
@@ -67,20 +67,20 @@ test("daily: edit and delete (with Undo)", async () => {
 const sec = async id => (await page.$$eval(`#${id} .dt-row .dt-t`, r => r.map(x => x.textContent.trim())));
 const seed = (title, plan, extra) => page.evaluate(([title, plan, extra]) => { const T = window.__DT_TEST__; const w = T.W(); w.items.push(T.mkItem(w, Object.assign({ kind: "todo", title, plan }, extra || {}))); T.save(); T.render(); }, [title, plan, extra || null]);
 
-test("daily: ticking moves a task between Incomplete and Completed, with counts; unticking moves it back", async () => {
+test("daily: ticking moves a task between Pending and Completed, with counts; unticking moves it back", async () => {
   await open();
   await add("Today A"); await add("Today B");
   assert.deepEqual((await sec("dailyOpen")).sort(), ["Today A", "Today B"]);
   await page.locator(".dt-row", { hasText: "Today A" }).locator(".dt-check").click();
   assert.deepEqual(await sec("dailyOpen"), ["Today B"]);
   assert.deepEqual(await sec("dailyDone"), ["Today A"]);
-  assert.match(await page.textContent("#dailyOpenH"), /Incomplete\s*1/); assert.match(await page.textContent("#dailyDoneH"), /Completed\s*1/);
+  assert.match(await page.textContent("#dailyOpenH"), /Pending\s*1/); assert.match(await page.textContent("#dailyDoneH"), /Completed\s*1/);
   await page.locator("#dailyDone .dt-row", { hasText: "Today A" }).locator(".dt-check").click();
   assert.deepEqual((await sec("dailyOpen")).sort(), ["Today A", "Today B"]);
   assert.deepEqual(await sec("dailyDone"), []);
 });
 
-test("daily: overdue tasks stay in Incomplete, first and clearly marked; nothing is completed or deleted by itself", async () => {
+test("daily: overdue tasks stay in Pending, first and clearly marked; nothing is completed or deleted by itself", async () => {
   await open();
   await seed("Yesterday's reading", "2026-10-29"); await add("Today A"); await seed("Next week", "2026-11-05");
   assert.deepEqual(await sec("dailyOpen"), ["Yesterday's reading", "Today A", "Next week"]);

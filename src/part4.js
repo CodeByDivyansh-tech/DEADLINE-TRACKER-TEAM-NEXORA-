@@ -943,7 +943,7 @@ function closeModalIfOnb(){ $("#onb").hidden = true; }
 /* Test seam: only exposed when the page is opened with ?dt-test (used by the automated tests). */
 if (/[?&]dt-test\b/.test(location.search)) {
   window.__DT_TEST__ = { motion: MOTION, showAuth: () => { ACCOUNT.mode = "login"; showAuth(); }, weekStats, parseQuick, extractFromText, radar, estimateInsight, checkinCandidate, rulesPlan, runReminders, AI, planFor, backwardPlan, chunkPlan, conflicts, notifs, availHours, progressOf, remainingH, mkItem, newWorkspace, levelOf,
-    SFX, get state(){ return state; }, set state(v){ state = v; }, W, render, save };
+    SFX, DW, get state(){ return state; }, set state(v){ state = v; }, W, render, save };
 }
 // Start: with the Deadline Tracker server you log in and your data comes from your account;
 // anywhere else (claude.ai, a plain file server) it's saved in this browser as before.

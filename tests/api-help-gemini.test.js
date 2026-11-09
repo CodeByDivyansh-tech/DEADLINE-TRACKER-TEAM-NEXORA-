@@ -35,7 +35,7 @@ test("help: a website question is answered by Gemini from the matching guide tex
   const sys = call.body.systemInstruction.parts[0].text;
   assert.match(sys, /answer ONLY from the HELP GUIDE/); assert.match(sys, /bin \(trash\)/, "the retrieved section is in the prompt");
   assert.doesNotMatch(sys, /Workload page shows/, "unrelated sections aren't sent");
-  assert.equal(call.body.generationConfig.responseMimeType, "application/json");
+  assert.equal(call.body.generationConfig.responseMimeType, undefined, "plain Markdown answers (JSON mode cut long answers off)");
   assert.ok(g.seen.some(x => /batchEmbedContents/.test(x.url) && x.body.requests[0].taskType === "RETRIEVAL_QUERY"), "the question is embedded for semantic search");
 });
 test("help: Hinglish and spelling mistakes still find the right part of the guide", async () => {
@@ -62,7 +62,7 @@ test("admin: 'focused' mode limits Help to the website and productivity tips", a
   assert.equal((await admin.put("/api/admin/settings", { scope: "focused" })).status, 200);
   g.respond = () => ({ text: JSON.stringify({ found: true, kind: "general", answer: "Paris.", sources: [] }) });
   const sys = (await ask(a, "What is the capital of France?"), g.chats().pop().body.systemInstruction.parts[0].text);
-  assert.match(sys, /Anything else.*set "found" to false/s);
+  assert.match(sys, /Anything else[^\n]*NOT_IN_GUIDE/);
   g.respond = () => ({ text: JSON.stringify({ found: false, kind: "other", answer: "", sources: [] }) });
   assert.match((await ask(a, "Who won the cricket match yesterday?")).json.message.text, /don't know/);
   await admin.put("/api/admin/settings", { scope: "all" });
@@ -97,9 +97,10 @@ test("errors: quota (429) pauses AI calls and still shows the guide; bad and emp
   assert.equal(r.status, 200); assert.equal(r.json.message.via, "kb"); assert.match(r.json.message.text, /free AI limit/); assert.match(r.json.message.text, /bell/i, "the matching guide text is shown");
   const n = g.chats().length; await ask(a, "How do I create a task?"); assert.equal(g.chats().length, n, "no calls while paused");
   await new Promise(x => setTimeout(x, 2100));
-  g.respond = () => ({ text: "Sure! Here is some text that is not JSON." });
+  // Plain text is now the normal answer format (it used to be thrown away because it wasn't JSON).
+  g.respond = () => ({ text: "Tick the round box next to the task." });
   const r2 = await ask(a, "How do I mark a task as complete?");
-  assert.equal(r2.json.message.via, "kb", "unchecked text isn't shown; the guide is"); assert.match(r2.json.message.text, /round box/);
+  assert.equal(r2.json.message.via, "ai"); assert.match(r2.json.message.text, /round box/);
   g.respond = () => ({ text: "" });
   const r3 = await ask(a, "How do I change a deadline?"); assert.equal(r3.status, 200); assert.equal(r3.json.message.via, "kb");
   const u = (await admin.get("/api/admin/usage")).json; assert.ok(u.days[0].quota >= 1 && u.days[0].error >= 1);
@@ -159,4 +160,66 @@ test("language: Hindi in Devanagari gets Hindi; the rule can't be removed by the
     assert.ok(sys.indexOf("Always answer in Hinglish.") < sys.indexOf("LATEST message is in English"), "the fixed language rule comes after the admin's text");
     assert.match(sys, /This rule overrides/);
   } finally { await admin.put("/api/admin/settings", { instructions: (await admin.get("/api/admin/settings")).json.default }); }
+});
+
+
+/* ---------- General assistant (9 Nov 2026): why answers went missing, and the fixes ----------
+   Answers had to be a JSON object capped at 900 tokens. Long answers (timetables, code) were cut off, the JSON
+   broke, and people saw "I don't know" or a pasted help-guide paragraph instead. Code was also forbidden, and
+   "$" inside code was turned into "₹". Now: plain Markdown, room for long answers, code allowed and left alone. */
+const lastBody = () => g.chats().pop().body;
+test("general assistant: code answers keep their code blocks and $ signs; no JSON wrapper; room for long answers", async () => {
+  const c = await signup(s.base, "Coder", "coder@example.com");
+  g.respond = () => ({ text: "Here's a function:\n\n```js\nconst greet = name => `Hi ${name}`;\nconsole.log(\"$5\");\n```\n\nIt costs $5 to run." });
+  const r = await ask(c, "Write a JavaScript function that greets someone");
+  const t = r.json.message.text;
+  assert.match(t, /```js\nconst greet = name => `Hi \$\{name\}`;\nconsole\.log\("\$5"\);\n```/, "code untouched: " + t);
+  assert.match(t, /It costs ₹5 to run\./, "money outside code still in rupees");
+  assert.equal(r.json.message.found, true); assert.equal(r.json.message.via, "ai"); assert.equal(r.json.message.kind, "general");
+  const b = lastBody();
+  assert.equal(b.generationConfig.responseMimeType, undefined, "no JSON mode");
+  assert.ok(b.generationConfig.maxOutputTokens >= 4096, "room for long answers: " + b.generationConfig.maxOutputTokens);
+  assert.match(b.systemInstruction.parts[0].text, /code block/i, "code is allowed");
+});
+test("general assistant: a greeting gets a friendly answer, not 'I don't know'", async () => {
+  g.respond = () => ({ text: "Hello! How can I help you today?" });
+  const r = await ask(a, "hallo");
+  assert.match(r.json.message.text, /Hello! How can I help/); assert.equal(r.json.message.found, true);
+});
+test("general assistant: long answers are kept whole; an answer cut off at the length limit is shown with a note", async () => {
+  const long = "## Timetable\n" + Array.from({ length: 300 }, (_, i) => `- Day ${i % 7 + 1}: study block ${i}`).join("\n");
+  g.respond = () => ({ text: long });
+  const r = await ask(a, "Make me a study timetable for the next seven days");
+  assert.ok(r.json.message.text.length >= long.length - 5, `kept ${r.json.message.text.length} of ${long.length}`);
+  g.respond = () => ({ text: "Part one of a very long answer", finishReason: "MAX_TOKENS" });
+  const r2 = await ask(a, "Explain the whole history of computing");
+  assert.match(r2.json.message.text, /Part one/); assert.match(r2.json.message.text, /cut short/i);
+});
+test("website answers: a 'Sources:' line becomes the help-guide note; NOT_IN_GUIDE becomes an honest answer the admin sees", async () => {
+  g.respond = () => ({ text: "Open the bell at the top to see reminders.\n\nSources: [1]" });
+  const r = await ask(a, "How do reminders work?");
+  assert.doesNotMatch(r.json.message.text, /Sources:/); assert.equal(r.json.message.sources.length, 1); assert.equal(r.json.message.kind, "website");
+  g.respond = () => ({ text: "NOT_IN_GUIDE" });
+  const r2 = await ask(a, "How do I export my tasks to a smartwatch in Deadline Tracker?");
+  assert.match(r2.json.message.text, /help guide doesn't cover/i); assert.equal(r2.json.message.found, false);
+  assert.ok((await admin.get("/api/admin/questions")).json.unanswered.some(x => /smartwatch/.test(x.question)));
+});
+test("follow-ups: the last 12 messages of the conversation go with each question", async () => {
+  const c = await signup(s.base, "Follow", "follow@example.com");
+  g.respond = () => ({ text: "Answer." });
+  let conv; for (let k = 1; k <= 8; k++) { const r = await ask(c, "Question number " + k, conv); conv = r.json.conversationId; }
+  const b = lastBody();
+  assert.equal(b.contents.length, 13, "12 earlier messages + the new question");
+  assert.equal(b.contents[b.contents.length - 1].parts[0].text, "Question number 8");
+});
+test("a slow AI: the server stops waiting at its time limit and offers 'Try again'", async () => {
+  const s4 = await startServer({ GEMINI_API_KEY: "test-key", GEMINI_BASE_URL: g.url, GEMINI_TIMEOUT_MS: "400" });
+  try {
+    const c = await signup(s4.base, "Slow", "slow@example.com");
+    g.respond = () => ({ text: "late", delay: 1500 });
+    const t0 = Date.now(); const r = await ask(c, "What is photosynthesis?");
+    assert.ok(Date.now() - t0 < 3000, "doesn't hang");
+    assert.equal(r.json.message.error, "timeout"); assert.equal(r.json.message.retry, "What is photosynthesis?");
+    assert.match(r.json.message.text, /took too long/i);
+  } finally { s4.stop(); }
 });

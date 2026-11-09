@@ -1328,7 +1328,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 
 .dt-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 12px;border-radius:14px;border:1px solid transparent;
   background:color-mix(in srgb,var(--surface) 55%,transparent);transition:background-color .2s,border-color .2s,transform .2s var(--ease);animation:riseIn .3s var(--ease) both}
 .dt-row:hover{border-color:var(--line);background:color-mix(in srgb,var(--surface) 80%,transparent)}
-.dt-check{width:26px;height:26px;border-radius:9px;border:2px solid color-mix(in srgb,var(--accent) 55%,var(--line));background:transparent;display:grid;place-items:center;color:transparent;padding:0;transition:all .2s var(--ease)}
+.dt-check{width:30px;height:30px;border-radius:50%;position:relative;border:2px solid color-mix(in srgb,var(--accent) 55%,var(--line));background:transparent;display:grid;place-items:center;color:transparent;padding:0;transition:all .2s var(--ease)}
 .dt-check svg{width:15px;height:15px}
 .dt-check:hover{border-color:var(--accent);background:var(--accent-soft)}
 .dt-row.done .dt-check{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);animation:popIn .25s var(--ease)}
@@ -1696,9 +1696,36 @@ input:focus,select:focus,textarea:focus{border-color:var(--steel-ink);box-shadow
 .pt-reduced .pt-r-card{animation:none}
 html.pt-open,html.pt-open body{overflow:hidden}
 body:has(#portal:not([hidden])) #bootSplash{display:none}
+
+/* Deadline AI answers: code blocks, tables, "Thinking…" */
+.md .md-code{margin:8px 0;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:color-mix(in srgb,var(--ink) 4%,var(--surface))}
+.md .code-h{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 6px 4px 12px;border-bottom:1px solid var(--line);font:500 11.5px/1.4 var(--font-mono);color:var(--muted);text-transform:lowercase}
+.md .code-h .btn{min-height:28px;padding:2px 10px;font-size:12px}
+.md pre{margin:0;padding:10px 12px;overflow-x:auto;max-width:100%}
+.md pre code{display:block;background:none;padding:0;font:400 12.5px/1.55 var(--font-mono);white-space:pre;color:var(--ink);tab-size:4}
+.md .md-table{overflow-x:auto;margin:8px 0;border:1px solid var(--line);border-radius:12px}
+.md table{border-collapse:collapse;width:100%;font-size:13px}
+.md th,.md td{padding:6px 10px;text-align:left;border-bottom:1px solid var(--line)}
+.md th{font-weight:500;background:var(--surface-2)}
+.md tr:last-child td{border-bottom:0}
+.typing-msg .bubble{display:flex;align-items:center;gap:8px}
+.typing-l{font-size:13px;color:var(--muted)}
+.msg .bubble{grid-template-columns:minmax(0,1fr)}
+.msg.ai .bubble,.msg .md{min-width:0}
+.dw .msg.ai .bubble{flex:1 1 auto}
+.md .md-code,.md .md-table{max-width:100%}
+
+/* to-do: round tick buttons with a bigger touch area; a short arrival animation when a task changes section */
+.dt-check::before{content:"";position:absolute;inset:-8px;border-radius:50%}
+.dt-row.just{animation:dtArrive .42s var(--ease) both}
+.dt-row.just .dt-check{animation:popIn .3s var(--ease)}
+@keyframes dtArrive{from{opacity:0;transform:translateY(-6px) scale(.98)}to{opacity:1;transform:none}}
+.dt-row.done .dt-check{background:var(--btn);border-color:var(--btn);color:var(--btn-ink)}
+.hist-week{display:grid;gap:2px;font-size:13px;color:var(--muted);padding-top:6px;border-top:1px solid var(--line)}
+.hist-week b{color:var(--ink);font-weight:500;font-size:14px}
 </style>
 <script defer src="/assets/gsap.92bb9a9647.js"></script>
-<script defer src="/assets/app.1bc23daeca.js"></script>
+<script defer src="/assets/app.4f9c271a29.js"></script>
 </head>
 <body>
 <!-- Shown only if starting takes longer than ~0.45 s (fades in late); hidden as soon as the log-in page or the app appears. -->

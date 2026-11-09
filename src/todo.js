@@ -163,6 +163,10 @@ function historyHTML(w){
       <p class="hist-cmp" id="histCompare">${esc(cmp)}</p>
       <h3 class="hc-h">7 days to ${esc(dShort(d))} <span>% completed each day</span></h3>
       <ol class="hist-chart" id="histChart">${bars}</ol>
+      ${(() => { const act = days.filter(x => x.s.total); if (!act.length) return `<p class="hist-week" id="histWeek">No tasks in these 7 days yet.</p>`;
+        const tot = act.reduce((a, x) => a + x.s.total, 0), dn = act.reduce((a, x) => a + x.s.done, 0);
+        const best = act.slice().sort((a, b) => pctOf(b.s) - pctOf(a.s) || b.s.done - a.s.done)[0];
+        return `<p class="hist-week" id="histWeek"><b>Last 7 days: ${dn} of ${tot} completed (${Math.round(dn / tot * 100)}%)</b><span>Best day: ${esc(dShort(best.k))} (${pctOf(best.s)}%) · ${act.length} active ${act.length === 1 ? "day" : "days"}</span></p>`; })()}
     </section>`;
 }
 
@@ -175,7 +179,7 @@ function dailyRowHTML(it, t){
   const moving = UI.dailyMove === it.id && !done;
   const day = !done && it.plan && it.plan !== t ? `<span class="dt-day">${over ? `<b class="dt-over">Overdue</b> · was due ` : ""}${esc(fmtDate(it.plan + "T12:00"))}</span>` : "";
   const acts = done ? "" : `<button class="ib" type="button" data-act="dailytomorrow" aria-label="Move ${esc(it.title)} to tomorrow" title="Move to tomorrow" ${it.plan === tomorrowKey(CTX.now) ? "hidden" : ""}>${IC.forward}</button><button class="ib" type="button" data-act="dailymove" aria-label="Move ${esc(it.title)} to another day" title="Move to a day" aria-expanded="${moving}">${IC.calendar}</button>`;
-  return `<li class="dt-row${done ? " done" : ""}${over ? " overdue" : ""}" data-id="${it.id}">
+  return `<li class="dt-row${done ? " done" : ""}${over ? " overdue" : ""}${UI.dailyJust === it.id ? " just" : ""}" data-id="${it.id}">
       <button class="dt-check" type="button" data-act="dailytoggle" aria-pressed="${done}" aria-label="${done ? "Mark as not done" : "Mark as done"}: ${esc(it.title)}">${IC.check}</button>
       <div class="dt-body"><span class="dt-t">${esc(it.title)}</span>${it.notes ? `<span class="dt-d">${esc(it.notes)}</span>` : ""}${day}${done && it.doneAt ? `<span class="dt-day">Done ${esc(fmtDate(it.doneAt))}</span>` : ""}</div>
       <div class="dt-acts">${acts}<button class="ib" type="button" data-act="dailyedit" aria-label="Edit ${esc(it.title)}" title="Edit">${IC.edit}</button><button class="ib del" type="button" data-act="dailydel" aria-label="Delete ${esc(it.title)}" title="Delete">${IC.trash}</button></div>
@@ -198,10 +202,10 @@ function viewDaily(){
     <section class="daily-head" aria-labelledby="dailyHeadT">
       <div class="dh-top"><div><p class="dh-date">${esc(new Date(CTX.now).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" }))}</p><h2 id="dailyHeadT">${s.total && s.done === s.total ? "All done for today" : "Today's progress"}</h2></div>
 </div>
-      <div class="dh-stats" id="dailyStats">${[["Total", s.total], ["Completed", s.done], ["Incomplete", s.total - s.done], ["Done", s.total ? pct + "%" : "–"]].map(([l, v]) => `<div><b>${v}</b><span>${l}</span></div>`).join("")}</div>
+      <div class="dh-stats" id="dailyStats">${[["Total", s.total], ["Completed", s.done], ["Pending", s.total - s.done], ["Progress", s.total ? pct + "%" : "–"]].map(([l, v]) => `<div><b>${v}</b><span>${l}</span></div>`).join("")}</div>
       <div class="dh-bar" role="progressbar" aria-label="Today's progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i id="dailyBar" style="width:${pct}%"></i></div>
       <p class="dh-prog" id="dailyProgress">${s.total ? `Progress: ${s.done} of ${s.total} completed — ${pct}%` : "No tasks for today yet. Add one below."}</p>
-      ${overdue ? `<p class="dh-over" id="dailyOverdue">${IC.alert}<span>${overdue} overdue from earlier days. They're at the top of Incomplete; move them or tick them off.</span></p>` : ""}
+      ${overdue ? `<p class="dh-over" id="dailyOverdue">${IC.alert}<span>${overdue} overdue from earlier days. They're at the top of Pending; move them or tick them off.</span></p>` : ""}
     </section>
     <form class="daily-form card" id="dailyForm" autocomplete="off">
       <div class="df-fields"><label class="sr" for="dailyTitle">Task</label><input id="dailyTitle" type="text" maxlength="140" placeholder="What do you want to get done today?" value="${esc(UI.dailyDraft || "")}">
@@ -209,7 +213,7 @@ function viewDaily(){
       <button class="btn primary" type="button" id="dailyAdd" data-act="dailyadd">${IC.plus}Add task</button>
     </form>
     <div class="daily-list" id="dailyList">
-      <section class="dl-sec" aria-labelledby="dailyOpenH"><h3 class="dl-h" id="dailyOpenH">Incomplete <span class="cnt">${open.length}</span></h3>
+      <section class="dl-sec" aria-labelledby="dailyOpenH"><h3 class="dl-h" id="dailyOpenH">Pending <span class="cnt">${open.length}</span></h3>
         <ul class="dt-list" id="dailyOpen">${open.length ? open.map(i => dailyRowHTML(i, t)).join("") : all.length ? empty("All caught up", "Nothing is waiting. Nice work.") : empty("No tasks yet", "Add your first one above. Keep it short, like “Finish the project work”.")}</ul></section>
       <section class="dl-sec" aria-labelledby="dailyDoneH"><h3 class="dl-h" id="dailyDoneH">Completed <span class="cnt">${doneAll.length}</span></h3>
         <ul class="dt-list" id="dailyDone">${doneShown.length ? doneShown.map(i => dailyRowHTML(i, t)).join("") : `<li class="dt-none">Tick a task when it's done and it moves here.</li>`}</ul>
@@ -259,7 +263,7 @@ document.addEventListener("click", e => {
       toast(`Moved "${it.title}" to ${fmtDate(v + "T12:00")}.`, () => { replaceItem(W(), before); save(); render(); }); break; }
     case "dailytoggle": { const it = findItem(id); if (!it) break; const was = isDone(it);
       it.status = was ? "todo" : "done"; it.doneAt = was ? null : nowIso(); touch(it); logItem(w, it, was ? `Reopened "${it.title}"` : `Completed "${it.title}"`);
-      save(); render(); if (!was) { sfx("success"); celebrateIfAllDone(w); } break; }
+      UI.dailyJust = it.id; save(); render(); UI.dailyJust = null; if (!was) { sfx("success"); celebrateIfAllDone(w); } break; }
     case "dailyedit": UI.dailyEdit = id; render(); setTimeout(() => { const i = $("#dtEditTitle"); if (i) { i.focus(); i.select(); } }, 0); break;
     case "dailycancel": UI.dailyEdit = null; render(); break;
     case "dailysave": dailySave(id); break;

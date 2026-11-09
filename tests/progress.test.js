@@ -30,7 +30,7 @@ const txt = sel => page.textContent(sel);
 test("today: total, completed, incomplete and percentage (completed / total × 100) with a bar", async () => {
   await open(SEED);
   const s = await txt("#dailyStats");
-  assert.match(s, /3\s*Total/); assert.match(s, /1\s*Completed/); assert.match(s, /2\s*Incomplete/); assert.match(s, /33%/);
+  assert.match(s, /3\s*Total/); assert.match(s, /1\s*Completed/); assert.match(s, /2\s*Pending/); assert.match(s, /33%/);
   assert.match(await txt("#dailyProgress"), /1 of 3 completed\s*[—-]\s*33%/);
   assert.equal(await page.$eval("#dailyBar", b => b.style.width), "33%");
   assert.match(await txt("#dailyOverdue"), /1 overdue/, "yesterday's open task is pointed out, not counted in today");

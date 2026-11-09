@@ -1328,7 +1328,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 
 .dt-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 12px;border-radius:14px;border:1px solid transparent;
   background:color-mix(in srgb,var(--surface) 55%,transparent);transition:background-color .2s,border-color .2s,transform .2s var(--ease);animation:riseIn .3s var(--ease) both}
 .dt-row:hover{border-color:var(--line);background:color-mix(in srgb,var(--surface) 80%,transparent)}
-.dt-check{width:26px;height:26px;border-radius:9px;border:2px solid color-mix(in srgb,var(--accent) 55%,var(--line));background:transparent;display:grid;place-items:center;color:transparent;padding:0;transition:all .2s var(--ease)}
+.dt-check{width:30px;height:30px;border-radius:50%;position:relative;border:2px solid color-mix(in srgb,var(--accent) 55%,var(--line));background:transparent;display:grid;place-items:center;color:transparent;padding:0;transition:all .2s var(--ease)}
 .dt-check svg{width:15px;height:15px}
 .dt-check:hover{border-color:var(--accent);background:var(--accent-soft)}
 .dt-row.done .dt-check{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);animation:popIn .25s var(--ease)}
@@ -1696,6 +1696,33 @@ input:focus,select:focus,textarea:focus{border-color:var(--steel-ink);box-shadow
 .pt-reduced .pt-r-card{animation:none}
 html.pt-open,html.pt-open body{overflow:hidden}
 body:has(#portal:not([hidden])) #bootSplash{display:none}
+
+/* Deadline AI answers: code blocks, tables, "Thinking…" */
+.md .md-code{margin:8px 0;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:color-mix(in srgb,var(--ink) 4%,var(--surface))}
+.md .code-h{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 6px 4px 12px;border-bottom:1px solid var(--line);font:500 11.5px/1.4 var(--font-mono);color:var(--muted);text-transform:lowercase}
+.md .code-h .btn{min-height:28px;padding:2px 10px;font-size:12px}
+.md pre{margin:0;padding:10px 12px;overflow-x:auto;max-width:100%}
+.md pre code{display:block;background:none;padding:0;font:400 12.5px/1.55 var(--font-mono);white-space:pre;color:var(--ink);tab-size:4}
+.md .md-table{overflow-x:auto;margin:8px 0;border:1px solid var(--line);border-radius:12px}
+.md table{border-collapse:collapse;width:100%;font-size:13px}
+.md th,.md td{padding:6px 10px;text-align:left;border-bottom:1px solid var(--line)}
+.md th{font-weight:500;background:var(--surface-2)}
+.md tr:last-child td{border-bottom:0}
+.typing-msg .bubble{display:flex;align-items:center;gap:8px}
+.typing-l{font-size:13px;color:var(--muted)}
+.msg .bubble{grid-template-columns:minmax(0,1fr)}
+.msg.ai .bubble,.msg .md{min-width:0}
+.dw .msg.ai .bubble{flex:1 1 auto}
+.md .md-code,.md .md-table{max-width:100%}
+
+/* to-do: round tick buttons with a bigger touch area; a short arrival animation when a task changes section */
+.dt-check::before{content:"";position:absolute;inset:-8px;border-radius:50%}
+.dt-row.just{animation:dtArrive .42s var(--ease) both}
+.dt-row.just .dt-check{animation:popIn .3s var(--ease)}
+@keyframes dtArrive{from{opacity:0;transform:translateY(-6px) scale(.98)}to{opacity:1;transform:none}}
+.dt-row.done .dt-check{background:var(--btn);border-color:var(--btn);color:var(--btn-ink)}
+.hist-week{display:grid;gap:2px;font-size:13px;color:var(--muted);padding-top:6px;border-top:1px solid var(--line)}
+.hist-week b{color:var(--ink);font-weight:500;font-size:14px}
 </style>
 </head>
 <body>
@@ -3470,6 +3497,10 @@ function historyHTML(w){
       <p class="hist-cmp" id="histCompare">${esc(cmp)}</p>
       <h3 class="hc-h">7 days to ${esc(dShort(d))} <span>% completed each day</span></h3>
       <ol class="hist-chart" id="histChart">${bars}</ol>
+      ${(() => { const act = days.filter(x => x.s.total); if (!act.length) return `<p class="hist-week" id="histWeek">No tasks in these 7 days yet.</p>`;
+        const tot = act.reduce((a, x) => a + x.s.total, 0), dn = act.reduce((a, x) => a + x.s.done, 0);
+        const best = act.slice().sort((a, b) => pctOf(b.s) - pctOf(a.s) || b.s.done - a.s.done)[0];
+        return `<p class="hist-week" id="histWeek"><b>Last 7 days: ${dn} of ${tot} completed (${Math.round(dn / tot * 100)}%)</b><span>Best day: ${esc(dShort(best.k))} (${pctOf(best.s)}%) · ${act.length} active ${act.length === 1 ? "day" : "days"}</span></p>`; })()}
     </section>`;
 }
 
@@ -3482,7 +3513,7 @@ function dailyRowHTML(it, t){
   const moving = UI.dailyMove === it.id && !done;
   const day = !done && it.plan && it.plan !== t ? `<span class="dt-day">${over ? `<b class="dt-over">Overdue</b> · was due ` : ""}${esc(fmtDate(it.plan + "T12:00"))}</span>` : "";
   const acts = done ? "" : `<button class="ib" type="button" data-act="dailytomorrow" aria-label="Move ${esc(it.title)} to tomorrow" title="Move to tomorrow" ${it.plan === tomorrowKey(CTX.now) ? "hidden" : ""}>${IC.forward}</button><button class="ib" type="button" data-act="dailymove" aria-label="Move ${esc(it.title)} to another day" title="Move to a day" aria-expanded="${moving}">${IC.calendar}</button>`;
-  return `<li class="dt-row${done ? " done" : ""}${over ? " overdue" : ""}" data-id="${it.id}">
+  return `<li class="dt-row${done ? " done" : ""}${over ? " overdue" : ""}${UI.dailyJust === it.id ? " just" : ""}" data-id="${it.id}">
       <button class="dt-check" type="button" data-act="dailytoggle" aria-pressed="${done}" aria-label="${done ? "Mark as not done" : "Mark as done"}: ${esc(it.title)}">${IC.check}</button>
       <div class="dt-body"><span class="dt-t">${esc(it.title)}</span>${it.notes ? `<span class="dt-d">${esc(it.notes)}</span>` : ""}${day}${done && it.doneAt ? `<span class="dt-day">Done ${esc(fmtDate(it.doneAt))}</span>` : ""}</div>
       <div class="dt-acts">${acts}<button class="ib" type="button" data-act="dailyedit" aria-label="Edit ${esc(it.title)}" title="Edit">${IC.edit}</button><button class="ib del" type="button" data-act="dailydel" aria-label="Delete ${esc(it.title)}" title="Delete">${IC.trash}</button></div>
@@ -3505,10 +3536,10 @@ function viewDaily(){
     <section class="daily-head" aria-labelledby="dailyHeadT">
       <div class="dh-top"><div><p class="dh-date">${esc(new Date(CTX.now).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" }))}</p><h2 id="dailyHeadT">${s.total && s.done === s.total ? "All done for today" : "Today's progress"}</h2></div>
 </div>
-      <div class="dh-stats" id="dailyStats">${[["Total", s.total], ["Completed", s.done], ["Incomplete", s.total - s.done], ["Done", s.total ? pct + "%" : "–"]].map(([l, v]) => `<div><b>${v}</b><span>${l}</span></div>`).join("")}</div>
+      <div class="dh-stats" id="dailyStats">${[["Total", s.total], ["Completed", s.done], ["Pending", s.total - s.done], ["Progress", s.total ? pct + "%" : "–"]].map(([l, v]) => `<div><b>${v}</b><span>${l}</span></div>`).join("")}</div>
       <div class="dh-bar" role="progressbar" aria-label="Today's progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i id="dailyBar" style="width:${pct}%"></i></div>
       <p class="dh-prog" id="dailyProgress">${s.total ? `Progress: ${s.done} of ${s.total} completed — ${pct}%` : "No tasks for today yet. Add one below."}</p>
-      ${overdue ? `<p class="dh-over" id="dailyOverdue">${IC.alert}<span>${overdue} overdue from earlier days. They're at the top of Incomplete; move them or tick them off.</span></p>` : ""}
+      ${overdue ? `<p class="dh-over" id="dailyOverdue">${IC.alert}<span>${overdue} overdue from earlier days. They're at the top of Pending; move them or tick them off.</span></p>` : ""}
     </section>
     <form class="daily-form card" id="dailyForm" autocomplete="off">
       <div class="df-fields"><label class="sr" for="dailyTitle">Task</label><input id="dailyTitle" type="text" maxlength="140" placeholder="What do you want to get done today?" value="${esc(UI.dailyDraft || "")}">
@@ -3516,7 +3547,7 @@ function viewDaily(){
       <button class="btn primary" type="button" id="dailyAdd" data-act="dailyadd">${IC.plus}Add task</button>
     </form>
     <div class="daily-list" id="dailyList">
-      <section class="dl-sec" aria-labelledby="dailyOpenH"><h3 class="dl-h" id="dailyOpenH">Incomplete <span class="cnt">${open.length}</span></h3>
+      <section class="dl-sec" aria-labelledby="dailyOpenH"><h3 class="dl-h" id="dailyOpenH">Pending <span class="cnt">${open.length}</span></h3>
         <ul class="dt-list" id="dailyOpen">${open.length ? open.map(i => dailyRowHTML(i, t)).join("") : all.length ? empty("All caught up", "Nothing is waiting. Nice work.") : empty("No tasks yet", "Add your first one above. Keep it short, like “Finish the project work”.")}</ul></section>
       <section class="dl-sec" aria-labelledby="dailyDoneH"><h3 class="dl-h" id="dailyDoneH">Completed <span class="cnt">${doneAll.length}</span></h3>
         <ul class="dt-list" id="dailyDone">${doneShown.length ? doneShown.map(i => dailyRowHTML(i, t)).join("") : `<li class="dt-none">Tick a task when it's done and it moves here.</li>`}</ul>
@@ -3566,7 +3597,7 @@ document.addEventListener("click", e => {
       toast(`Moved "${it.title}" to ${fmtDate(v + "T12:00")}.`, () => { replaceItem(W(), before); save(); render(); }); break; }
     case "dailytoggle": { const it = findItem(id); if (!it) break; const was = isDone(it);
       it.status = was ? "todo" : "done"; it.doneAt = was ? null : nowIso(); touch(it); logItem(w, it, was ? `Reopened "${it.title}"` : `Completed "${it.title}"`);
-      save(); render(); if (!was) { sfx("success"); celebrateIfAllDone(w); } break; }
+      UI.dailyJust = it.id; save(); render(); UI.dailyJust = null; if (!was) { sfx("success"); celebrateIfAllDone(w); } break; }
     case "dailyedit": UI.dailyEdit = id; render(); setTimeout(() => { const i = $("#dtEditTitle"); if (i) { i.focus(); i.select(); } }, 0); break;
     case "dailycancel": UI.dailyEdit = null; render(); break;
     case "dailysave": dailySave(id); break;
@@ -4583,7 +4614,7 @@ async function takeVerifyToken(){
    - My Plan: your own tasks. The same assistant as the Assistant page:
      it suggests, you approve, then it saves.
    ========================================================= */
-const DW = { open: false, tab: "help", busy: false, draft: { help: "", plan: "" }, sugg: null, helpConv: null, helpMsgs: [], helpLoaded: false };
+const DW = { open: false, tab: "help", busy: false, timeoutMs: 60000, draft: { help: "", plan: "" }, sugg: null, helpConv: null, helpMsgs: [], helpLoaded: false };
 // With the server, Help conversations are stored on the server (history); without it they stay in this browser.
 const helpChat = () => { if (ACCOUNT.on) return DW.helpMsgs; state.helpChat = state.helpChat || []; return state.helpChat; };
 const fromServerMsg = m => ({ id: m.id, role: m.role === "user" ? "user" : "ai", text: m.text, t: m.createdAt, found: m.found, sources: m.sources || [], via: m.via, qid: m.qid, error: !!m.error, retry: m.retry, kind: m.kind });
@@ -4598,27 +4629,38 @@ async function loadHelpHistory(){
   } catch (e) {}
 }
 const PLAN_SUGG = { student: ["What should I complete tomorrow?", "I have too much work. Help me organise it.", "kal Java assignment submit karna hai aur DSA practice 2 ghante"], company: ["What should I complete tomorrow?", "I have too much work. Help me organise it.", "Tomorrow I need to finish the API docs and prepare the demo"], personal: ["What should I complete tomorrow?", "I have too much work. Help me organise it.", "Tomorrow I need to pay the electricity bill and call mom"] };
-const HELP_SUGG = ["How do I create a task?", "How do reminders work?", "Task kaise delete kare?", "Does the assistant invent deadlines?"];
+const HELP_SUGG = ["How do reminders work?", "Explain recursion with a Python example", "Solve 2x + 5 = 17 step by step", "How can I stop procrastinating?"];
 // Questions about the person's own tasks belong in My Plan, not the help guide.
 const looksPersonal = t => planIntent(t, W(), Date.now()) || /\b(my|mere|meri|mera|mujhe)\b[\s\S]*\b(tasks?|deadlines?|work|kaam|day|schedule|exams?|assignments?)\b[\s\S]*\b(today|tomorrow|aaj|kal|this week|pending|left|due)\b|\bwhat('s| is) (due|pending|left)\b|\bwhat should i (do|complete|finish|focus on|start)\b/i.test(t);
 
 function dwTime(iso){ try { return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); } catch (e) { return ""; } }
-// Answers may use a little Markdown: "## " headings, "- " or "1." lists, **bold**, *italic*, `code`.
-// Everything is escaped first, so nothing in an answer can run as HTML.
+// Answers use Markdown: "## " headings, "- " or "1." lists, **bold**, *italic*, `code`, ``` code blocks ```
+// (with the language and a Copy button) and | tables |. Everything is escaped first, so nothing runs as HTML.
 function dwText(t){
-  const inline = s => s.replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>").replace(/(^|[^*\w])\*([^*\n]+)\*(?!\w)/g, "$1<em>$2</em>").replace(/`([^`\n]+)`/g, "<code>$1</code>");
-  const out = []; let para = [], list = null;
+  const inline = s => s.replace(/`([^`\n]+)`/g, (m, c) => `\u0000${c}\u0001`).replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>").replace(/(^|[^*\w])\*([^*\n]+)\*(?!\w)/g, "$1<em>$2</em>").replace(/\u0000([^\u0001]*)\u0001/g, "<code>$1</code>");
+  const out = []; let para = [], list = null, code = null, table = null;
   const flushP = () => { if (para.length) { out.push(`<p>${inline(para.join(" "))}</p>`); para = []; } };
   const flushL = () => { if (list) { out.push(`<${list.tag}>${list.items.map(i => `<li>${inline(i)}</li>`).join("")}</${list.tag}>`); list = null; } };
+  const cells = l => l.replace(/^\|/, "").replace(/\|$/, "").split("|").map(c => c.trim());
+  const flushT = () => { if (!table) return;
+    const rows = table.filter(l => !/^\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?$/.test(l));
+    if (table.length > 1 && rows.length < table.length) { const [h, ...b] = rows; out.push(`<div class="md-table"><table><thead><tr>${cells(h).map(c => `<th>${inline(c)}</th>`).join("")}</tr></thead><tbody>${b.map(r => `<tr>${cells(r).map(c => `<td>${inline(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`); }
+    else para.push(...table);
+    table = null; };
   esc(String(t || "")).split("\n").forEach(raw => {
+    if (code) { if (/^\s*```\s*$/.test(raw)) { out.push(`<div class="md-code"><div class="code-h"><span>${code.lang || "code"}</span><button type="button" class="btn ghost xs" data-act="dwcopy">${IC.copy || ""}Copy</button></div><pre><code>${code.lines.join("\n")}</code></pre></div>`); code = null; } else code.lines.push(raw); return; }
     const l = raw.trim(); let m;
+    if ((m = l.match(/^```\s*([\w#+.-]*)\s*$/))) { flushP(); flushL(); flushT(); code = { lang: m[1], lines: [] }; return; }
+    if (/^\|.*\|$/.test(l)) { flushP(); flushL(); (table = table || []).push(l); return; }
+    flushT();
     if (!l) { flushP(); flushL(); }
     else if ((m = l.match(/^#{1,6}\s+(.*)$/))) { flushP(); flushL(); out.push(`<h4>${inline(m[1].replace(/\s*#+$/, ""))}</h4>`); }
     else if ((m = l.match(/^(?:[-•*])\s+(.*)$/)) || (m = l.match(/^\d+[.)]\s+(.*)$/))) {
       const tag = /^\d/.test(l) ? "ol" : "ul"; flushP(); if (list && list.tag !== tag) flushL(); if (!list) list = { tag, items: [] }; list.items.push(m[1]);
     } else { flushL(); para.push(l); }
   });
-  flushP(); flushL();
+  if (code) out.push(`<div class="md-code"><div class="code-h"><span>${code.lang || "code"}</span><button type="button" class="btn ghost xs" data-act="dwcopy">Copy</button></div><pre><code>${code.lines.join("\n")}</code></pre></div>`);
+  flushT(); flushP(); flushL();
   return `<div class="md">${out.join("")}</div>`;
 }
 function helpMsgHTML(m){
@@ -4665,12 +4707,12 @@ function renderWidget(){
   const busy = help ? DW.busy : AI.busy;
   const name = (state.user.name || "").split(" ")[0];
   const empty = help
-    ? `<div class="dw-empty"><h3>${name ? `Hi ${esc(name)}! ` : ""}How can I help?</h3><p>Ask me anything: how Deadline Tracker works, study and planning tips, or any other question. Website answers come from the help guide, and I say when I don't know.</p>
+    ? `<div class="dw-empty"><h3>${name ? `Hi ${esc(name)}! ` : ""}How can I help?</h3><p>Ask me anything: coding, maths, science, studies, planning, or how Deadline Tracker works. I remember the conversation, so you can ask follow-ups.</p>
        ${AI.gemini ? `<p class="dw-privacy">${IC.info}<span>Help questions are answered with Google Gemini's free tier, which Google may use to improve its products. Your tasks are never sent; don't type private details here.</span></p>` : ""}
        <div class="dw-sugg">${(DW.sugg || HELP_SUGG).map(s => `<button type="button" data-act="dwsuggest" data-v="${esc(s)}">${esc(s)}</button>`).join("")}</div></div>`
     : `<div class="dw-empty"><h3>Plan with your own tasks</h3><p>Tell me your work in English or Hinglish, or ask what to do next. I only save after you approve.</p>
        <div class="dw-sugg">${(PLAN_SUGG[w.mode] || PLAN_SUGG.student).map(s => `<button type="button" data-act="dwsuggest" data-v="${esc(s)}">${esc(s)}</button>`).join("")}</div></div>`;
-  const typing = busy ? `<div class="msg ai typing-msg"><span class="orb sm spin" aria-hidden="true"></span><div class="bubble"><span class="typing" aria-label="Thinking"><i></i><i></i><i></i></span></div></div>` : "";
+  const typing = busy ? `<div class="msg ai typing-msg"><span class="orb sm spin" aria-hidden="true"></span><div class="bubble"><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span><span class="typing-l">Thinking…</span></div></div>` : "";
   const list = $("#dwMsgs"); const atEnd = list.scrollHeight - list.scrollTop - list.clientHeight < 40;
   list.innerHTML = (msgs.length ? msgs.map(help ? helpMsgHTML : planMsgHTML).join("") : empty) + typing;
   list.setAttribute("aria-labelledby", help ? "dwTabHelp" : "dwTabPlan");
@@ -4686,7 +4728,7 @@ function openWidget(tab){
   if (fresh) MOTION.dwOpen($("#dw"), $("#dwBtn"));
   setTimeout(() => { const i = $("#dwInput"); if (i && !i.disabled) i.focus(); }, 60);
   if (ACCOUNT.on && !DW.helpLoaded) loadHelpHistory();
-  if (ACCOUNT.on && !DW.sugg) apiJSON("GET", "/api/help/suggestions").then(r => { if (r.ok && r.json.help && r.json.help.length) { DW.sugg = r.json.help.concat(["Task kaise delete kare?"]).slice(0, 5); if (DW.tab === "help") renderWidget(); } }).catch(() => {});
+  if (ACCOUNT.on && !DW.sugg) apiJSON("GET", "/api/help/suggestions").then(r => { if (r.ok && r.json.help && r.json.help.length) { DW.sugg = r.json.help.slice(0, 2).concat(["Explain recursion with a Python example", "Solve 2x + 5 = 17 step by step"]); if (DW.tab === "help") renderWidget(); } }).catch(() => {});
 }
 // Closing folds the window back into its button first (instant with reduced motion).
 function closeWidget(){
@@ -4712,10 +4754,15 @@ async function sendHelp(text, opts = {}){
   DW.busy = true; renderWidget();
   let r;
   const currency = (state.user && state.user.currency) || "INR";
-  try { r = await apiJSON("POST", "/api/chat", { message: text, conversationId: DW.helpConv || undefined, currency }); if (r.status === 404 && DW.helpConv) { DW.helpConv = null; r = await apiJSON("POST", "/api/chat", { message: text, currency }); } }
-  catch (e) { r = { ok: false, json: { error: "Couldn't reach the server." } }; }
+  // The browser gives up after DW.timeoutMs (60 s) so a sleeping or unreachable server never leaves a spinner forever.
+  const ask = body => { const ctrl = new AbortController(), timer = setTimeout(() => ctrl.abort(), DW.timeoutMs);
+    return fetch("/api/chat", { method: "POST", credentials: "same-origin", cache: "no-store", signal: ctrl.signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+      .then(async x => { let j = null; try { j = await x.json(); } catch (e) {} if (x.status === 401 && ACCOUNT.user) signedOut(); return { ok: x.ok, status: x.status, json: j || {} }; })
+      .finally(() => clearTimeout(timer)); };
+  try { r = await ask({ message: text, conversationId: DW.helpConv || undefined, currency }); if (r.status === 404 && DW.helpConv) { DW.helpConv = null; r = await ask({ message: text, currency }); } }
+  catch (e) { r = { ok: false, json: { error: e.name === "AbortError" ? "It took too long to get an answer." : "Couldn't reach the server. Check your internet connection." } }; }
   DW.busy = false;
-  if (!r.ok) { chat.push({ id: rid("h"), role: "ai", error: true, retry: text, t: nowIso(), text: `Sorry, I couldn't answer just now. ${r.json.error || "The server didn't respond."} Please try again in a moment.` }); sfx("error"); }
+  if (!r.ok) { chat.push({ id: rid("h"), role: "ai", error: true, retry: text, t: nowIso(), text: `Sorry, I couldn't answer just now. ${r.json.error || "The server didn't respond."} Please try again.` }); sfx("error"); }
   else if (!r.json.message || !String(r.json.message.text || "").trim()) chat.push({ id: rid("h"), role: "ai", error: true, retry: text, t: nowIso(), text: "I didn't get an answer that time. Please try again." });
   else { DW.helpConv = r.json.conversationId; chat.push(fromServerMsg(r.json.message)); }
   DW.scroll = true; renderWidget();
@@ -4748,6 +4795,12 @@ document.addEventListener("click", e => {
         else { const before = helpChat().slice(); state.helpChat = []; save(); renderWidget(); toast("Cleared the help conversation.", () => { state.helpChat = before; save(); renderWidget(); }); }
       }
       else { const before = chatOf(w).slice(), conv = w.planConv; w.chat = []; w.planConv = null; save(); render(); toast("Cleared the My Plan conversation. Your tasks are unchanged.", () => { w.chat = before; w.planConv = conv; save(); render(); }); }
+      break; }
+    case "dwcopy": {
+      const pre = a.closest(".md-code"); const code = pre && pre.querySelector("code"); if (!code) break;
+      const done = () => toast("Copied the code.");
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code.textContent).then(done, () => toast("Couldn't copy. Select the code and copy it yourself.", null, null, "error"));
+      else toast("Couldn't copy. Select the code and copy it yourself.", null, null, "error");
       break; }
     case "dwretry": { const box = a.closest("[data-hmsg]"); const chat = helpChat(); const k = chat.findIndex(m => m.id === (box && box.dataset.hmsg)); if (k < 0) break; const msg = chat[k]; chat.splice(k, 1); sendHelp(msg.retry, { retry: true }); break; }
     case "dwrate": {
@@ -6132,7 +6185,7 @@ function closeModalIfOnb(){ $("#onb").hidden = true; }
 /* Test seam: only exposed when the page is opened with ?dt-test (used by the automated tests). */
 if (/[?&]dt-test\b/.test(location.search)) {
   window.__DT_TEST__ = { motion: MOTION, showAuth: () => { ACCOUNT.mode = "login"; showAuth(); }, weekStats, parseQuick, extractFromText, radar, estimateInsight, checkinCandidate, rulesPlan, runReminders, AI, planFor, backwardPlan, chunkPlan, conflicts, notifs, availHours, progressOf, remainingH, mkItem, newWorkspace, levelOf,
-    SFX, get state(){ return state; }, set state(v){ state = v; }, W, render, save };
+    SFX, DW, get state(){ return state; }, set state(v){ state = v; }, W, render, save };
 }
 // Start: with the Deadline Tracker server you log in and your data comes from your account;
 // anywhere else (claude.ai, a plain file server) it's saved in this browser as before.

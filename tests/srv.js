@@ -23,8 +23,11 @@ function fakeGemini(){
       if (/:batchEmbedContents$/.test(req.url)) { f.embeds++; if (f.embedFail) return send(503, { error: { status: "UNAVAILABLE", message: "down" } }); return send(200, { embeddings: body.requests.map(r => ({ values: fakeVector(r.content.parts[0].text) })) }); }
       if (/:generateContent$/.test(req.url)) {
         const r = f.respond(body);
-        if (r.status) return send(r.status, r.error);
-        return send(200, { candidates: [{ content: { role: "model", parts: [{ text: r.text }] }, finishReason: "STOP" }], usageMetadata: { promptTokenCount: 120, candidatesTokenCount: 30 } });
+        const go = () => {
+          if (r.status) return send(r.status, r.error);
+          send(200, { candidates: [{ content: { role: "model", parts: [{ text: r.text }] }, finishReason: r.finishReason || "STOP" }], usageMetadata: { promptTokenCount: 120, candidatesTokenCount: 30 } });
+        };
+        return r.delay ? setTimeout(go, r.delay) : go();   // r.delay: a slow answer (ms)
       }
       send(404, { error: { message: "not found" } });
     });
