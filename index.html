@@ -1723,9 +1723,90 @@ body:has(#portal:not([hidden])) #bootSplash{display:none}
 .dt-row.done .dt-check{background:var(--btn);border-color:var(--btn);color:var(--btn-ink)}
 .hist-week{display:grid;gap:2px;font-size:13px;color:var(--muted);padding-top:6px;border-top:1px solid var(--line)}
 .hist-week b{color:var(--ink);font-weight:500;font-size:14px}
+
+/* carry-forward and the day's task list in History */
+.dt-res{color:var(--steel-ink);font-weight:600}
+.ev.carried,.wcard.carried{border-left-style:dashed}
+.ev.carried::before,.wcard.carried b::before{content:"↻ ";color:var(--over)}
+.hist-sum{font-size:13px;color:var(--ink-2)}
+.hist-note{font-size:12.5px;color:var(--muted)}
+.hist-list{display:grid;gap:6px;max-height:300px;overflow-y:auto;padding-right:2px}
+.hist-list ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.hl-g{font-size:12px;font-weight:500;color:var(--muted);display:flex;gap:6px;align-items:center;margin-top:4px;text-transform:none}
+.hl-g .cnt{font-family:var(--font-mono);font-size:11px;padding:0 7px;border-radius:999px;background:var(--surface-2);color:var(--ink-2)}
+.hist-list li{display:grid;grid-template-columns:18px minmax(0,1fr);column-gap:8px;align-items:start;padding:7px 10px;border-radius:12px;border:1px solid var(--line);background:color-mix(in srgb,var(--surface) 55%,transparent)}
+.hl-i{width:18px;height:18px;border-radius:50%;border:1.5px solid color-mix(in srgb,var(--ink) 35%,transparent);display:grid;place-items:center;margin-top:1px}
+.hl-i svg{width:11px;height:11px}
+.hist-list li[data-st="done"] .hl-i{background:var(--btn);border-color:var(--btn);color:var(--btn-ink)}
+.hist-list li[data-st="moved"] .hl-i{border-style:dashed}
+.hl-t{font-size:13.5px;font-weight:500;overflow-wrap:anywhere}
+.hist-list li[data-st="done"] .hl-t{text-decoration:line-through;color:var(--muted)}
+.hl-m{grid-column:2;font:400 11.5px/1.4 var(--font-mono);color:var(--muted)}
+.hist-list li.carried .hl-m{color:var(--over)}
+
+/* Habit Tracker: same glass cards, tiles and tick buttons as Daily tasks */
+.hb-page{display:grid;gap:16px;grid-template-columns:minmax(0,1fr)}
+.hb-top{display:grid;gap:16px;grid-template-columns:minmax(0,1fr);align-items:start}
+@media (min-width:1100px){.hb-top{grid-template-columns:minmax(0,1.35fr) minmax(300px,1fr)}}
+.hb-left{display:grid;gap:16px;min-width:0}
+.df-fields.one{grid-template-columns:minmax(0,1fr)}
+.hb-card{border-radius:22px;padding:18px 20px;display:grid;gap:12px;min-width:0;align-content:start}
+.hb-card h3{font-size:16px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.hb-card h3 span{font-size:12.5px;font-weight:400;color:var(--muted)}
+.hb-n{font-weight:500;overflow-wrap:anywhere}
+.hb-row .dt-body{align-self:center}
+.hb-row.done .hb-n{color:var(--muted)}
+.hb-s{color:var(--steel-ink)}
+.hb-none{font-size:13.5px;color:var(--muted);list-style:none}
+.hb-arch{margin-top:6px}
+.hb-arch summary{cursor:pointer;font-size:13px;color:var(--muted);padding:6px 2px;width:max-content}
+.hb-arch .dt-list{margin-top:6px}
+.hb-row.arch{opacity:.85}
+.hb-rank,.hb-pick,.hb-weeks{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.hb-rank li{display:grid;gap:5px}
+.hr-top{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.hr-n{font-weight:500;font-size:14px;margin-right:auto;overflow-wrap:anywhere}
+.hr-p{font:500 13.5px/1 var(--font-mono);color:var(--ink)}
+.hr-c,.hr-s{font:400 11.5px/1.4 var(--font-mono);color:var(--muted)}
+.hb-pick li{display:flex;justify-content:space-between;gap:10px;align-items:baseline;font-size:14px}
+.hb-pick li b{font-weight:500;overflow-wrap:anywhere}
+.hb-pick li span{font:400 12px/1.4 var(--font-mono);color:var(--muted);white-space:nowrap}
+.hb-two{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))}
+.hb-mh{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.hb-mh h3{font-size:20px}
+.hb-weeks{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.hb-week{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 12px;border-radius:14px;border:1px solid var(--line);background:color-mix(in srgb,var(--surface) 55%,transparent)}
+.hb-week.now{border-color:color-mix(in srgb,var(--steel) 60%,transparent);background:var(--steel-soft)}
+.hb-week b{display:block;font-size:13px;font-weight:500}
+.hb-week i{font:normal 400 11.5px/1.3 var(--font-mono);color:var(--muted)}
+.hw-p{font:500 14px/1 var(--font-mono);color:var(--ink)}
+.hb-ring .trk{fill:none;stroke:color-mix(in srgb,var(--ink) 9%,transparent);stroke-width:4}
+.hb-ring .val{fill:none;stroke:var(--steel);stroke-width:4;stroke-linecap:round}
+.hb-gridwrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;overscroll-behavior-x:contain}
+.hb-table{border-collapse:separate;border-spacing:0;font-size:12px;min-width:100%}
+.hb-table th,.hb-table td{padding:3px 2px;text-align:center}
+.hb-table thead th{font-weight:400;color:var(--muted);padding-top:8px}
+.hb-table thead th span{display:block;font-size:10.5px}
+.hb-table thead th b{font:500 12px/1.4 var(--font-mono);color:var(--ink-2)}
+.hb-table th:first-child{position:sticky;left:0;z-index:1;text-align:left;padding:4px 12px;min-width:132px;max-width:190px;background:var(--surface);border-right:1px solid var(--line);font-weight:500;color:var(--ink)}
+.hb-table tfoot th{font-weight:400;color:var(--muted);font-size:11.5px}
+.hb-table .alt{background:color-mix(in srgb,var(--ink) 3.5%,transparent)}
+.hb-table .today{background:var(--steel-soft)}
+.hb-table thead .today b{color:var(--ink)}
+.hb-cell{width:24px;height:24px;border-radius:8px;border:1.5px solid color-mix(in srgb,var(--ink) 26%,transparent);background:transparent;display:grid;place-items:center;padding:0;cursor:pointer;color:var(--btn-ink);transition:transform .15s var(--ease),background-color .15s}
+.hb-cell svg{width:13px;height:13px}
+.hb-cell:hover:not(:disabled){transform:scale(1.12);border-color:var(--ink)}
+.hb-cell[aria-pressed="true"]{background:var(--btn);border-color:var(--btn)}
+.hb-cell.pre{border-style:dashed;opacity:.6}
+.hb-cell:disabled{opacity:.28;cursor:default;border-style:dotted}
+.hb-bar{height:34px;width:10px;margin:4px auto 6px;display:flex;align-items:flex-end;border-radius:4px;background:color-mix(in srgb,var(--ink) 6%,transparent)}
+.hb-bar i{display:block;width:100%;border-radius:4px 4px 0 0;background:var(--steel)}
+.hb-hint{font-size:12.5px;color:var(--muted)}
+.hb-week b,.hb-week i{white-space:nowrap}
+@media (max-width:860px){.hb-weeks{grid-template-columns:repeat(2,minmax(0,1fr))}.hb-week{padding:8px;gap:6px}.hb-week .hb-ring{width:30px;height:30px}.hb-card{padding:16px}.hb-table th:first-child{min-width:104px;max-width:120px;padding-left:10px}}
 </style>
 <script defer src="/assets/gsap.92bb9a9647.js"></script>
-<script defer src="/assets/app.4f9c271a29.js"></script>
+<script defer src="/assets/app.21149750d6.js"></script>
 </head>
 <body>
 <!-- Shown only if starting takes longer than ~0.45 s (fades in late); hidden as soon as the log-in page or the app appears. -->

@@ -86,11 +86,11 @@ test("daily: overdue tasks stay in Pending, first and clearly marked; nothing is
   assert.deepEqual(await sec("dailyOpen"), ["Yesterday's reading", "Today A", "Next week"]);
   const over = page.locator("#dailyOpen .dt-row", { hasText: "Yesterday's reading" });
   assert.ok(await over.evaluate(r => r.classList.contains("overdue")));
-  assert.match(await over.textContent(), /Overdue/);
-  assert.doesNotMatch(await page.locator("#dailyOpen .dt-row", { hasText: "Today A" }).textContent(), /Overdue/);
+  assert.match(await over.textContent(), /Carried forward/);
+  assert.doesNotMatch(await page.locator("#dailyOpen .dt-row", { hasText: "Today A" }).textContent(), /Carried forward/);
   const it = (await ws(page)).items.find(i => i.title === "Yesterday's reading");
   assert.equal(it.status, "todo"); assert.equal(it.plan, "2026-10-29", "not moved by itself");
-  assert.match(await page.textContent("#dailyOverdue"), /1 overdue/);
+  assert.match(await page.textContent("#dailyOverdue"), /1 carried forward/);
 });
 
 test("daily: move to tomorrow keeps the same task (same id, notes), records where it came from, no duplicate", async () => {
@@ -103,7 +103,7 @@ test("daily: move to tomorrow keeps the same task (same id, notes), records wher
   assert.equal(items[0].id, id0); assert.equal(items[0].plan, "2026-10-31"); assert.equal(items[0].notes, "pages 40-60"); assert.equal(items[0].priority, "high");
   assert.deepEqual(items[0].movedFrom, ["2026-10-29"]);
   assert.equal(items[0].status, "todo", "still incomplete");
-  assert.doesNotMatch(await page.locator("#dailyOpen .dt-row", { hasText: "Read chapter 5" }).textContent(), /Overdue/);
+  assert.doesNotMatch(await page.locator("#dailyOpen .dt-row", { hasText: "Read chapter 5" }).textContent(), /Carried forward/);
   assert.match(await page.textContent("#toastMsg"), /tomorrow/i);
   await page.click("#toastUndo");
   const back = (await ws(page)).items.find(i => i.title === "Read chapter 5");

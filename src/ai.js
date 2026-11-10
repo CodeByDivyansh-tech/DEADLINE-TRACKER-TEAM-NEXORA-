@@ -261,7 +261,7 @@ function applyProposal(msg){
       if (a.type === "update") {
         const c = Object.assign({}, a.changes, a.date ? { date: a.date } : {});
         const parts = [];
-        if (c.date) { it.plan = c.date; if (isDone(it)) { it.status = "todo"; it.doneAt = null; } parts.push(`planned for ${fmtDate(c.date + "T12:00")}`); }
+        if (c.date) { setPlan(it, c.date); if (isDone(it)) { it.status = "todo"; it.doneAt = null; } parts.push(`planned for ${fmtDate(c.date + "T12:00")}`); }
         if (c.deadline && it.due) { it.originalDue = it.originalDue || it.due; const was = fmtDue(it.due); it.due = c.deadline + it.due.slice(10); parts.push(`deadline moved from ${was} to ${fmtDue(it.due)}`); }
         if (c.time !== undefined) { if (c.deadline && it.due && c.time) it.due = it.due.slice(0, 11) + c.time; else if (!c.deadline) it.time = c.time; }
         if (c.priority) { it.priority = c.priority; parts.push(`priority ${PRI[c.priority].label}`); }

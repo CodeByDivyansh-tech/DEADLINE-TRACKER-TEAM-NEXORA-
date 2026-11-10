@@ -1,6 +1,6 @@
 # Test report: Deadline Tracker
 
-**Latest full run (9 Nov 2026, inline citations): 445 of 445 tests pass, twice in a row.** Earlier first report: 140 of 140 (two full runs in a row, about 3.5 minutes each).
+**Latest full run (11 Nov 2026, carry-forward + Habit Tracker): 463 of 463 tests pass, twice in a row.** Earlier first report: 140 of 140 (two full runs in a row, about 3.5 minutes each).
 Every test runs the real app in Chromium with the clock fixed at **Friday 30 Oct 2026, 12:00 IST**, so dates are predictable.
 
 ## How it was done (test-driven)
@@ -408,3 +408,19 @@ The Vercel deploy of the redesign failed (Render was fine). Cause: Vercel allows
 ## 9 Nov 2026 (5): live check after deploy, and inline citations
 Deployed `223acc8` (Vercel + Render). Live tests with the real Gemini through the owner's account (they appear in the owner's Help history): general knowledge ("capital of Australia, and why not Sydney?") answered in 2.1 s; a Python prime checker with a code block in 3.1 s; the follow-up "Now write the same thing in Java." understood in 2.3 s (same conversation); the question that failed in the morning ("make a schulde time table next seven days") answered fully with all 7 days in 2.6 s.
 Found live: Gemini sometimes cites guide numbers inside sentences ("… study hours [4]."), which showed as "[4]" in the text. Fix (branch `inline-sources`): such numbers become "From the help guide" sources and are removed from the text (not inside code). Test: api-help-gemini (red first).
+
+## 11 Nov 2026: smart carry-forward, date-wise history, Habit Tracker
+**Found while inspecting:** the Today page counted unfinished tasks from earlier days, but the Daily tasks numbers and History didn't ("No tasks on this day" with 6 overdue tasks showing). History kept only numbers per day, not which tasks. A task's day could be changed in four places and only two recorded the move.
+**Carry-forward / history (src/todo.js):** one task is one item, never copied. `createdAt` is never changed; `plan` (scheduled day) and `doneAt` (really finished) are separate. Every change of day goes through `setPlan()` and is added to `it.moves` ({ at, from, to }); `movedFrom` is kept. For a day D a task is done (finished on D), pending (scheduled for D, or carried in from an earlier day) or moved (rescheduled away on D). A task finished later is still "not finished" for D. Today's numbers on Daily tasks now include carried tasks, the same as the Today page. Rows say "Carried forward · originally due …" or "Rescheduled · originally due … · now …". History lists the day's tasks (Completed / Still pending or Not finished that day / Moved) with "Scheduled", "Carried from …", "Finished …", "Moved to …". Each day's record now saves its task list (`dayLog[day].items`) and is never changed afterwards, so it survives edits and deletions. Calendar: a carried task also shows on today (dashed, marked), and stays on its first day.
+**Data:** no database change. `moves` is saved in each task's existing `extra` field; `dayLog` and `habits` in the saved app state. Old tasks and old day records keep working: old records (numbers only) keep their numbers and say the list may not match.
+**Habit Tracker (src/habits.js, new page in the sidebar):** add / edit / archive (history kept) / restore / delete with undo; today's checklist with one-click tick and undo; each date saved separately (`w.habits[].days`); month grid (tick any day up to today, future days locked), day-total bars, weeks of the month, per-habit % and days, current and best streak, tiles (active, done today, this week, this month), "Going well" and "Needs attention" (only after 3 tracked days). All numbers come from saved ticks.
+
+| Area | Test file |
+|---|---|
+| Carried label + original day, counted today, no copies, Today page agrees; completing completes the original; not falsely done on the first day; movement history; day lists; India time at 00:30; day change with the app open + record survives deletion; old records; calendar | carry (8, 7 red first) |
+| Updated for the new counting | progress (4 changed), daily (2 changed) |
+| Habits: add/Enter/empty/duplicate, tick/undo/reload, separate dates + locked future, streaks, edit/archive/restore/delete+undo, statistics, no made-up numbers, 390 px, contrast in both themes | habits (9, written before the page existed) |
+| Saved to the account on the real server (habits, ticks, moves) | todo-tracking (+1) |
+
+Screenshots checked: Daily tasks and Habit Tracker in dark, light and 390 px (fixed: week tiles wrapping on phones).
+**Not covered / to check on the live site:** midnight passing with the tab left open is tested by changing the clock, not by waiting; days before this release have no saved task list, so their lists are worked out from current tasks (deleted tasks are missing there); habits are per account, not shared in team workspaces; no habit reminders.

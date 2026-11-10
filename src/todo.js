@@ -37,7 +37,7 @@ function todoRowHTML(it, opts = {}){
   const when = [];
   const late = !done && it.due && new Date(it.due).getTime() < now;
   if (opts.showDay && it.plan) when.push(it.plan === tomorrowKey(now) ? "Tomorrow" : fmtDate(it.plan + "T12:00"));
-  if (!done && it.plan && it.plan < t && !late) when.push(`<span style="color:var(--risk)">From ${fmtDate(it.plan + "T12:00")}</span>`);
+  if (!done && it.plan && it.plan < t && !late) when.push(`<span style="color:var(--risk)">Carried from ${fmtDate(it.plan + "T12:00")}</span>`);
   if (it.time) when.push(fmtTime(`${it.plan || t}T${it.time}`));
   if (late) when.push(`<span class="tdue late">Overdue · was due ${fmtDate(it.due)}</span>`);
   else if (it.due) when.push(`<span class="tdue">${IC.flag}Due ${dueDay(it) === t ? "today" : dueDay(it) === tomorrowKey(now) ? "tomorrow" : fmtDate(it.due)} ${fmtTime(it.due)}</span>`);
@@ -102,42 +102,90 @@ function todoTabsHTML(w){
    ========================================================= */
 const dailyAll = w => myTasks(w).filter(i => !i.due);
 
-/* ---------- Day statistics (Daily progress + history) ----------
-   A task counts for day D when it was completed on D, or when it is planned for D and wasn't already finished
-   before D. Completed on D = finished that day. A task planned for D but finished later still counts as not done
-   for D (and as done on the day it was finished). Tasks moved away from D are shown as "moved", not in the total.
-   Each day's numbers are saved in w.dayLog[day] while that day is today; once the day is over the saved record is
-   never changed, so history isn't rewritten by later edits or deletions. */
+/* ---------- Day records (carry-forward, Daily progress, History) ----------
+   One task is one item; it is never copied. Three dates are kept apart: createdAt (never changed), plan (the day
+   it is scheduled for) and doneAt (when it was really finished). Every change of plan is added to it.moves
+   ({ at, from, to }), so we can tell which day a task belonged to on any date.
+   For a day D a task is:
+     done     finished on D (whatever day it was scheduled for)
+     pending  scheduled for D, or scheduled for an earlier day and still unfinished on D ("carried forward")
+     moved    it was D's task, and on D it was rescheduled to a later day (not counted in D's total)
+   A task finished after D is still "pending" for D: nothing is counted as done on a day it wasn't done.
+   Each day's record (numbers + task list) is saved in w.dayLog[D] while D is today and never changed afterwards,
+   so history survives later edits and deletions. Days without a record are worked out from the tasks. */
 const doneDay = i => isDone(i) ? (i.doneAt ? ymd(i.doneAt) : i.plan || null) : null;
-function dayStatsLive(w, d){
-  let total = 0, done = 0, moved = 0;
+const origPlan = i => (Array.isArray(i.moves) && i.moves.length && i.moves[0].from) || (Array.isArray(i.movedFrom) && i.movedFrom[0]) || i.plan || null;
+// the day a task was scheduled for, as things stood at the end of day d
+function planOn(i, d){
+  const m = Array.isArray(i.moves) ? i.moves : [];
+  if (!m.length) return i.plan || null;
+  let p = m[0].from || null;
+  for (const x of m) if (ymd(x.at) <= d) p = x.to;
+  return p;
+}
+// Every change of a task's day goes through here, so the movement history is always kept.
+function setPlan(it, dayKey){
+  const from = it.plan || null; dayKey = dayKey || null; if (from === dayKey) return;
+  if (from) { const m = Array.isArray(it.movedFrom) ? it.movedFrom.slice() : []; if (!m.includes(from)) m.push(from); it.movedFrom = m.slice(-60); }
+  const mv = (Array.isArray(it.moves) ? it.moves.slice() : []).concat([{ at: nowIso(), from, to: dayKey }]);
+  while (mv.length > 40) mv.splice(1, 1);   // keep the first (the original day) and the latest
+  it.moves = mv; it.plan = dayKey;
+}
+function dayEntries(w, d){
+  const out = [];
   for (const i of dailyAll(w)) {
-    const dd = doneDay(i);
-    if (dd === d) { total++; done++; }
-    else if (i.plan === d && !(dd && dd < d)) total++;
-    else if ((i.movedFrom || []).includes(d)) moved++;
+    const dd = doneDay(i), p = planOn(i, d), mv = Array.isArray(i.moves) ? i.moves : [];
+    const e = { id: i.id, title: i.title };
+    if (dd === d) out.push(Object.assign(e, { st: "done", from: p && p < d ? p : null }));
+    else if (dd && dd < d) continue;
+    else if (!mv.length && (i.movedFrom || []).includes(d) && p !== d) out.push(Object.assign(e, { st: "moved", to: i.plan }));   // moved before movement times were kept
+    else if (p === d) out.push(Object.assign(e, { st: "pending", from: null }));
+    else if (p && p < d) out.push(Object.assign(e, { st: "pending", from: p }));
+    else if (p && p > d && mv.some(x => ymd(x.at) === d && x.from && x.from <= d)) out.push(Object.assign(e, { st: "moved", to: p }));
   }
-  return { total, done, moved };
+  return out;
 }
-function dayStats(w, d){
-  const t = todayKey(CTX.now);
-  if (d < t && w.dayLog && w.dayLog[d]) { const r = w.dayLog[d]; return { total: +r.total || 0, done: +r.done || 0, moved: +r.moved || 0, saved: true }; }
-  return dayStatsLive(w, d);
+const countEntries = list => ({ total: list.filter(e => e.st !== "moved").length, done: list.filter(e => e.st === "done").length, moved: list.filter(e => e.st === "moved").length });
+function dayStatsLive(w, d){ return countEntries(dayEntries(w, d)); }
+// numbers and task list for a day: the saved record for past days, live for today
+function dayData(w, d){
+  const t = todayKey(CTX ? CTX.now : Date.now()), r = d < t && w.dayLog && w.dayLog[d];
+  if (r && Array.isArray(r.items)) {
+    const entries = r.items.map(x => ({ id: x[0], title: x[1], st: x[2] === "d" ? "done" : x[2] === "m" ? "moved" : "pending", from: x[2] !== "m" ? x[3] || null : null, to: x[2] === "m" ? x[3] || null : null }));
+    return { total: +r.total || 0, done: +r.done || 0, moved: +r.moved || 0, entries, saved: true };
+  }
+  const entries = dayEntries(w, d);
+  if (r) return { total: +r.total || 0, done: +r.done || 0, moved: +r.moved || 0, entries, saved: true, numbersOnly: true };
+  return Object.assign(countEntries(entries), { entries });
 }
+const dayStats = dayData;
 const pctOf = s => s.total ? Math.round(s.done / s.total * 100) : 0;
 // called from save(): keeps today's record up to date; past days are left exactly as they were
 function recordDay(w){
   if (!w || !Array.isArray(w.items)) return;
-  const t = todayKey(Date.now()), s = dayStatsLive(w, t);
-  if (!s.total && !s.moved && !(w.dayLog && w.dayLog[t])) return;
+  const t = todayKey(Date.now()), list = dayEntries(w, t);
+  if (!list.length && !(w.dayLog && w.dayLog[t])) return;
   w.dayLog = w.dayLog || {};
-  w.dayLog[t] = s;
+  w.dayLog[t] = Object.assign(countEntries(list), { items: list.slice(0, 80).map(e => [e.id, String(e.title || "").slice(0, 80), e.st === "done" ? "d" : e.st === "moved" ? "m" : "p", (e.st === "moved" ? e.to : e.from) || ""]) });
   const keys = Object.keys(w.dayLog).sort(); if (keys.length > 800) keys.slice(0, keys.length - 800).forEach(k => delete w.dayLog[k]);   // about two years
 }
 const dShort = k => new Date(k + "T12:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }).replace(",", "");
 const dLong = k => { const d = new Date(k + "T12:00"); return `${d.toLocaleDateString("en-GB", { weekday: "long" })}, ${d.getDate()} ${d.toLocaleDateString("en-GB", { month: "long" })}`; };
 const shiftDay = (k, n) => ymd(addDays(new Date(k + "T12:00"), n));
 function statLine(s){ return s.total ? `${s.done} of ${s.total} completed — ${pctOf(s)}%` : "No tasks on this day"; }
+// The tasks of one day: completed, not finished (scheduled that day or carried in), and moved away.
+function histListHTML(w, d, s, t){
+  const E = s.entries || []; if (!E.length) return s.numbersOnly ? `<p class="hist-note" id="histNote">These numbers were saved before task lists were kept, so the tasks aren't listed.</p>` : "";
+  const sched = E.filter(e => e.st !== "moved" && !e.from).length, carried = E.filter(e => e.st !== "moved" && e.from).length, moved = E.filter(e => e.st === "moved").length;
+  const sum = [sched ? `${sched} scheduled for this day` : "", carried ? `${carried} carried forward from earlier days` : "", moved ? `${moved} moved to another day` : ""].filter(Boolean).join(" · ");
+  const fin = e => { const it = e.st === "pending" && w.items.find(i => i.id === e.id); const dd = it && doneDay(it); return dd && dd > d ? ` · Finished ${dShort(dd)}` : ""; };
+  const meta = e => e.st === "moved" ? (e.to ? `Moved to ${dShort(e.to)}` : "Moved to another day") : (e.from ? `Carried from ${dShort(e.from)}` : "Scheduled") + fin(e);
+  const group = (st, label, icon) => { const L = E.filter(e => e.st === st); if (!L.length) return "";
+    return `<h4 class="hl-g">${label} <span class="cnt">${L.length}</span></h4><ul>${L.map(e => `<li data-st="${st}"${e.from ? ` class="carried"` : ""}><span class="hl-i" aria-hidden="true">${icon}</span><span class="hl-t">${esc(e.title)}</span><span class="hl-m">${esc(meta(e))}</span></li>`).join("")}</ul>`; };
+  return `<p class="hist-sum" id="histSum">${esc(sum)}</p>
+      <div class="hist-list" id="histList">${group("done", "Completed", IC.check)}${group("pending", d === t ? "Still pending" : "Not finished that day", "")}${group("moved", "Moved", IC.forward)}</div>
+      ${s.numbersOnly ? `<p class="hist-note" id="histNote">This day's numbers were saved before task lists were kept, so the list may not match them exactly.</p>` : ""}`;
+}
 function historyHTML(w){
   const t = todayKey(CTX.now), y = shiftDay(t, -1);
   const d = UI.histDay && UI.histDay <= t ? UI.histDay : t;
@@ -161,6 +209,7 @@ function historyHTML(w){
       <p class="hist-stats" id="histStats"><b>${esc(statLine(s))}</b>${s.moved ? ` · ${s.moved} moved to another day` : ""}</p>
       <div class="dh-bar sm" role="progressbar" aria-label="Completed on ${esc(dShort(d))}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pctOf(s)}"><i style="width:${pctOf(s)}%"></i></div>
       <p class="hist-cmp" id="histCompare">${esc(cmp)}</p>
+      ${histListHTML(w, d, s, t)}
       <h3 class="hc-h">7 days to ${esc(dShort(d))} <span>% completed each day</span></h3>
       <ol class="hist-chart" id="histChart">${bars}</ol>
       ${(() => { const act = days.filter(x => x.s.total); if (!act.length) return `<p class="hist-week" id="histWeek">No tasks in these 7 days yet.</p>`;
@@ -177,11 +226,15 @@ function dailyRowHTML(it, t){
         <label class="sr" for="dtEditDesc">Description</label><input id="dtEditDesc" type="text" maxlength="300" placeholder="Short description (optional)" value="${esc(it.notes || "")}">
         <div class="row-flex"><button class="btn primary sm" type="button" data-act="dailysave">Save</button><button class="btn ghost sm" type="button" data-act="dailycancel">Cancel</button></div></div></li>`;
   const moving = UI.dailyMove === it.id && !done;
-  const day = !done && it.plan && it.plan !== t ? `<span class="dt-day">${over ? `<b class="dt-over">Overdue</b> · was due ` : ""}${esc(fmtDate(it.plan + "T12:00"))}</span>` : "";
+  const op = origPlan(it), fd = k => esc(fmtDate(k + "T12:00"));
+  // carried forward (unfinished from an earlier day), rescheduled (moved by the user), or simply planned for another day
+  const day = done ? "" : over ? `<span class="dt-day"><b class="dt-over">Carried forward</b> · originally due ${fd(op)}</span>`
+    : it.plan && op && op !== it.plan ? `<span class="dt-day"><b class="dt-res">Rescheduled</b> · originally due ${fd(op)} · now ${it.plan === t ? "today" : fd(it.plan)}</span>`
+    : it.plan && it.plan !== t ? `<span class="dt-day">${fd(it.plan)}</span>` : "";
   const acts = done ? "" : `<button class="ib" type="button" data-act="dailytomorrow" aria-label="Move ${esc(it.title)} to tomorrow" title="Move to tomorrow" ${it.plan === tomorrowKey(CTX.now) ? "hidden" : ""}>${IC.forward}</button><button class="ib" type="button" data-act="dailymove" aria-label="Move ${esc(it.title)} to another day" title="Move to a day" aria-expanded="${moving}">${IC.calendar}</button>`;
   return `<li class="dt-row${done ? " done" : ""}${over ? " overdue" : ""}${UI.dailyJust === it.id ? " just" : ""}" data-id="${it.id}">
       <button class="dt-check" type="button" data-act="dailytoggle" aria-pressed="${done}" aria-label="${done ? "Mark as not done" : "Mark as done"}: ${esc(it.title)}">${IC.check}</button>
-      <div class="dt-body"><span class="dt-t">${esc(it.title)}</span>${it.notes ? `<span class="dt-d">${esc(it.notes)}</span>` : ""}${day}${done && it.doneAt ? `<span class="dt-day">Done ${esc(fmtDate(it.doneAt))}</span>` : ""}</div>
+      <div class="dt-body"><span class="dt-t">${esc(it.title)}</span>${it.notes ? `<span class="dt-d">${esc(it.notes)}</span>` : ""}${day}${done && it.doneAt ? `<span class="dt-day">Done ${esc(fmtDate(it.doneAt))}${op && doneDay(it) > op ? ` · originally due ${fd(op)}` : ""}</span>` : ""}</div>
       <div class="dt-acts">${acts}<button class="ib" type="button" data-act="dailyedit" aria-label="Edit ${esc(it.title)}" title="Edit">${IC.edit}</button><button class="ib del" type="button" data-act="dailydel" aria-label="Delete ${esc(it.title)}" title="Delete">${IC.trash}</button></div>
       ${moving ? `<div class="dt-move"><label for="dtMoveDate">Move to</label><input type="date" id="dtMoveDate" min="${t}" value="${tomorrowKey(CTX.now)}"><button class="btn primary sm" type="button" data-act="dailymovego">Move</button><button class="btn ghost sm" type="button" data-act="dailymovecancel">Cancel</button></div>` : ""}
     </li>`;
@@ -205,7 +258,7 @@ function viewDaily(){
       <div class="dh-stats" id="dailyStats">${[["Total", s.total], ["Completed", s.done], ["Pending", s.total - s.done], ["Progress", s.total ? pct + "%" : "–"]].map(([l, v]) => `<div><b>${v}</b><span>${l}</span></div>`).join("")}</div>
       <div class="dh-bar" role="progressbar" aria-label="Today's progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i id="dailyBar" style="width:${pct}%"></i></div>
       <p class="dh-prog" id="dailyProgress">${s.total ? `Progress: ${s.done} of ${s.total} completed — ${pct}%` : "No tasks for today yet. Add one below."}</p>
-      ${overdue ? `<p class="dh-over" id="dailyOverdue">${IC.alert}<span>${overdue} overdue from earlier days. They're at the top of Pending; move them or tick them off.</span></p>` : ""}
+      ${overdue ? `<p class="dh-over" id="dailyOverdue">${IC.alert}<span>${overdue} carried forward from earlier days. They're at the top of Pending; tick them off or move them to another day.</span></p>` : ""}
     </section>
     <form class="daily-form card" id="dailyForm" autocomplete="off">
       <div class="df-fields"><label class="sr" for="dailyTitle">Task</label><input id="dailyTitle" type="text" maxlength="140" placeholder="What do you want to get done today?" value="${esc(UI.dailyDraft || "")}">
@@ -319,8 +372,7 @@ function todoDrawerHTML(w, it){
 function moveTodo(it, dayKey, why){
   const w = W(); const before = clone(it);
   // the same task moves (no copy); the day it left is remembered once, for the history
-  if (it.plan && it.plan !== dayKey) { const m = Array.isArray(it.movedFrom) ? it.movedFrom.slice() : []; if (!m.includes(it.plan)) m.push(it.plan); it.movedFrom = m.slice(-60); }
-  it.plan = dayKey; if (it.status === "done") { it.status = "todo"; it.doneAt = null; } touch(it);
+  setPlan(it, dayKey); if (it.status === "done") { it.status = "todo"; it.doneAt = null; } touch(it);
   logItem(w, it, why || `Moved "${it.title}" to ${fmtDate(dayKey + "T12:00")}`);
   return before;
 }
@@ -487,7 +539,7 @@ document.addEventListener("change", e => {
   const w = W(); const it = findItem(UI.drawerId); if (!it || (t.id !== "dr-plan" && !isTodo(it))) return;
   e.stopImmediatePropagation();
   if (!canEditItem(w, it)) return;
-  if (t.id === "dr-plan") { it.plan = t.value || null; logItem(w, it, it.plan ? `Planned for ${fmtDate(it.plan + "T12:00")}` : "Removed the day"); }
+  if (t.id === "dr-plan") { setPlan(it, t.value || null); logItem(w, it, it.plan ? `Planned for ${fmtDate(it.plan + "T12:00")}` : "Removed the day"); }
   if (t.id === "dr-time") { it.time = t.value || null; if (it.time && !Array.isArray(it.reminders)) it.reminders = [15]; logItem(w, it, it.time ? `Time set to ${fmtTime((it.plan || ymd(new Date())) + "T" + it.time)}` : "Removed the time"); }
   if (t.id === "dr-deadline" && t.value) {
     it.due = `${t.value}T${it.time || "23:59"}`; it.kind = "deadline";

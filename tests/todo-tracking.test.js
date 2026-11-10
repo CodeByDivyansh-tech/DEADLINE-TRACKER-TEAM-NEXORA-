@@ -98,3 +98,17 @@ test("weekly report: last 7 days completed, percentage and best day, from saved 
   assert.match(t, /Last 7 days: \d+ of \d+ completed \(\d+%\)/);
   assert.match(t, /Best day: \w{3} \d+ \w{3}/);
 });
+
+test("habits and carry-forward data are saved to the account: still there after a reload, and in the saved state", async () => {
+  const page = await newUser();
+  await go(page, "habits");
+  await page.fill("#habitName", "Practice Python"); await page.click("#habitAdd");
+  await page.click('#habitToday [aria-label="Mark as done: Practice Python"]');
+  await go(page, "daily"); await add(page, "Move me");
+  await page.locator('#dailyOpen .dt-row:has-text("Move me")').locator("[data-act=dailytomorrow]").click();
+  await pollPage(page, async () => { const s = (await (await fetch("/api/state")).json()).state; const w = s && s.workspaces && s.workspaces[0]; return !!(w && w.habits && w.habits.length && Object.keys(w.habits[0].days).length === 1 && w.items.some(i => i.title === "Move me" && i.moves && i.moves.length === 1)); }, null, 8000);
+  await page.reload(); await page.waitForSelector("#app:not([hidden])"); await go(page, "habits");
+  assert.equal(await page.locator('#habitToday .hb-row:has-text("Practice Python") .dt-check').getAttribute("aria-pressed"), "true");
+  await go(page, "daily");
+  assert.match(await page.locator('#dailyOpen .dt-row:has-text("Move me")').textContent(), /Rescheduled/);
+});
