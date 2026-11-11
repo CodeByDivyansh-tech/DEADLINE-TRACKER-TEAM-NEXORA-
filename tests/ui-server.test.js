@@ -32,9 +32,9 @@ async function newUser(opts = {}){
 const api = (page, method, url, body) => page.evaluate(async ([m, u, b]) => { const r = await fetch(u, { method: m, headers: b ? { "Content-Type": "application/json" } : {}, body: b ? JSON.stringify(b) : undefined }); return r.json(); }, [method, url, body]);
 async function openAI(page, tab){ await page.click("#dwBtn"); await page.waitForSelector("#dw:not([hidden])"); if (tab) await page.click(`[data-act=dwtab][data-v=${tab}]`); }
 async function sendAI(page, text){
-  const k = await page.locator("#dwMsgs .msg.ai:not(.typing-msg)").count();
+  const k = await page.locator("#dwMsgs .msg.ai:not(.typing-msg):not(.streaming)").count();
   await page.fill("#dwInput", text); await page.press("#dwInput", "Enter");
-  await page.waitForFunction(k => document.querySelectorAll("#dwMsgs .msg.ai:not(.typing-msg)").length > k && !document.querySelector("#dwMsgs .typing"), k, { timeout: 8000 });
+  await page.waitForFunction(k => document.querySelectorAll("#dwMsgs .msg.ai:not(.typing-msg):not(.streaming)").length > k && !document.querySelector("#dwMsgs .typing, #dwMsgs .streaming"), k, { timeout: 8000 });
 }
 
 test("Deadline AI window: My Plan suggests from the server engine; saving creates real tasks", async () => {
@@ -59,10 +59,11 @@ test("Deadline AI window: Help answers from the guide with Gemini, shows sources
   g.respond = () => ({ text: JSON.stringify({ found: true, kind: "website", answer: "1. Find the task.\n2. Press the bin button.", sources: [1] }) });
   await openAI(page, "help");
   assert.match(await page.textContent("#dwMode"), /Help guide \+ Google Gemini/);
-  assert.match(await page.textContent("#dwMsgs"), /Your tasks are never sent/);
+  assert.match(await page.textContent("#dwMsgs"), /Your tasks are sent only if you turn on/);
+  await page.locator("#dwShareTasks").waitFor(); assert.equal(await page.locator("#dwShareTasks").isChecked(), false, "task sharing starts off");
   await sendAI(page, "How do I delete a task?");
   const last = page.locator("#dwMsgs .msg.ai").last();
-  assert.equal(await last.locator("ol li").count(), 2, "steps shown as a list");
+  assert.equal(await last.locator("ol li").count(), 2, "steps shown as a list: " + await last.textContent());
   assert.match(await last.textContent(), /From the help guide/); assert.match(await last.textContent(), /Google Gemini/);
   await last.locator("[data-act=dwrate][data-v='1']").click();
   await page.reload(); await page.waitForSelector("#app:not([hidden])");

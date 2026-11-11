@@ -36,6 +36,9 @@ test("help: a website question is answered by Gemini from the matching guide tex
   assert.match(sys, /answer ONLY from the HELP GUIDE/); assert.match(sys, /bin \(trash\)/, "the retrieved section is in the prompt");
   assert.doesNotMatch(sys, /Workload page shows/, "unrelated sections aren't sent");
   assert.equal(call.body.generationConfig.responseMimeType, undefined, "plain Markdown answers (JSON mode cut long answers off)");
+  assert.ok(!g.seen.some(x => /batchEmbedContents/.test(x.url)), "the words already found the page, so no extra search request is made");
+  // an app question that plain word matching doesn't find is searched by meaning (one embedding request)
+  g.seen = []; await ask(await signup(s.base, "Sem", "sem@example.com"), "Can the app buzz my phone before something is due?");
   assert.ok(g.seen.some(x => /batchEmbedContents/.test(x.url) && x.body.requests[0].taskType === "RETRIEVAL_QUERY"), "the question is embedded for semantic search");
 });
 test("help: Hinglish and spelling mistakes still find the right part of the guide", async () => {
@@ -46,7 +49,7 @@ test("help: answers any general question with Gemini (default 'answer anything' 
   g.seen = []; g.respond = () => ({ text: JSON.stringify({ found: true, kind: "general", answer: "Paris is the capital of France.", sources: [] }) });
   const r = await ask(a, "What is the capital of France?");
   assert.equal(r.json.message.found, true); assert.equal(r.json.message.kind, "general"); assert.match(r.json.message.text, /Paris/);
-  assert.match(g.chats().pop().body.systemInstruction.parts[0].text, /any other question/i, "the prompt allows any topic");
+  assert.match(g.chats().pop().body.systemInstruction.parts[0].text, /everything else \(general knowledge/i, "the prompt allows any topic");
 });
 test("help: website features still come only from the guide; the model can't invent one", async () => {
   g.respond = () => ({ text: JSON.stringify({ found: true, kind: "website", answer: "Use the Teleport button.", sources: [] }) });

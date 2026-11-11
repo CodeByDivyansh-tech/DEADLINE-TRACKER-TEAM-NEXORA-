@@ -7,10 +7,10 @@
    - My Plan: your own tasks. The same assistant as the Assistant page:
      it suggests, you approve, then it saves.
    ========================================================= */
-const DW = { open: false, tab: "help", busy: false, timeoutMs: 60000, draft: { help: "", plan: "" }, sugg: null, helpConv: null, helpMsgs: [], helpLoaded: false };
+const DW = { open: false, tab: "help", busy: false, timeoutMs: 60000, live: null, ctrl: null, share: null, shareAsk: false, draft: { help: "", plan: "" }, sugg: null, helpConv: null, helpMsgs: [], helpLoaded: false };
 // With the server, Help conversations are stored on the server (history); without it they stay in this browser.
 const helpChat = () => { if (ACCOUNT.on) return DW.helpMsgs; state.helpChat = state.helpChat || []; return state.helpChat; };
-const fromServerMsg = m => ({ id: m.id, role: m.role === "user" ? "user" : "ai", text: m.text, t: m.createdAt, found: m.found, sources: m.sources || [], via: m.via, qid: m.qid, error: !!m.error, retry: m.retry, kind: m.kind });
+const fromServerMsg = m => ({ id: m.id, role: m.role === "user" ? "user" : "ai", text: m.text, t: m.createdAt, found: m.found, sources: m.sources || [], via: m.via, qid: m.qid, error: !!m.error, retry: m.retry, kind: m.kind, stopped: !!m.stopped, partial: !!m.partial, usedTasks: !!m.usedTasks });
 async function loadHelpHistory(){
   DW.helpLoaded = true;
   try {
@@ -58,11 +58,26 @@ function dwText(t){
 }
 function helpMsgHTML(m){
   if (m.role === "user") return `<div class="msg user"><div class="bubble">${esc(m.text)}<time>${dwTime(m.t)}</time></div></div>`;
+  // an answer that is still being written: just the text so far (no buttons until it is complete)
+  if (m.streaming) return `<div class="msg ai streaming" data-hmsg="${m.id}"><span class="orb sm spin" aria-hidden="true"></span><div class="bubble">${dwText(m.text)}</div></div>`;
+  const retry = m.error || (m.partial && m.retry);
   return `<div class="msg ai${m.error ? " error" : ""}${m.found === false ? " unknown" : ""}" data-hmsg="${m.id}"><span class="orb sm" aria-hidden="true"></span><div class="bubble">${dwText(m.text)}
+    ${m.stopped ? `<p class="dw-src">${IC.info}<span>Stopped. Ask again if you want the rest.</span></p>` : ""}
     ${m.sources && m.sources.length ? `<p class="dw-src">${IC.info}<span>From the help guide: ${m.sources.map(s => esc(s.title)).join(" · ")}</span></p>` : ""}
-    ${m.error ? `<button class="btn sm" type="button" data-act="dwretry">Try again</button>` : ""}
-    <div class="dw-meta"><time>${dwTime(m.t)}</time>${m.via ? `<span class="via">${m.via === "ai" ? (m.kind === "general" ? "Google Gemini" : "Google Gemini · from the help guide") : m.via === "kb" ? "Help guide" : ""}</span>` : ""}
+    ${retry ? `<button class="btn sm" type="button" data-act="dwretry">Try again</button>` : ""}
+    <div class="dw-meta"><time>${dwTime(m.t)}</time>${m.via ? `<span class="via">${m.via === "ai" ? (m.usedTasks ? "Google Gemini · used your task list" : m.kind === "general" ? "Google Gemini" : "Google Gemini · from the help guide") : m.via === "kb" ? "Help guide" : ""}</span>` : ""}
+      ${!m.error && m.text ? `<button type="button" class="btn ghost xs dw-copy" data-act="dwcopymsg" aria-label="Copy this answer">${IC.copy || ""}Copy</button>` : ""}
       ${m.qid ? `<span class="dw-rate" role="group" aria-label="Was this helpful?"><button type="button" class="ib" data-act="dwrate" data-v="1" aria-pressed="${m.rating === 1}" aria-label="Helpful" title="Helpful">👍</button><button type="button" class="ib" data-act="dwrate" data-v="-1" aria-pressed="${m.rating === -1}" aria-label="Not helpful" title="Not helpful">👎</button></span>` : ""}</div></div></div>`;
+}
+// While an answer streams in, only its own bubble is redrawn (not the whole window), and the view follows the text
+// unless the person has scrolled up to read.
+function paintLive(){
+  const m = DW.live, list = $("#dwMsgs"); if (!m || !list || DW.tab !== "help" || !DW.open) return;
+  const box = list.querySelector(`[data-hmsg="${m.id}"] .bubble`);
+  if (!box) { renderWidget(); return; }
+  const atEnd = list.scrollHeight - list.scrollTop - list.clientHeight < 60;
+  box.innerHTML = dwText(m.text);
+  if (atEnd) list.scrollTop = list.scrollHeight;
 }
 const planMsgHTML = m => msgHTML(m);
 function dwShell(){
@@ -77,9 +92,11 @@ function dwShell(){
       <button type="button" role="tab" id="dwTabHelp" data-act="dwtab" data-v="help" aria-controls="dwMsgs">Help</button>
       <button type="button" role="tab" id="dwTabPlan" data-act="dwtab" data-v="plan" aria-controls="dwMsgs">My Plan</button>
     </div>
+    <div class="dw-share" id="dwShare" hidden></div>
     <div class="dw-msgs" id="dwMsgs" role="tabpanel" aria-live="polite"></div>
     <form class="dw-in" id="dwForm"><textarea id="dwInput" rows="1" maxlength="2000" aria-label="Message Deadline AI"></textarea>
-      <button class="btn primary" type="submit" id="dwSend" aria-label="Send">${IC.send}</button></form>
+      <button class="btn primary" type="submit" id="dwSend" aria-label="Send">${IC.send}</button>
+      <button class="btn" type="button" id="dwStop" data-act="dwstop" aria-label="Stop answering" title="Stop" hidden><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2.5" fill="currentColor"/></svg></button></form>
   </section>`);
 }
 function renderWidget(){
@@ -95,17 +112,26 @@ function renderWidget(){
   const help = DW.tab === "help";
   $("#dwTabHelp").setAttribute("aria-selected", help); $("#dwTabPlan").setAttribute("aria-selected", !help);
   $("#dwMode").innerHTML = help ? (ACCOUNT.on ? `<i class="${AI.gemini ? "on" : ""}"></i>${AI.gemini ? "Help guide + Google Gemini" : "Help guide (Gemini off)"}` : `<i></i>Help needs the Deadline Tracker server`) : aiModeHTML();
-  const w = W(); const msgs = help ? helpChat() : chatOf(w);
+  // "Let Deadline AI see my tasks": each person's own choice, off until they turn it on and confirm.
+  const sh = $("#dwShare"); const canShare = help && ACCOUNT.on && AI.gemini && DW.share !== null;
+  sh.hidden = !canShare;
+  if (canShare) {
+    const html = `<label class="dw-share-l"><input type="checkbox" role="switch" id="dwShareTasks" data-act="dwshare"${DW.share ? " checked" : ""}><span>Let Deadline AI see my tasks</span></label><span class="dw-share-s">${DW.share ? "On: task titles and dates go to Google Gemini with questions about your work." : "Off: your tasks are never sent."}</span>
+      ${DW.shareAsk ? `<div class="dw-share-ask" id="dwShareAsk" role="group" aria-label="Share tasks with Deadline AI?"><p>With this on, questions about your work (like "what should I do tomorrow?") are answered from your real tasks. Only open tasks' <b>titles, dates, priority and status</b> are sent to Google Gemini. Notes are never sent. Google may use free-tier data to improve its products. You can turn it off any time.</p><div><button type="button" class="btn sm primary" data-act="dwshareok">Turn on</button><button type="button" class="btn sm ghost" data-act="dwsharecancel">Cancel</button></div></div>` : ""}`;
+    if (sh.__html !== html) { sh.innerHTML = html; sh.__html = html; }
+  }
+  const w = W(); let msgs = help ? helpChat() : chatOf(w);
+  if (help && DW.live && DW.live.text) msgs = msgs.concat([DW.live]);
   $("#dwClear").hidden = !msgs.length;
   const busy = help ? DW.busy : AI.busy;
   const name = (state.user.name || "").split(" ")[0];
   const empty = help
     ? `<div class="dw-empty"><h3>${name ? `Hi ${esc(name)}! ` : ""}How can I help?</h3><p>Ask me anything: coding, maths, science, studies, planning, or how Deadline Tracker works. I remember the conversation, so you can ask follow-ups.</p>
-       ${AI.gemini ? `<p class="dw-privacy">${IC.info}<span>Help questions are answered with Google Gemini's free tier, which Google may use to improve its products. Your tasks are never sent; don't type private details here.</span></p>` : ""}
+       ${AI.gemini ? `<p class="dw-privacy">${IC.info}<span>Answers come from Google Gemini's free tier, which Google may use to improve its products. Your tasks are sent only if you turn on "Let Deadline AI see my tasks". Don't type private details here.</span></p>` : ""}
        <div class="dw-sugg">${(DW.sugg || HELP_SUGG).map(s => `<button type="button" data-act="dwsuggest" data-v="${esc(s)}">${esc(s)}</button>`).join("")}</div></div>`
     : `<div class="dw-empty"><h3>Plan with your own tasks</h3><p>Tell me your work in English or Hinglish, or ask what to do next. I only save after you approve.</p>
        <div class="dw-sugg">${(PLAN_SUGG[w.mode] || PLAN_SUGG.student).map(s => `<button type="button" data-act="dwsuggest" data-v="${esc(s)}">${esc(s)}</button>`).join("")}</div></div>`;
-  const typing = busy ? `<div class="msg ai typing-msg"><span class="orb sm spin" aria-hidden="true"></span><div class="bubble"><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span><span class="typing-l">Thinking…</span></div></div>` : "";
+  const typing = busy && !(help && DW.live && DW.live.text) ? `<div class="msg ai typing-msg"><span class="orb sm spin" aria-hidden="true"></span><div class="bubble"><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span><span class="typing-l">${help && DW.waitNote ? "Still working…" : "Thinking…"}</span></div></div>` : "";
   const list = $("#dwMsgs"); const atEnd = list.scrollHeight - list.scrollTop - list.clientHeight < 40;
   list.innerHTML = (msgs.length ? msgs.map(help ? helpMsgHTML : planMsgHTML).join("") : empty) + typing;
   list.setAttribute("aria-labelledby", help ? "dwTabHelp" : "dwTabPlan");
@@ -113,6 +139,7 @@ function renderWidget(){
   const inp = $("#dwInput");
   inp.placeholder = help ? "Ask me anything…" : "e.g. What should I complete tomorrow?";
   inp.disabled = busy; $("#dwSend").disabled = busy;
+  const stoppable = help && DW.busy && !!DW.ctrl; $("#dwStop").hidden = !stoppable; $("#dwSend").hidden = stoppable;
   if (document.activeElement !== inp && inp.value !== DW.draft[DW.tab]) inp.value = DW.draft[DW.tab];
 }
 function openWidget(tab){
@@ -121,6 +148,7 @@ function openWidget(tab){
   if (fresh) MOTION.dwOpen($("#dw"), $("#dwBtn"));
   setTimeout(() => { const i = $("#dwInput"); if (i && !i.disabled) i.focus(); }, 60);
   if (ACCOUNT.on && !DW.helpLoaded) loadHelpHistory();
+  if (ACCOUNT.on && DW.share === null) apiJSON("GET", "/api/ai/prefs").then(r => { DW.share = !!(r.ok && r.json.shareTasks); if (DW.open) renderWidget(); }).catch(() => {});
   if (ACCOUNT.on && !DW.sugg) apiJSON("GET", "/api/help/suggestions").then(r => { if (r.ok && r.json.help && r.json.help.length) { DW.sugg = r.json.help.slice(0, 2).concat(["Explain recursion with a Python example", "Solve 2x + 5 = 17 step by step"]); if (DW.tab === "help") renderWidget(); } }).catch(() => {});
 }
 // Closing folds the window back into its button first (instant with reduced motion).
@@ -130,13 +158,55 @@ function closeWidget(){
   MOTION.dwClose($("#dw"), $("#dwBtn"), () => { if (!DW.closing) return; DW.closing = false; renderWidget(); const b = $("#dwBtn"); if (b && !b.hidden) b.focus(); });
 }
 
+// Telling it to change tasks ("add a task…", "delete the task…") always goes to My Plan, which saves only after the person approves.
+const wantsTaskChange = t => /^\s*(please\s+|pls\s+)?(add|create|save|make|set|remind me|delete|remove|complete|mark|reschedule|move|postpone)\b[\s\S]*\b(tasks?|deadlines?|reminders?|to-?do)\b/i.test(t);
+// One streamed answer. Reads the server's events (start, delta, replace, wait, done) and shows the text as it comes.
+// The browser gives up when nothing at all arrives for DW.timeoutMs (60 s), so a sleeping server never leaves a spinner forever.
+async function askStream(body, live){
+  const ctrl = DW.ctrl; let timer, timedOut = false;
+  const alive = () => { clearTimeout(timer); timer = setTimeout(() => { timedOut = true; ctrl.abort(); }, DW.timeoutMs); };
+  alive();
+  try {
+    const x = await fetch("/api/chat/stream", { method: "POST", credentials: "same-origin", cache: "no-store", signal: ctrl.signal, headers: { "Content-Type": "application/json", Accept: "text/event-stream" }, body: JSON.stringify(body) });
+    if (!x.ok || !/event-stream/.test(x.headers.get("content-type") || "") || !x.body) {
+      let j = null; try { j = await x.json(); } catch (e) {}
+      if (x.status === 401 && ACCOUNT.user) signedOut();
+      // a server from before streaming: ask the old way (the whole answer in one piece)
+      if ((x.status === 404 && /route/i.test((j && j.error) || "")) || x.status === 405 || (x.ok && j && j.message)) { if (x.ok && j && j.message) return { ok: true, json: j }; return { old: true }; }
+      return { ok: false, status: x.status, json: j || {} };
+    }
+    const rd = x.body.getReader(), dec = new TextDecoder(); let buf = "", done = null;
+    for (;;) {
+      const { done: end, value } = await rd.read(); if (end) break;
+      alive(); buf += dec.decode(value, { stream: true });
+      let k;
+      while ((k = buf.indexOf("\n\n")) >= 0) {
+        const block = buf.slice(0, k); buf = buf.slice(k + 2);
+        const ev = (block.match(/^event: (.*)$/m) || [])[1]; let d = {}; try { d = JSON.parse((block.match(/^data: (.*)$/m) || [])[1] || "{}"); } catch (e) {}
+        if (ev === "start") { if (d.conversationId) DW.helpConv = d.conversationId; }
+        else if (ev === "delta" || ev === "replace") { const first = !live.text; live.text = ev === "delta" ? live.text + (d.text || "") : (d.text || ""); DW.waitNote = false; if (first) { DW.scroll = true; renderWidget(); } else paintLive(); }
+        else if (ev === "wait") { DW.waitNote = true; if (!live.text) renderWidget(); }
+        else if (ev === "done") done = d;
+      }
+    }
+    if (done) return { ok: true, json: done };
+    return { ok: false, cut: true, json: { error: "The connection dropped." } };
+  } catch (e) {
+    if (DW.stopped) return { stopped: true };
+    return { ok: false, cut: !!live.text, json: { error: timedOut || e.name === "AbortError" ? "It took too long to get an answer." : "Couldn't reach the server. Check your internet connection." } };
+  } finally { clearTimeout(timer); }
+}
 async function sendHelp(text, opts = {}){
   text = String(text || "").trim(); if (!text || DW.busy) return;
   const chat = helpChat();
   if (!opts.retry) chat.push({ id: rid("h"), role: "user", text, t: nowIso() });
   if (chat.length > 60) chat.splice(0, chat.length - 60);
-  DW.draft.help = ""; $("#dwInput").value = "";
-  if (looksPersonal(text)) {
+  DW.draft.help = ""; $("#dwInput").value = ""; $("#dwInput").style.height = "auto";
+  // Their own tasks: My Plan answers on our server. With "see my tasks" on, Deadline AI answers from the task list
+  // instead; changing tasks is always My Plan's job.
+  const sharing = ACCOUNT.on && AI.gemini && DW.share === true;
+  // ("How do I delete a task?" is a question about the app, not an instruction, so it stays here.)
+  if (looksPersonal(text) ? (!sharing || wantsTaskChange(text)) : wantsTaskChange(text)) {
     chat.push({ id: rid("h"), role: "ai", text: "That's about your own tasks, so I've asked it in My Plan.", t: nowIso() });
     save(); DW.tab = "plan"; renderWidget(); sendToAssistant(text); return;
   }
@@ -144,21 +214,28 @@ async function sendHelp(text, opts = {}){
     chat.push({ id: rid("h"), role: "ai", found: false, text: "Help answers come from the help guide on the Deadline Tracker server, which isn't running here. Start it with node server.js and open the link it prints.", t: nowIso() });
     save(); renderWidget(); return;
   }
-  DW.busy = true; renderWidget();
+  const live = { id: rid("h"), role: "ai", text: "", t: nowIso(), streaming: true };
+  DW.busy = true; DW.live = live; DW.ctrl = new AbortController(); DW.stopped = false; DW.waitNote = false; renderWidget();
   let r;
   const currency = (state.user && state.user.currency) || "INR";
-  // The browser gives up after DW.timeoutMs (60 s) so a sleeping or unreachable server never leaves a spinner forever.
-  const ask = body => { const ctrl = new AbortController(), timer = setTimeout(() => ctrl.abort(), DW.timeoutMs);
-    return fetch("/api/chat", { method: "POST", credentials: "same-origin", cache: "no-store", signal: ctrl.signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+  const body = () => ({ message: text, conversationId: DW.helpConv || undefined, currency, workspaceId: (W() || {}).id });
+  // older servers: the whole answer in one piece
+  const askOld = b => { const ctrl = DW.ctrl, timer = setTimeout(() => ctrl.abort(), DW.timeoutMs);
+    return fetch("/api/chat", { method: "POST", credentials: "same-origin", cache: "no-store", signal: ctrl.signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify(b) })
       .then(async x => { let j = null; try { j = await x.json(); } catch (e) {} if (x.status === 401 && ACCOUNT.user) signedOut(); return { ok: x.ok, status: x.status, json: j || {} }; })
+      .catch(e => DW.stopped ? { stopped: true } : { ok: false, json: { error: e.name === "AbortError" ? "It took too long to get an answer." : "Couldn't reach the server. Check your internet connection." } })
       .finally(() => clearTimeout(timer)); };
-  try { r = await ask({ message: text, conversationId: DW.helpConv || undefined, currency }); if (r.status === 404 && DW.helpConv) { DW.helpConv = null; r = await ask({ message: text, currency }); } }
-  catch (e) { r = { ok: false, json: { error: e.name === "AbortError" ? "It took too long to get an answer." : "Couldn't reach the server. Check your internet connection." } }; }
-  DW.busy = false;
-  if (!r.ok) { chat.push({ id: rid("h"), role: "ai", error: true, retry: text, t: nowIso(), text: `Sorry, I couldn't answer just now. ${r.json.error || "The server didn't respond."} Please try again.` }); sfx("error"); }
+  r = await askStream(body(), live);
+  if (r.old) r = await askOld(body());
+  if (r.status === 404 && DW.helpConv) { DW.helpConv = null; DW.ctrl = new AbortController(); r = await askStream(body(), live); if (r.old) r = await askOld(body()); }
+  DW.busy = false; DW.live = null; DW.ctrl = null; DW.waitNote = false;
+  if (r.stopped) chat.push({ id: live.id, role: "ai", via: "ai", text: live.text, stopped: true, t: nowIso() });
+  else if (!r.ok && r.cut && live.text) chat.push({ id: live.id, role: "ai", via: "ai", partial: true, retry: text, t: nowIso(), text: live.text + "\n\n*The connection dropped before the answer finished. You can try again.*" });
+  else if (!r.ok) { chat.push({ id: rid("h"), role: "ai", error: true, retry: text, t: nowIso(), text: `Sorry, I couldn't answer just now. ${r.json.error || "The server didn't respond."} Please try again.` }); sfx("error"); }
   else if (!r.json.message || !String(r.json.message.text || "").trim()) chat.push({ id: rid("h"), role: "ai", error: true, retry: text, t: nowIso(), text: "I didn't get an answer that time. Please try again." });
-  else { DW.helpConv = r.json.conversationId; chat.push(fromServerMsg(r.json.message)); }
+  else { DW.helpConv = r.json.conversationId || DW.helpConv; const m = fromServerMsg(r.json.message); if (m.id === "local") m.id = rid("h"); chat.push(m); }
   DW.scroll = true; renderWidget();
+  setTimeout(() => { const i = $("#dwInput"); if (i && DW.open && !i.disabled) i.focus(); }, 30);
 }
 function sendWidget(){
   const v = $("#dwInput").value;
@@ -189,6 +266,22 @@ document.addEventListener("click", e => {
       }
       else { const before = chatOf(w).slice(), conv = w.planConv; w.chat = []; w.planConv = null; save(); render(); toast("Cleared the My Plan conversation. Your tasks are unchanged.", () => { w.chat = before; w.planConv = conv; save(); render(); }); }
       break; }
+    case "dwstop": if (DW.ctrl && DW.busy) { DW.stopped = true; DW.ctrl.abort(); } break;
+    case "dwcopymsg": {
+      const box = a.closest("[data-hmsg]"); const m = helpChat().find(x => x.id === (box && box.dataset.hmsg)); if (!m) break;
+      const fail = () => toast("Couldn't copy. Select the text and copy it yourself.", null, null, "error");
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(m.text).then(() => toast("Copied the answer."), fail); else fail();
+      break; }
+    case "dwshare": {
+      // turning on asks first (the box stays off until "Turn on"); turning off is immediate
+      if (DW.share) { DW.share = false; DW.shareAsk = false; renderWidget(); apiJSON("PUT", "/api/ai/prefs", { shareTasks: false }).then(r => { if (r.ok) toast("Deadline AI can no longer see your tasks."); else { DW.share = true; renderWidget(); toast("Couldn't change that. Please try again.", null, null, "error"); } }).catch(() => { DW.share = true; renderWidget(); }); }
+      else { e.preventDefault(); DW.shareAsk = true; renderWidget(); }
+      break; }
+    case "dwsharecancel": DW.shareAsk = false; renderWidget(); break;
+    case "dwshareok":
+      DW.shareAsk = false; renderWidget();
+      apiJSON("PUT", "/api/ai/prefs", { shareTasks: true }).then(r => { if (r.ok && r.json.shareTasks) { DW.share = true; renderWidget(); toast("Deadline AI can now use your task list for questions about your work."); } else toast("Couldn't turn that on. Please try again.", null, null, "error"); }).catch(() => toast("Couldn't turn that on. Please try again.", null, null, "error"));
+      break;
     case "dwcopy": {
       const pre = a.closest(".md-code"); const code = pre && pre.querySelector("code"); if (!code) break;
       const done = () => toast("Copied the code.");

@@ -22,7 +22,7 @@ You can write in English or Hinglish, for example "kal Java assignment submit ka
 Help uses Google Gemini (free tier) to write answers from this help guide when the server has a GEMINI_API_KEY. Without a key, Help shows the matching part of this guide directly. My Plan never uses an outside AI: it runs on the Deadline Tracker server with planning rules and reads only your own tasks. Each answer is labelled so you know where it came from.
 
 ## What is sent to Google Gemini
-Only your Help question, the recent Help conversation and the matching parts of this public help guide. Your tasks, deadlines and schedule are never sent. Google may use free-tier requests to improve its products, so don't type private details into Help.
+Only your Help question, the recent Help conversation and the matching parts of this public help guide. Your tasks, deadlines and schedule are sent only if you turn on "Let Deadline AI see my tasks" in the Help tab, and then only open tasks' titles, dates, priority and status, with questions about your own work. Notes are never sent. Google may use free-tier requests to improve its products, so don't type private details into Help.
 
 ## Clearing the conversation
 Press Clear in the Deadline AI window to delete the conversation. Your saved tasks are not affected.

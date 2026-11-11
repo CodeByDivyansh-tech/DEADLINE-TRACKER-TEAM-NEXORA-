@@ -61,6 +61,8 @@ Action types in a proposal: `create` (new task), `plan` (plan an existing task f
 | Method | Path | |
 |---|---|---|
 | POST | `/api/chat` | `{ message, conversationId? }` → `{ conversationId, message: { text, found, kind (website/general), via (ai/kb), sources, qid } }`. Uses Gemini with the matching help-guide text; never your tasks. If the AI is unavailable or out of quota, answers from the guide and says why. |
+| POST | `/api/chat/stream` | Same request as `/api/chat` (plus optional `workspaceId`), answered as server-sent events so text shows while it is written: `start { conversationId, userMessage }`, then `delta { text }` pieces (`replace { text }` if shown text must be corrected, `wait {}` during a retry), then `done { conversationId, userMessage, message }`. Closing the request stops the AI call; the part written is saved with `stopped: true`. A stream that breaks is saved with `partial: true` and `retry`. |
+| GET / PUT | `/api/ai/prefs` | `{ shareTasks }`. Off by default. When on, questions about the person's own work also send their open tasks' titles, dates, priority and status to Gemini (never notes, never anyone else's). |
 | POST | `/api/chat/rate` | `{ id: qid, rating: 1 | -1 | 0 }` |
 | GET | `/api/help/suggestions` | Suggested questions (public) |
 | GET | `/api/conversations?kind=help|plan` | Your conversations |

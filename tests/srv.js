@@ -22,19 +22,45 @@ function fakeGemini(){
       if (req.headers["x-goog-api-key"] === "bad-key") return send(400, { error: { code: 400, status: "INVALID_ARGUMENT", message: "API key not valid. Please pass a valid API key." } });
       if (/:batchEmbedContents$/.test(req.url)) { f.embeds++; if (f.embedFail) return send(503, { error: { status: "UNAVAILABLE", message: "down" } }); return send(200, { embeddings: body.requests.map(r => ({ values: fakeVector(r.content.parts[0].text) })) }); }
       if (/:generateContent$/.test(req.url)) {
-        const r = f.respond(body);
+        const r = f.respond(body, req);
         const go = () => {
           if (r.status) return send(r.status, r.error);
           send(200, { candidates: [{ content: { role: "model", parts: [{ text: r.text }] }, finishReason: r.finishReason || "STOP" }], usageMetadata: { promptTokenCount: 120, candidatesTokenCount: 30 } });
         };
         return r.delay ? setTimeout(go, r.delay) : go();   // r.delay: a slow answer (ms)
       }
+      if (/:streamGenerateContent\?alt=sse$/.test(req.url)) {
+        // Streaming answer (server-sent events). r.chunks: the text pieces (default: r.text in 3 pieces);
+        // r.chunkDelay: ms between pieces; r.delay: ms before the first piece; r.dropAfter: cut the connection after n pieces;
+        // r.thought: a "thinking" part sent first (must never be shown).
+        const r = f.respond(body, req);
+        const go = () => {
+          if (r.status) return send(r.status, r.error);
+          const t = String(r.text == null ? "" : r.text); const k = Math.ceil(t.length / 3) || 1;
+          const chunks = r.chunks || (t ? [t.slice(0, k), t.slice(k, 2 * k), t.slice(2 * k)].filter(Boolean) : []);
+          res.writeHead(200, { "Content-Type": "text/event-stream" });
+          const ev = j => res.write("data: " + JSON.stringify(j) + "\r\n\r\n");
+          if (r.thought) ev({ candidates: [{ content: { role: "model", parts: [{ text: r.thought, thought: true }] } }] });
+          let i = 0;
+          const next = () => {
+            if (res.destroyed) return;
+            if (r.dropAfter != null && i >= r.dropAfter) return res.destroy();
+            if (i < chunks.length) { ev({ candidates: [{ content: { role: "model", parts: [{ text: chunks[i++] }] } }] }); return r.chunkDelay ? setTimeout(next, r.chunkDelay) : next(); }
+            ev({ candidates: [{ content: { role: "model", parts: [{ text: "" }] }, finishReason: r.finishReason || "STOP" }], usageMetadata: { promptTokenCount: 120, candidatesTokenCount: 30 } });
+            res.end();
+          };
+          next();
+        };
+        req.socket.on("close", () => { f.closed = (f.closed || 0) + 1; });
+        return r.delay ? setTimeout(go, r.delay) : go();
+      }
       send(404, { error: { message: "not found" } });
     });
   });
   f.start = () => new Promise(r => f.server.listen(0, "127.0.0.1", () => { f.url = `http://127.0.0.1:${f.server.address().port}`; r(f); }));
   f.close = () => f.server.close();
-  f.chats = () => f.seen.filter(s => /:generateContent$/.test(s.url));
+  f.chats = () => f.seen.filter(s => /:(stream)?[gG]enerateContent(\?alt=sse)?$/.test(s.url));
+  f.streams = () => f.seen.filter(s => /:streamGenerateContent/.test(s.url));
   return f;
 }
 // opts.early: resolve as soon as the port is open (before the database is ready), to test the "starting" state.

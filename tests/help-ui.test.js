@@ -7,7 +7,7 @@ const { startServer, fakeGemini } = require("./srv");
 const { onboard, pollPage } = require("./helpers");
 
 let s, g, browser; const ctxs = [];
-before(async () => { g = await fakeGemini().start(); s = await startServer({ GEMINI_API_KEY: "test-key", GEMINI_BASE_URL: g.url }); browser = await chromium.launch(); });
+before(async () => { g = await fakeGemini().start(); s = await startServer({ GEMINI_API_KEY: "test-key", GEMINI_BASE_URL: g.url, GEMINI_RPM: "300", GEMINI_RETRY_MS: "60" }); browser = await chromium.launch(); });
 after(async () => { await browser.close(); s.stop(); g.close(); });
 afterEach(async () => { while (ctxs.length) { const c = ctxs.pop(); const errs = c.__errors; await c.close(); assert.deepEqual(errs, [], "no errors in the browser"); } });
 
@@ -28,11 +28,11 @@ async function newUser(){
   await page.click("#dwBtn"); await page.waitForSelector("#dw:not([hidden])");
   return page;
 }
-const answers = page => page.locator("#dwMsgs .msg.ai:not(.typing-msg)");
+const answers = page => page.locator("#dwMsgs .msg.ai:not(.typing-msg):not(.streaming)");
 async function send(page, text){
   const k = await answers(page).count();
   await page.fill("#dwInput", text); await page.press("#dwInput", "Enter");
-  await page.waitForFunction(k => document.querySelectorAll("#dwMsgs .msg.ai:not(.typing-msg)").length > k && !document.querySelector("#dwMsgs .typing-msg"), k, { timeout: 10000 });
+  await page.waitForFunction(k => document.querySelectorAll("#dwMsgs .msg.ai:not(.typing-msg):not(.streaming)").length > k && !document.querySelector("#dwMsgs .typing-msg, #dwMsgs .streaming"), k, { timeout: 10000 });
   return answers(page).last();
 }
 
@@ -59,7 +59,8 @@ test("loading and double sends: 'Thinking…' shows while waiting, and pressing 
   await page.press("#dwInput", "Enter"); await page.press("#dwInput", "Enter"); await page.click("#dwSend", { force: true }).catch(() => {});
   await page.waitForSelector("#dwMsgs .typing-msg");
   assert.match(await page.textContent("#dwMsgs .typing-msg"), /Thinking/);
-  assert.ok(await page.$eval("#dwSend", b => b.disabled), "send is off while waiting");
+  assert.ok(await page.$eval("#dwSend", b => b.hidden || b.disabled), "send is off while waiting");
+  assert.ok(await page.isVisible("#dwStop"), "a Stop button takes its place");
   await page.waitForSelector("#dwMsgs .typing-msg", { state: "detached", timeout: 8000 });
   assert.equal(g.chats().length - before, 1, "one request");
   assert.equal(await page.locator("#dwMsgs .msg.user").count(), 1);
@@ -85,11 +86,11 @@ test("failure and retry: a clear message with 'Try again'; trying again gets the
 test("the browser stops waiting after its own time limit (e.g. the server is asleep) and offers 'Try again'", async () => {
   const page = await newUser();
   await page.evaluate(() => { window.__DT_TEST__.DW.timeoutMs = 800; });
-  await page.route("**/api/chat", () => {});   // never answers
+  await page.route("**/api/chat/stream", () => {});   // never answers
   const m = await send(page, "Explain gravity");
   assert.match(await m.textContent(), /took too long/i);
   assert.ok(await m.locator("[data-act=dwretry]").isVisible());
-  await page.unroute("**/api/chat");
+  await page.unroute("**/api/chat/stream");
   g.respond = () => ({ text: "Gravity pulls masses together." });
   await m.locator("[data-act=dwretry]").click();
   await page.waitForFunction(() => /Gravity pulls/.test(document.querySelector("#dwMsgs").textContent));
@@ -97,7 +98,7 @@ test("the browser stops waiting after its own time limit (e.g. the server is asl
 
 test("network failure: a clear message and 'Try again', no browser errors", async () => {
   const page = await newUser();
-  await page.route("**/api/chat", r => r.abort("failed"));
+  await page.route("**/api/chat/stream", r => r.abort("failed"));
   const m = await send(page, "What is 12 × 12?");
   assert.match(await m.textContent(), /couldn't reach the server/i);
   assert.ok(await m.locator("[data-act=dwretry]").isVisible());
@@ -113,4 +114,101 @@ test("long code lines scroll inside the code box; the answer never spills out of
   await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(300);
   assert.ok(await fit(), "inside the window on a phone");
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+});
+
+// ---- Deadline AI upgrade: streamed answers, Stop, Copy, older servers, and the "see my tasks" switch ----
+test("streaming: the answer appears piece by piece while it is written; then Copy copies the whole answer", async () => {
+  const page = await newUser();
+  g.respond = () => ({ chunks: ["## AI in short\n\nArtificial intelligence ", "is software that learns ", "from examples.\n\n```python\nprint('hi')\n```"], chunkDelay: 700 });
+  await page.fill("#dwInput", "What is artificial intelligence?"); await page.press("#dwInput", "Enter");
+  await page.waitForSelector("#dwMsgs .msg.ai.streaming");
+  const part = await page.textContent("#dwMsgs .msg.ai.streaming .md");
+  assert.match(part, /Artificial intelligence/); assert.doesNotMatch(part, /from examples/, "shown before the answer is complete");
+  assert.equal(await page.locator("#dwMsgs .typing-msg").count(), 0, "the thinking dots give way to the text");
+  assert.ok(await page.isVisible("#dwStop")); assert.equal(await page.locator("#dwMsgs .msg.ai.streaming [data-act=dwcopymsg]").count(), 0);
+  await page.waitForSelector("#dwMsgs .msg.ai.streaming", { state: "detached", timeout: 8000 });
+  const m = answers(page).last();
+  assert.equal(await m.locator("h4").textContent(), "AI in short"); assert.equal(await m.locator(".md-code code").textContent(), "print('hi')");
+  assert.ok(await page.isHidden("#dwStop")); assert.ok(await page.isEnabled("#dwSend")); assert.ok(await page.isEnabled("#dwInput"));
+  await m.locator("[data-act=dwcopymsg]").click();
+  await pollPage(page, async () => /Artificial intelligence is software that learns from examples/.test(await navigator.clipboard.readText()), null, 3000);
+  assert.match(await page.evaluate(() => navigator.clipboard.readText()), /^## AI in short/);
+  // the conversation is kept: after a reload the same answer is there, whole
+  await page.reload(); await page.waitForSelector("#dwBtn:not([hidden])"); await page.click("#dwBtn");
+  await page.waitForFunction(() => /from examples/.test((document.querySelector("#dwMsgs") || {}).textContent || ""));
+});
+
+test("stop: the Stop button ends the answer, keeps what was written, and the next question works", async () => {
+  const page = await newUser();
+  g.respond = () => ({ chunks: ["First sentence. ", "Second sentence. ", "Third. ", "Fourth. ", "Fifth."], chunkDelay: 600 });
+  await page.fill("#dwInput", "Tell me a long story"); await page.press("#dwInput", "Enter");
+  await page.waitForFunction(() => /First sentence/.test((document.querySelector("#dwMsgs .msg.ai.streaming .md") || {}).textContent || ""));
+  await page.click("#dwStop");
+  await page.waitForSelector("#dwMsgs .msg.ai.streaming", { state: "detached" });
+  const m = answers(page).last(); const t = await m.textContent();
+  assert.match(t, /First sentence/); assert.doesNotMatch(t, /Fifth/); assert.match(t, /Stopped/);
+  assert.equal(await page.locator("#dwMsgs .msg.ai.error").count(), 0, "stopping isn't an error");
+  assert.ok(await page.isEnabled("#dwInput"));
+  g.respond = () => ({ text: "A fresh answer." });
+  assert.match(await (await send(page, "Another question")).textContent(), /A fresh answer/);
+});
+
+test("a stream that breaks, and an older server without streaming, both still give the person an answer", async () => {
+  const page = await newUser();
+  g.respond = () => ({ chunks: ["Half an answer. ", "lost"], dropAfter: 1, chunkDelay: 150 });
+  const m = await send(page, "Explain the difference between Java and Python");
+  assert.match(await m.textContent(), /Half an answer/); assert.match(await m.textContent(), /connection dropped/i);
+  assert.ok(await m.locator("[data-act=dwretry]").isVisible());
+  // older server: the stream address doesn't exist, so the app asks the old way
+  await page.route("**/api/chat/stream", r => r.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ code: "not_found", error: "Unknown API route." }) }));
+  g.respond = () => ({ text: "Answer from the old endpoint." });
+  assert.match(await (await send(page, "What is an API?")).textContent(), /Answer from the old endpoint/);
+});
+
+test("'Let Deadline AI see my tasks': off by default; turning it on asks first, then work questions use the real tasks", async () => {
+  const page = await newUser();
+  await page.click("[data-act=dwclose]"); await page.waitForSelector("#dw", { state: "hidden" });
+  await page.fill("#addText", "Chemistry revision UITASK"); await page.waitForTimeout(40); await page.press("#addText", "Enter");
+  await pollPage(page, async () => (await (await fetch("/api/tasks")).json()).tasks.some(t => /UITASK/.test(t.title)), null, 6000);
+  await page.click("#dwBtn"); await page.waitForSelector("#dw:not([hidden])");
+  const sw = page.locator("#dwShareTasks");
+  await sw.waitFor(); assert.equal(await sw.isChecked(), false);
+  // off: a question about my own work goes to My Plan, and nothing about tasks reaches Gemini
+  g.seen = []; await page.fill("#dwInput", "What should I complete tomorrow?"); await page.press("#dwInput", "Enter");
+  await page.waitForSelector('#dwTabPlan[aria-selected="true"]'); assert.equal(g.chats().length, 0);
+  await page.click("#dwTabHelp");
+  // a general question is answered as usual while it is off
+  g.respond = () => ({ text: "Machine learning finds patterns in data." });
+  assert.match(await (await send(page, "What is machine learning?")).textContent(), /finds patterns/);
+  // turning on shows what will be shared and needs a clear yes
+  await sw.click(); await page.waitForSelector("#dwShareAsk");
+  assert.match(await page.textContent("#dwShareAsk"), /titles[\s\S]*Google/i); assert.equal(await sw.isChecked(), false, "not on until confirmed");
+  await page.click("[data-act=dwsharecancel]"); assert.equal(await page.locator("#dwShareAsk").count(), 0); assert.equal(await sw.isChecked(), false);
+  await sw.click(); await page.click("[data-act=dwshareok]");
+  await pollPage(page, async () => (await (await fetch("/api/ai/prefs")).json()).shareTasks === true, null, 4000);
+  assert.equal(await sw.isChecked(), true);
+  g.seen = []; g.respond = () => ({ text: "Start with Chemistry revision at 9:00." });
+  const m = await send(page, "What should I complete tomorrow?");
+  assert.match(await m.textContent(), /Chemistry revision at 9:00/); assert.match(await m.textContent(), /used your task list/i);
+  assert.match(g.streams()[0].raw, /Chemistry revision UITASK/);
+  assert.equal(await page.getAttribute("#dwTabHelp", "aria-selected"), "true");
+  // changing tasks still goes to My Plan, which saves only after approval
+  g.seen = []; await page.fill("#dwInput", "add a task to buy graph paper tomorrow"); await page.press("#dwInput", "Enter");
+  await page.waitForSelector('#dwTabPlan[aria-selected="true"]'); assert.equal(g.chats().length, 0);
+  // off again in one click, remembered after a reload
+  await page.click("#dwTabHelp"); await sw.click();
+  await pollPage(page, async () => (await (await fetch("/api/ai/prefs")).json()).shareTasks === false, null, 4000);
+  await page.reload(); await page.waitForSelector("#dwBtn:not([hidden])"); await page.click("#dwBtn"); await page.locator("#dwShareTasks").waitFor();
+  assert.equal(await page.locator("#dwShareTasks").isChecked(), false);
+});
+
+test("phone: the chat with the switch, a streamed answer, Copy and Stop has no sideways scrolling", async () => {
+  const page = await newUser();
+  await page.setViewportSize({ width: 390, height: 844 });
+  g.respond = () => ({ chunks: ["A fairly long answer that wraps over several lines on a phone screen. ", "| A | B |\n|---|---|\n| 1 | 2 |"], chunkDelay: 300 });
+  await page.fill("#dwInput", "Show me a table"); await page.press("#dwInput", "Enter");
+  await page.waitForSelector("#dwStop:not([hidden])");
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= 390));
+  await page.waitForSelector("#dwMsgs .msg.ai [data-act=dwcopymsg]");
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= 390 && document.querySelector("#dw").scrollWidth <= document.querySelector("#dw").clientWidth + 1));
 });
