@@ -101,7 +101,7 @@ function ptMarkup(){
     </section>
   </main></div></div>
   <header class="pt-nav" id="ptNav" data-theme="light">
-    <a class="pt-logo" href="#" data-pt="top" aria-label="Deadline Tracker home">${mark}<span>Deadline Tracker</span></a>
+    <a class="pt-logo" href="#" data-pt="top" aria-label="Deadline Tracker home">${logoSVG(30)}<span>Deadline Tracker</span></a>
     <div class="pt-nav-r"><button type="button" class="pt-pill pt-glass" data-pt="login">Log in</button><button type="button" class="pt-pill pt-cta" data-pt="signup">Get started</button></div>
   </header>
   <div class="pt-cursor" id="ptCursor" aria-hidden="true"></div>`;

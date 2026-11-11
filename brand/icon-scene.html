@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<!-- Deadline Tracker app icon, "Luxury Glass": a real 3D scene, ray-traced in a WebGL shader.
+     A rounded glass cube (refraction, Fresnel reflection, slight colour dispersion, blue-tinted absorption, an inner
+     glass layer) with a luminous checkmark floating inside, lit by studio lights (pearl key light, cyan rim, violet
+     fill), a faint orbital light trail, and a soft light pool below. Rendered by brand/render-icon.js. -->
+<html><head><meta charset="utf-8"><style>html,body{margin:0;background:#000}canvas{display:block}</style></head>
+<body><canvas id="c"></canvas>
+<script id="fs" type="x-shader/x-fragment">#version 300 es
+precision highp float;
+uniform vec2 uRes;
+uniform int uSpp;
+uniform vec2 uRot;       // cube yaw, pitch
+uniform vec2 uKRot;      // checkmark yaw, pitch
+uniform float uRing;     // orbital trail strength
+uniform float uViolet;   // violet light balance
+uniform float uZoom;     // camera distance (1 = normal)
+uniform vec2 uPan;       // frame shift (to centre the cube in tight crops)
+uniform float uCheckR;   // checkmark tube radius
+uniform float uGlow;     // glow inside the glass
+uniform float uFloor;    // light pool below
+out vec4 outColor;
+
+const float PI = 3.14159265;
+const float B = 0.66, RAD = 0.17;
+uniform float uIor;   // index of refraction of the glass
+#define IOR uIor
+const vec3 CYAN = vec3(0.22, 0.86, 1.0), VIOLET = vec3(0.52, 0.27, 1.0), PEARL = vec3(1.0, 0.975, 0.95);
+mat3 CR, IR, KR, RR;   // world -> local rotations (cube, inner layer, check, ring)
+
+mat3 rotY(float a){ float c = cos(a), s = sin(a); return mat3(c,0.,-s, 0.,1.,0., s,0.,c); }
+mat3 rotX(float a){ float c = cos(a), s = sin(a); return mat3(1.,0.,0., 0.,c,s, 0.,-s,c); }
+mat3 rotZ(float a){ float c = cos(a), s = sin(a); return mat3(c,s,0., -s,c,0., 0.,0.,1.); }
+float sdRoundBox(vec3 p, vec3 b, float r){ vec3 q = abs(p) - b + r; return length(max(q, 0.)) + min(max(q.x, max(q.y, q.z)), 0.) - r; }
+float sdCapsule(vec3 p, vec3 a, vec3 b, float r){ vec3 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba) / dot(ba, ba), 0., 1.); return length(pa - ba * h) - r; }
+float smin(float a, float b, float k){ float h = clamp(.5 + .5 * (b - a) / k, 0., 1.); return mix(b, a, h) - k * h * (1. - h); }
+
+float sdCube(vec3 p){ return sdRoundBox(CR * p, vec3(B), RAD); }
+uniform float uInner;   // 1 = inner glass layer on
+uniform float uDebug;   // 1 = show only where rays hit the checkmark
+uniform float uRingR;   // orbital trail radius
+uniform float uBody;    // brightness of what is seen through the glass
+float sdInner(vec3 p){ return uInner > 0.5 ? sdRoundBox(IR * p, vec3(0.47), 0.13) : 1e3; }
+float sdCheck(vec3 p){
+  p = KR * p;
+  // sized so that, magnified by the glass, it stays inside the flat part of the front face
+  const float S = 0.74; const vec3 O = vec3(0.045, 0.005, 0.);
+  vec3 a = vec3(-0.28, 0.04, 0.) * S + O, b = vec3(-0.075, -0.17, 0.) * S + O, c = vec3(0.29, 0.25, 0.) * S + O;
+  return smin(sdCapsule(p, a, b, uCheckR), sdCapsule(p, b, c, uCheckR), 0.035);
+}
+#define NORMAL(F) vec3 e = vec3(1., -1., 0.) * 0.0007; return normalize(e.xyy * F(p + e.xyy) + e.yyx * F(p + e.yyx) + e.yxy * F(p + e.yxy) + e.xxx * F(p + e.xxx));
+vec3 nCube(vec3 p){ NORMAL(sdCube) }
+vec3 nInner(vec3 p){ NORMAL(sdInner) }
+vec3 nCheck(vec3 p){ NORMAL(sdCheck) }
+float fresnel(float c){ return 0.04 + 0.96 * pow(1. - clamp(c, 0., 1.), 5.); }
+
+// studio lights only (no base), used for reflections and for light seen through the glass
+vec3 lights(vec3 d){
+  vec3 c = vec3(0.);
+  vec3 L1 = normalize(vec3(-0.55, 0.72, 0.42)); float k1 = max(dot(d, L1), 0.);
+  c += PEARL * (2.8 * smoothstep(0.935, 0.985, k1) + 0.22 * pow(k1, 6.));
+  c += PEARL * 1.25 * smoothstep(0.84, 0.9, d.y) * smoothstep(0.65, 0.15, abs(d.x + 0.1));        // top strip light
+  vec3 L2 = normalize(vec3(0.95, 0.12, -0.35)); float k2 = max(dot(d, L2), 0.);
+  c += CYAN * (1.9 * smoothstep(0.90, 0.99, k2) + 0.32 * pow(k2, 8.));
+  vec3 L3 = normalize(vec3(-0.92, -0.22, -0.38)); float k3 = max(dot(d, L3), 0.);
+  c += VIOLET * uViolet * (1.6 * smoothstep(0.88, 0.99, k3) + 0.32 * pow(k3, 6.));
+  vec3 L4 = normalize(vec3(0.3, -0.85, 0.4)); float k4 = max(dot(d, L4), 0.);                       // soft bounce from the floor
+  c += mix(CYAN, VIOLET, 0.5) * 0.18 * pow(k4, 3.) * uFloor;
+  return c;
+}
+// what the glass shows behind itself: a smooth midnight gradient with the studio lights (no hard edges, so no dark bands)
+vec3 glassEnv(vec3 d){
+  vec3 c = mix(vec3(0.016, 0.026, 0.070), vec3(0.075, 0.115, 0.260), smoothstep(-0.9, 0.85, d.y));
+  c += VIOLET * 0.06 * uViolet * smoothstep(0.2, -0.9, d.x + d.y);
+  return (c + 0.8 * lights(d)) * uBody;
+}
+vec3 envBase(vec3 d){ return mix(vec3(0.010, 0.016, 0.046), vec3(0.040, 0.062, 0.150), smoothstep(-0.6, 0.9, d.y)); }
+
+// the deep midnight backdrop and the light pool below, by direction
+vec3 backdrop(vec3 ro, vec3 rd){
+  if (rd.z > -0.05) return envBase(rd) * 0.8;
+  vec2 uv = rd.xy / -rd.z * 2.4 / uZoom * 1.0;
+  float r = length(uv * vec2(1.0, 1.08) - vec2(0.0, 0.08));
+  vec3 c = mix(vec3(0.050, 0.078, 0.190), vec3(0.008, 0.013, 0.040), smoothstep(0.0, 1.25, r));
+  c += VIOLET * 0.055 * uViolet * smoothstep(1.3, 0.1, length(uv - vec2(-0.85, -0.9)));
+  c += CYAN * 0.035 * smoothstep(1.3, 0.1, length(uv - vec2(0.9, 0.85)));
+  if (rd.y < 0.) {
+    float t = (-1.34 - ro.y) / rd.y; vec3 p = ro + rd * t;
+    float q = length(p.xz * vec2(1.0, 1.7));
+    c *= 1.0 - 0.45 * exp(-q * q * 5.0);
+    c += mix(CYAN, VIOLET, 0.5) * 0.20 * uFloor * exp(-q * q * 1.5);
+    c += CYAN * 0.10 * uFloor * exp(-pow(q - 0.55, 2.) * 22.0);   // faint caustic ring
+  }
+  return c;
+}
+
+// the orbital light trail: a thin tilted ring, bright at its head and fading along its tail
+vec3 ringGlow(vec3 ro, vec3 rd, float tmin, float tmax){
+  if (uRing <= 0. || tmax <= tmin) return vec3(0.);
+  vec3 acc = vec3(0.); const int N = 220; float dt = (tmax - tmin) / float(N);
+  for (int i = 0; i < N; i++) {
+    vec3 p = RR * (ro + rd * (tmin + (float(i) + 0.5) * dt));
+    float phi = atan(p.z, p.x);
+    float d = length(vec2(length(p.xz) - uRingR, p.y));
+    float u = fract(phi / (2. * PI) + 0.12);
+    float trail = pow(u, 2.2) * smoothstep(1.0, 0.985, u);
+    vec3 col = mix(VIOLET, mix(CYAN, PEARL, 0.35), u);
+    acc += col * trail * (exp(-d * d * 1800.) * 7.0 + exp(-d * d * 90.) * 0.22) * dt;
+  }
+  return acc * uRing;
+}
+vec2 sphereHits(vec3 ro, vec3 rd, float r){
+  float b = dot(ro, rd), c = dot(ro, ro) - r * r, h = b * b - c;
+  if (h < 0.) return vec2(1., 0.);
+  h = sqrt(h); return vec2(max(-b - h, 0.), -b + h);
+}
+
+vec3 trace(vec3 ro, vec3 rd){
+  vec2 rs = sphereHits(ro, rd, uRingR + 0.08);
+  float t = 0.; bool hit = false;
+  for (int i = 0; i < 180; i++) { float d = sdCube(ro + rd * t); if (d < 0.0003) { hit = true; break; } t += d; if (t > 14.) break; }
+  if (!hit) return backdrop(ro, rd) + ringGlow(ro, rd, rs.x, rs.y);
+
+  vec3 p = ro + rd * t, n = nCube(p);
+  float F = fresnel(dot(-rd, n));
+  vec3 refl = envBase(reflect(rd, n)) + lights(reflect(rd, n));
+  // edges of the cube catch a little more light
+  vec3 a = abs(CR * p) / B; float m1 = max(a.x, max(a.y, a.z)), m3 = min(a.x, min(a.y, a.z)), m2 = a.x + a.y + a.z - m1 - m3;
+  float edge = smoothstep(0.78, 0.97, m2);
+
+  vec3 front = ringGlow(ro, rd, rs.x, min(rs.y, t));
+  vec3 rdi = refract(rd, n, 1. / IOR), q = p - n * 0.002;
+  vec3 trans = vec3(1.), acc = vec3(0.), outCol = vec3(0.);
+  float side = sign(sdInner(q));
+  bool viaFront = (CR * n).z > 0.6;                              // the check is only drawn sharp through the front face; side faces show its glow
+  bool done = false;
+  for (int bounce = 0; bounce < 3 && !done; bounce++) {
+    for (int i = 0; i < 220; i++) {
+      float dc = sdCheck(q), dout = -sdCube(q), di = sdInner(q);
+      if (bounce > 0 || !viaFront) dc = max(dc, 0.02);                        // after an internal bounce the check only glows (no mirrored copies)
+      if (dc < 0.0005) {                                         // the checkmark: luminous cyan, silver-white highlights
+        vec3 nk = nCheck(q);
+        float facing = abs(dot(rdi, nk));
+        vec3 L1 = normalize(vec3(-0.55, 0.72, 0.42));
+        float spec = pow(max(dot(reflect(rdi, nk), L1), 0.), 22.) + 0.6 * pow(max(dot(reflect(rdi, nk), normalize(vec3(0.95, 0.12, -0.35))), 0.), 16.);
+        vec3 col = mix(CYAN * 1.55, PEARL * 2.3, pow(facing, 7.) * 0.55) + PEARL * spec * 2.4 + CYAN * 0.5 * pow(1. - facing, 2.);
+        acc += trans * col; done = true;
+        if (uDebug > 0.5) return vec3(1.0, float(bounce), float(i) / 220.);
+        break;
+      }
+      if (sign(di) != side) {                                    // passing through the inner glass layer
+        vec3 ni = nInner(q); float Fi = fresnel(abs(dot(rdi, ni)));
+        acc += trans * (lights(reflect(rdi, ni)) + envBase(reflect(rdi, ni))) * Fi * 0.9;
+        trans *= 0.93 * vec3(0.93, 0.975, 1.0); side = sign(di);
+      }
+      if (dout < 0.0004) break;
+      float stepLen = clamp(min(dc, min(dout, abs(di))), 0.0015, 0.08);
+      acc += trans * CYAN * uGlow * exp(-max(dc, 0.) * 8.5) * stepLen;     // light from the checkmark filling the glass
+      acc += trans * VIOLET * uGlow * 0.25 * exp(-max(dc, 0.) * 3.0) * stepLen * uViolet;
+      trans *= exp(-stepLen * vec3(0.32, 0.15, 0.05));                       // slight blue tint
+      q += rdi * stepLen;
+    }
+    if (done) break;
+    if (uDebug > 0.5) return vec3(0.0, 0.0, 0.2);
+    vec3 nc = nCube(q);
+    vec3 o = refract(rdi, -nc, IOR);
+    if (dot(o, o) < 0.001) {                                       // total internal reflection: bounce inside
+      acc += trans * lights(reflect(rdi, -nc)) * 0.15;
+      rdi = reflect(rdi, -nc); q += rdi * 0.003; continue;
+    }
+    float Fo = fresnel(abs(dot(rdi, nc)));
+    vec3 qo = q + nc * 0.003;
+    // slight dispersion: each colour leaves at a slightly different angle
+    vec3 col;
+    for (int k = 0; k < 3; k++) {
+      vec3 dk = refract(rdi, -nc, IOR + (float(k) - 1.) * 0.014); if (dot(dk, dk) < 0.001) dk = o;
+      vec3 c = glassEnv(dk);
+      col[k] = c[k];
+    }
+    vec2 rs2 = sphereHits(qo, o, uRingR + 0.08);
+    outCol = trans * (1. - Fo) * (col + ringGlow(qo, o, rs2.x, rs2.y));
+    done = true;
+  }
+  vec3 inside = acc + outCol;
+  return refl * F + (1. - F) * inside + edge * (PEARL * 0.10 + CYAN * 0.16) * (0.4 + F) + front;
+}
+
+vec3 aces(vec3 x){ return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0., 1.); }
+
+void main(){
+  CR = transpose(rotY(uRot.x) * rotX(uRot.y));
+  IR = transpose(rotY(uRot.x + 0.55) * rotX(uRot.y - 0.25) * rotZ(0.3));
+  KR = transpose(rotY(uKRot.x) * rotX(uKRot.y));
+  RR = transpose(rotZ(-0.38) * rotX(1.18));
+  vec3 ro = vec3(0., 0.05, 4.6 * uZoom);
+  vec3 col = vec3(0.);
+  for (int sy = 0; sy < 4; sy++) for (int sx = 0; sx < 4; sx++) {
+    if (sx >= uSpp || sy >= uSpp) continue;
+    vec2 j = (vec2(float(sx), float(sy)) + 0.5) / float(uSpp);
+    vec2 uv = ((gl_FragCoord.xy - 0.5 + j) / uRes) * 2. - 1.;
+    vec3 rd = normalize(vec3(uv + uPan, -2.4));
+    col += trace(ro, rd);
+  }
+  col /= float(uSpp * uSpp);
+  col = aces(col * 1.05);
+  outColor = vec4(pow(col, vec3(1. / 2.2)), 1.);
+}
+</script>
+<script>
+window.renderIcon = async function (params, size, spp) {
+  const cv = document.getElementById("c"); cv.width = cv.height = size;
+  const gl = cv.getContext("webgl2", { preserveDrawingBuffer: true, antialias: false });
+  const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; };
+  const pr = gl.createProgram();
+  gl.attachShader(pr, sh(gl.VERTEX_SHADER, "#version 300 es\nin vec2 a;void main(){gl_Position=vec4(a,0.,1.);}"));
+  gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, document.getElementById("fs").textContent.trim()));
+  gl.linkProgram(pr); if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(pr));
+  gl.useProgram(pr);
+  const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(pr, "a"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  const U = n => gl.getUniformLocation(pr, n);
+  gl.uniform2f(U("uRes"), size, size); gl.uniform1i(U("uSpp"), spp);
+  gl.uniform2f(U("uRot"), params.yaw, params.pitch); gl.uniform2f(U("uKRot"), params.kyaw, params.kpitch);
+  gl.uniform1f(U("uRing"), params.ring); gl.uniform1f(U("uViolet"), params.violet); gl.uniform1f(U("uZoom"), params.zoom); gl.uniform2f(U("uPan"), params.panX || 0, params.panY || 0);
+  gl.uniform1f(U("uCheckR"), params.checkR); gl.uniform1f(U("uGlow"), params.glow); gl.uniform1f(U("uFloor"), params.floor); gl.uniform1f(U("uIor"), params.ior || 1.47); gl.uniform1f(U("uInner"), params.inner === undefined ? 1 : params.inner); gl.uniform1f(U("uDebug"), params.debug || 0); gl.uniform1f(U("uRingR"), params.ringR || 1.40); gl.uniform1f(U("uBody"), params.body || 1.0);
+  gl.viewport(0, 0, size, size); gl.enable(gl.SCISSOR_TEST);
+  const rows = Math.max(8, Math.floor(65536 / size / spp / spp));   // small strips, so no single draw runs too long
+  for (let y = 0; y < size; y += rows) {
+    gl.scissor(0, y, size, Math.min(rows, size - y)); gl.drawArrays(gl.TRIANGLES, 0, 3);
+    const px = new Uint8Array(4); gl.readPixels(0, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);   // waits for the strip
+    await new Promise(r => setTimeout(r, 0));
+  }
+  return cv.toDataURL("image/png");
+};
+</script>
+</body></html>

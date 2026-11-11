@@ -133,11 +133,11 @@ function logItem(w, it, text){
   if (w.activity.length > 80) w.activity.length = 80;
 }
 
-// The Deadline Tracker logo (also in logo.svg). Each copy gets its own gradient id.
-let logoN = 0;
+// The Deadline Tracker logo: the glass cube app icon (icons/logo-mark.webp, 96 px). build.js puts the image
+// into the page, so it shows with no server too. Decorative: the name is always written next to it.
+const LOGO_SRC = "%%DT_LOGO%%";
 function logoSVG(size){
-  const id = "dtg" + (++logoN);
-  return `<svg class="dt-logo" width="${size}" height="${size}" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a2d31"/><stop offset="1" stop-color="#151515"/></linearGradient></defs><rect width="64" height="64" rx="16" fill="url(#${id})"/><circle cx="32" cy="33" r="17" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="5"/><path d="M32 16 A17 17 0 1 1 17.28 24.5" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/><path d="M24.5 33.5 30 39 40.5 27.5" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="32" cy="16" r="4" fill="#99b6d2" stroke="#fff" stroke-width="1.5"/></svg>`;
+  return `<img class="dt-logo" src="${LOGO_SRC}" width="${size}" height="${size}" alt="" decoding="async" draggable="false">`;
 }
 function defaultSettings(mode){
   return {

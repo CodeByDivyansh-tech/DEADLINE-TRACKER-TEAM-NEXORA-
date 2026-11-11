@@ -471,3 +471,21 @@ Screenshot checked: Daily tasks (dark, light, 390 px).
 
 Screenshots checked: Settings (button, steps, installed) in dark, light, 390 px; offline page; the icons.
 **Not tested here (needs a real device):** the actual install window and the installed app on Windows, Android and iPhone. Automated browsers can't show it, so the tests send the same events the browser sends. To check after deploy.
+
+## 11 Nov 2026 (6): New app icon "Luxury Glass" (glass cube with a glowing check)
+**What changed:** the owner chose the "Luxury Glass" direction. No image generator was available, so the icon is a real 3D render made in code: `brand/icon-scene.html` ray-traces a rounded glass cube (refraction, slight colour dispersion, Fresnel reflections, an inner glass layer, studio lights) with an emissive cyan check inside, a violet side light, an orbital light trail and a soft light pool below; `brand/render-icon.js` runs it in headless Chromium; `brand/make-icons.py` adds bloom and writes every size. Several variations were rendered; the chosen one has the check facing the viewer. Rendering fixes along the way: a dark band (exit rays sampled the backdrop), a doubled check (seen again through the side faces; now only the front face shows it sharp, the sides show its glow).
+**Files:** master `brand/deadline-tracker-master.png` (1024, opaque; kept outside `assets/`, which is build output published with a one-year cache). `icons/`: icon-96/144/192/256/512, icon-192-maskable + icon-512-maskable (zoomed out, inside the 80% safe circle), apple-touch-icon (180), favicon-16x16 + favicon-32x32 (a close-up render with a thicker check, sharpened), logo-mark.webp (96, in-app logo). `favicon.ico` (16/32/48) at the root. Old `maskable-*.png` and `tests/load/make-icons.js` removed.
+**Wired in:** head (ico + 16/32 PNG + Apple 180, the old drawn SVG tab icon removed), manifest (7 icons incl. maskable, shortcut icons, splash background `#121937` from the icon; title-bar colour stays white like the app), `sw.js` cache `dt-app-v2`, offline page, admin page (tab icon + header), pitch page tab icon, README. All icon links carry `?v=2` (the server keeps icons for a day). In-app logo (sidebar, phone top bar, setup, log-in, landing nav, admin) is the icon; `build.js` puts it into the page as a data URL so it also shows with no server. `server.js`: `favicon.ico` cached a day like the icons; `brand/` is private. Vercel uploads and publishes `favicon.ico`. CLAUDE.md notes the icon as the only place navy/violet is allowed (images only; the colour test on `src/` still passes).
+
+| Area | Test |
+|---|---|
+| Manifest: 5 "any" + 2 maskable icons, all real opaque PNGs at the stated sizes, versioned; shortcut icons load; splash colour; old files gone | api-pwa (rewritten, red first) |
+| Head: .ico + 16/32 PNG + Apple 180 links; .ico holds 16/32/48; Apple icon opaque; admin + offline page use the new icon | api-pwa (rewritten, red first) |
+| Maskable 512 + 192: bright parts (glass, check, trail) inside the safe circle, check well inside, fully opaque | api-pwa (new) |
+| Master 1024 opaque in `brand/` with its scripts; `brand/` files 404 on the server; worker cache v2 | api-pwa (new + updated, red first) |
+| In-app logo is the icon image, loaded, decorative (`alt=""`), right size; landing nav, log-in, admin | logo (updated, red first) |
+| Vercel build publishes favicon.ico and the new icon files, not `brand/` | api-assets (updated, red first) |
+
+Full suite: 480/482 (two failures on the first run, not seen again: timing on this 2-core machine), then 482/482 twice.
+Screenshots checked: sidebar light and dark, phone top bar 390 px (no sideways scroll), landing nav (light, dark, phone), log-in, admin, offline page, every icon size, the maskable crop.
+**Not tested here (needs real devices):** the icon on a Windows taskbar/Start menu, an Android home screen (launcher shapes) and an iPhone home screen; browsers and installed apps may keep showing the old icon until their cache refreshes (see the owner's notes).

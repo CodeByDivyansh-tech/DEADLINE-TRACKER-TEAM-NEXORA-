@@ -4,12 +4,12 @@
      "You're offline" page is shown instead of the browser's error.
    - The app's code files (assets/app.<hash>.js, assets/gsap.<hash>.js) never change once named, so they are
      kept for fast starts. Older ones are removed when a new one arrives. */
-const CACHE = "dt-app-v1";
+const CACHE = "dt-app-v2";   // v2: the glass cube icon (a new name drops the old cache and its old icon)
 const OFFLINE = "/offline.html";
 const BUILT = /^\/assets\/(app|gsap)\.[0-9a-f]{10}\.js$/;
 
 self.addEventListener("install", e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll([OFFLINE, "/icons/icon-192.png"])).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll([OFFLINE, "/icons/icon-192.png?v=2"])).then(() => self.skipWaiting()));
 });
 self.addEventListener("activate", e => {
   e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));

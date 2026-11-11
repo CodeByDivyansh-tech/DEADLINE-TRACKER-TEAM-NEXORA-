@@ -132,11 +132,11 @@ function logItem(w, it, text){
   if (w.activity.length > 80) w.activity.length = 80;
 }
 
-// The Deadline Tracker logo (also in logo.svg). Each copy gets its own gradient id.
-let logoN = 0;
+// The Deadline Tracker logo: the glass cube app icon (icons/logo-mark.webp, 96 px). build.js puts the image
+// into the page, so it shows with no server too. Decorative: the name is always written next to it.
+const LOGO_SRC = "data:image/webp;base64,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";
 function logoSVG(size){
-  const id = "dtg" + (++logoN);
-  return `<svg class="dt-logo" width="${size}" height="${size}" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a2d31"/><stop offset="1" stop-color="#151515"/></linearGradient></defs><rect width="64" height="64" rx="16" fill="url(#${id})"/><circle cx="32" cy="33" r="17" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="5"/><path d="M32 16 A17 17 0 1 1 17.28 24.5" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/><path d="M24.5 33.5 30 39 40.5 27.5" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="32" cy="16" r="4" fill="#99b6d2" stroke="#fff" stroke-width="1.5"/></svg>`;
+  return `<img class="dt-logo" src="${LOGO_SRC}" width="${size}" height="${size}" alt="" decoding="async" draggable="false">`;
 }
 function defaultSettings(mode){
   return {
@@ -3631,7 +3631,7 @@ function ptMarkup(){
     </section>
   </main></div></div>
   <header class="pt-nav" id="ptNav" data-theme="light">
-    <a class="pt-logo" href="#" data-pt="top" aria-label="Deadline Tracker home">${mark}<span>Deadline Tracker</span></a>
+    <a class="pt-logo" href="#" data-pt="top" aria-label="Deadline Tracker home">${logoSVG(30)}<span>Deadline Tracker</span></a>
     <div class="pt-nav-r"><button type="button" class="pt-pill pt-glass" data-pt="login">Log in</button><button type="button" class="pt-pill pt-cta" data-pt="signup">Get started</button></div>
   </header>
   <div class="pt-cursor" id="ptCursor" aria-hidden="true"></div>`;

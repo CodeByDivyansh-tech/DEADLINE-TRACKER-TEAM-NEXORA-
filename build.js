@@ -12,8 +12,11 @@ const ROOT = __dirname, ASSETS = path.join(ROOT, "assets");
 const parts = ["part1.html", "part2.js", "part3.js", "todo.js", "habits.js", "install.js", "ai.js", "account.js", "widget.js", "motion.js", "portal.js", "part4.js"];
 const read = p => fs.readFileSync(path.join(ROOT, "src", p), "utf8");
 
-const html = read("part1.html");
-const code = parts.slice(1).map(read).join("");
+// the in-app logo (the glass cube icon, made by brand/make-icons.py) goes into the page as a data: URL
+const LOGO = "data:image/webp;base64," + fs.readFileSync(path.join(ROOT, "icons", "logo-mark.webp")).toString("base64");
+const withLogo = s => s.split("%%DT_LOGO%%").join(LOGO);
+const html = withLogo(read("part1.html"));
+const code = withLogo(parts.slice(1).map(read).join(""));
 // the app code sits between "<script>" (start of part2.js) and "</script></body></html>" (end of part4.js)
 const open = code.indexOf("<script>"), close = code.lastIndexOf("</script>");
 if (open !== 0 || close < 0) throw new Error("src/part2.js must start with <script> and src/part4.js must end with </script></body></html>");
@@ -46,7 +49,7 @@ if (process.argv.includes("--public")) {
   const PUB = path.join(ROOT, "public");
   fs.rmSync(PUB, { recursive: true, force: true });
   fs.mkdirSync(path.join(PUB, "pitch-assets"), { recursive: true });
-  for (const f of ["index.html", "admin.html", "pitch.html", "logo.svg", "sw.js", "offline.html", "manifest.webmanifest"]) fs.copyFileSync(path.join(ROOT, f), path.join(PUB, f));
+  for (const f of ["index.html", "admin.html", "pitch.html", "logo.svg", "sw.js", "offline.html", "manifest.webmanifest", "favicon.ico"]) fs.copyFileSync(path.join(ROOT, f), path.join(PUB, f));
   fs.cpSync(path.join(ROOT, "icons"), path.join(PUB, "icons"), { recursive: true });   // app icons (install as an app)
   fs.cpSync(ASSETS, path.join(PUB, "assets"), { recursive: true });
   const PA = path.join(ROOT, "pitch-assets");

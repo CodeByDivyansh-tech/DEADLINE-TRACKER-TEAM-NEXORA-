@@ -10,8 +10,10 @@
 <meta name="theme-color" content="#0d0e0f" media="(prefers-color-scheme: dark)">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Deadline Tracker">
-<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Deadline Tracker"%3E %3Cdefs%3E%3ClinearGradient id="dtg" x1="0" y1="0" x2="1" y2="1"%3E%3Cstop offset="0" stop-color="#2a2d31"/%3E%3Cstop offset="1" stop-color="#151515"/%3E%3C/linearGradient%3E%3C/defs%3E %3Crect width="64" height="64" rx="16" fill="url%28#dtg%29"/%3E %3Ccircle cx="32" cy="33" r="17" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="5"/%3E %3Cpath d="M32 16 A17 17 0 1 1 17.28 24.5" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/%3E %3Cpath d="M24.5 33.5 30 39 40.5 27.5" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/%3E %3Ccircle cx="32" cy="16" r="4" fill="#99b6d2" stroke="#fff" stroke-width="1.5"/%3E %3C/svg%3E">
+<link rel="icon" href="/favicon.ico?v=2" sizes="48x48">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png?v=2">
+<link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png?v=2">
+<link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png?v=2">
 <script>
 /* Start the first two server calls straight away, while the app's code is still downloading (the app picks them
    up in checkAccounts / initServerStore). Only on a real web address; harmless when signed out (401). */
@@ -1617,7 +1619,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--steel-ink);box-shadow
 .pt-nav[data-theme="dark"]{color:var(--pt-ink)}
 .pt-logo{position:absolute;left:calc(20 * var(--u));top:calc(26 * var(--u));display:flex;align-items:center;gap:10px;color:inherit;text-decoration:none;font-size:max(14px,calc(17 * var(--fit) * var(--u)));font-weight:500;letter-spacing:-.02em;--pt-mark-ink:#151515}
 .pt-nav[data-theme="dark"] .pt-logo{--pt-mark-ink:#fff}
-.pt-logo svg{width:max(26px,calc(30 * var(--u)));height:max(26px,calc(30 * var(--u)));border-radius:24%}
+.pt-logo .dt-logo{width:max(26px,calc(30 * var(--u)));height:max(26px,calc(30 * var(--u)));border-radius:24%}
 .pt-nav-r{position:absolute;right:calc(20 * var(--u));top:calc(22 * var(--u));display:flex;gap:8px}
 .pt-pill{height:max(40px,calc(39 * var(--u)));padding:0 16px;border-radius:100px;font:inherit;font-size:max(14px,var(--ui-size));font-weight:300;letter-spacing:-.01em;cursor:pointer;border:0;transition:transform .2s var(--pt-ease),opacity .2s var(--pt-ease),background-color .4s var(--pt-ease),color .4s var(--pt-ease)}
 .pt-glass{background:var(--pt-glass);color:inherit;border:1px solid var(--pt-edge);box-shadow:inset 0 2px 2px var(--pt-shine);backdrop-filter:blur(20px)}
@@ -1824,7 +1826,7 @@ body:has(#portal:not([hidden])) #bootSplash{display:none}
 .inst-how p{margin:0;color:var(--ink-2)}
 </style>
 <script defer src="/assets/gsap.92bb9a9647.js"></script>
-<script defer src="/assets/app.7c7a84d37e.js"></script>
+<script defer src="/assets/app.c7c83a0e10.js"></script>
 </head>
 <body>
 <!-- Shown only if starting takes longer than ~0.45 s (fades in late); hidden as soon as the log-in page or the app appears. -->
@@ -1833,7 +1835,7 @@ body:has(#portal:not([hidden])) #bootSplash{display:none}
   <aside class="side" id="side" aria-label="Workspace and sections"></aside>
   <div class="main">
     <header class="topbar">
-      <span class="m-brand" title="Deadline Tracker"><svg class="dt-logo" width="30" height="30" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><defs><linearGradient id="dtg-top" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a2d31"/><stop offset="1" stop-color="#151515"/></linearGradient></defs> <rect width="64" height="64" rx="16" fill="url(#dtg-top)"/> <circle cx="32" cy="33" r="17" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="5"/> <path d="M32 16 A17 17 0 1 1 17.28 24.5" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/> <path d="M24.5 33.5 30 39 40.5 27.5" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/> <circle cx="32" cy="16" r="4" fill="#99b6d2" stroke="#fff" stroke-width="1.5"/></svg></span><div class="crumb"><h1 id="pageTitle">Overview</h1><span id="pageSub"></span></div>
+      <span class="m-brand" title="Deadline Tracker"><img class="dt-logo" src="data:image/webp;base64,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" width="30" height="30" alt="" draggable="false"></span><div class="crumb"><h1 id="pageTitle">Overview</h1><span id="pageSub"></span></div>
       <span id="demoTag"></span>
       <label class="gsearch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="gsearch" type="search" placeholder="Search deadlines" aria-label="Search deadlines"></label>
       <button class="iconbtn" id="themeBtn" type="button" aria-label="Switch to dark mode" title="Switch to dark mode"></button>

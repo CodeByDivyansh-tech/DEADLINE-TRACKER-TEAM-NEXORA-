@@ -100,13 +100,13 @@ test("Vercel: the build command fits Vercel's 256-character limit, and 'build.js
   const tmp = fs.mkdtempSync(path.join(require("os").tmpdir(), "vsim-"));
   // only what .vercelignore lets through
   const ign = fs.readFileSync(path.join(ROOT, ".vercelignore"), "utf8");
-  for (const f of ["sw.js", "offline.html", "manifest.webmanifest", "icons"]) assert.match(ign, new RegExp("^!" + f.replace(".", "\\.") + "/?$", "m"), f + " is uploaded to Vercel");
-  for (const f of ["index.html", "admin.html", "pitch.html", "logo.svg", "pitch-assets", "vercel.json", "build.js", "src", "vendor", "package.json", "sw.js", "offline.html", "manifest.webmanifest", "icons"]) fs.cpSync(path.join(ROOT, f), path.join(tmp, f), { recursive: true });
+  for (const f of ["sw.js", "offline.html", "manifest.webmanifest", "icons", "favicon.ico"]) assert.match(ign, new RegExp("^!" + f.replace(".", "\\.") + "/?$", "m"), f + " is uploaded to Vercel");
+  for (const f of ["index.html", "admin.html", "pitch.html", "logo.svg", "pitch-assets", "vercel.json", "build.js", "src", "vendor", "package.json", "sw.js", "offline.html", "manifest.webmanifest", "icons", "favicon.ico"]) fs.cpSync(path.join(ROOT, f), path.join(tmp, f), { recursive: true });
   execFileSync("bash", ["-c", v.buildCommand], { cwd: tmp, stdio: "pipe" });
   const pub = path.join(tmp, "public"), page = fs.readFileSync(path.join(pub, "index.html"), "utf8");
   for (const f of [...page.matchAll(/src="\/assets\/([\w.]+\.js)"/g)].map(m => m[1])) assert.ok(fs.existsSync(path.join(pub, "assets", f)), f);
-  for (const f of ["admin.html", "pitch.html", "logo.svg", "pitch-assets/screens", "pitch-assets/3d", "sw.js", "offline.html", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/maskable-512.png", "icons/apple-touch-icon.png"]) assert.ok(fs.existsSync(path.join(pub, f)), f);
+  for (const f of ["admin.html", "pitch.html", "logo.svg", "pitch-assets/screens", "pitch-assets/3d", "sw.js", "offline.html", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-512-maskable.png", "icons/icon-192-maskable.png", "icons/apple-touch-icon.png", "icons/favicon-16x16.png", "icons/favicon-32x32.png", "icons/icon-96.png", "favicon.ico"]) assert.ok(fs.existsSync(path.join(pub, f)), f);
   assert.ok(fs.readdirSync(path.join(pub, "pitch-assets")).some(f => f.endsWith(".js")));
-  for (const f of ["src", "build.js", "vercel.json", "standalone.html", "package.json"]) assert.ok(!fs.existsSync(path.join(pub, f)), "not published: " + f);
+  for (const f of ["src", "build.js", "vercel.json", "standalone.html", "package.json", "brand"]) assert.ok(!fs.existsSync(path.join(pub, f)), "not published: " + f);
   fs.rmSync(tmp, { recursive: true, force: true });
 });
