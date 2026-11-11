@@ -3557,7 +3557,7 @@ function dayEntries(w, d){
     const e = { id: i.id, title: i.title };
     if (dd === d) out.push(Object.assign(e, { st: "done", from: p && p < d ? p : null }));
     else if (dd && dd < d) continue;
-    else if (!mv.length && (i.movedFrom || []).includes(d) && p !== d) out.push(Object.assign(e, { st: "moved", to: i.plan }));   // moved before movement times were kept
+    else if (!mv.length && (i.movedFrom || []).includes(d) && p > d) out.push(Object.assign(e, { st: "moved", to: i.plan }));   // moved before movement times were kept
     else if (p === d) out.push(Object.assign(e, { st: "pending", from: null }));
     else if (p && p < d) out.push(Object.assign(e, { st: "pending", from: p }));
     else if (p && p > d && mv.some(x => ymd(x.at) === d && x.from && x.from <= d)) out.push(Object.assign(e, { st: "moved", to: p }));

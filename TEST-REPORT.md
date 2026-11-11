@@ -1,6 +1,6 @@
 # Test report: Deadline Tracker
 
-**Latest full run (11 Nov 2026, carry-forward + Habit Tracker): 463 of 463 tests pass, twice in a row.** Earlier first report: 140 of 140 (two full runs in a row, about 3.5 minutes each).
+**Latest full run (11 Nov 2026, carry-forward fix): 464 of 464 tests pass, twice in a row.** Earlier first report: 140 of 140 (two full runs in a row, about 3.5 minutes each).
 Every test runs the real app in Chromium with the clock fixed at **Friday 30 Oct 2026, 12:00 IST**, so dates are predictable.
 
 ## How it was done (test-driven)
@@ -424,3 +424,6 @@ Found live: Gemini sometimes cites guide numbers inside sentences ("… study ho
 
 Screenshots checked: Daily tasks and Habit Tracker in dark, light and 390 px (fixed: week tiles wrapping on phones).
 **Not covered / to check on the live site:** midnight passing with the tab left open is tested by changing the clock, not by waiting; days before this release have no saved task list, so their lists are worked out from current tasks (deleted tasks are missing there); habits are per account, not shared in team workspaces; no habit reminders.
+
+## 11 Nov 2026 (2): live check after deploy
+Deployed `4f6810f`. On the owner's account: server restarted and restored, Habit Tracker in the menu, six tasks shown as "Carried forward · originally due …". Found: the numbers said 5 total with 1 "moved", because one task had been moved to the 11th and back to the 10th before move times were kept (`movedFrom` held today's date). Fix: such a task counts as moved only when its day is later than the day shown; otherwise it is carried. Test (carry, red first).

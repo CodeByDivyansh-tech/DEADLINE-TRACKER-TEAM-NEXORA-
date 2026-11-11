@@ -143,3 +143,15 @@ test("calendar: a carried task shows on today (marked) and stays on its first da
   assert.match(await page.textContent('[data-day="2026-10-29"]'), /Python 5 lectures/, "still on its first day");
   assert.equal((await ws(page)).items.filter(i => i.title === "Python 5 lectures").length, 1);
 });
+
+test("tasks moved before move times were kept: one moved forward and back again still counts as carried, not as 'moved'", async () => {
+  // seen on the live site on 11 Nov: movedFrom held today's date, but the task's day was yesterday
+  await open([{ t: "Back and forth", plan: "2026-10-29" }, { t: "Really moved", plan: "2026-11-02" }]);
+  await page.evaluate(() => { const T = window.__DT_TEST__; const w = T.W();
+    w.items.find(i => i.title === "Back and forth").movedFrom = ["2026-10-28", "2026-10-30"];
+    w.items.find(i => i.title === "Really moved").movedFrom = ["2026-10-30"]; T.save(); T.render(); });
+  assert.match(await row("Back and forth").textContent(), /Carried forward/);
+  assert.match(await txt("#dailyStats"), /1\s*Total/);
+  assert.deepEqual(await hist("pending"), ["Back and forth"]);
+  assert.deepEqual(await hist("moved"), ["Really moved"]);
+});
