@@ -1,6 +1,6 @@
 # Test report: Deadline Tracker
 
-**Latest full run (11 Nov 2026, Daily lists follow the scheduled day): 468 of 468 tests pass, twice in a row.** Earlier first report: 140 of 140 (two full runs in a row, about 3.5 minutes each).
+**Latest full run (11 Nov 2026, Install App): 480 of 480 tests pass, twice in a row.** Earlier first report: 140 of 140 (two full runs in a row, about 3.5 minutes each).
 Every test runs the real app in Chromium with the clock fixed at **Friday 30 Oct 2026, 12:00 IST**, so dates are predictable.
 
 ## How it was done (test-driven)
@@ -456,3 +456,18 @@ Screenshots checked: Today, Daily tasks + History, Calendar in dark, light and 3
 | Finishing an old task today doesn't change today's numbers | progress (1 updated) |
 
 Screenshot checked: Daily tasks (dark, light, 390 px).
+
+## 11 Nov 2026 (5): Install App in Settings (installable web app)
+**Before:** no manifest, icons or service worker, so browsers could not install the site.
+**Added:** `manifest.webmanifest` (name, short name, standalone, start page, white theme/background, shortcuts to Daily tasks and Habit Tracker), `icons/` (192 and 512 PNG, maskable 192 and 512, Apple touch icon; drawn from the logo by `tests/load/make-icons.js`), `sw.js` (never touches `/api`; pages always from the network with a "You're offline" page as fallback; keeps the two hashed code files), `offline.html`, head tags (manifest link, theme colour per theme, Apple icon). `server.js` serves them (`sw.js` and the manifest re-checked each time; other code stays private); Vercel uploads and publishes them (`.vercelignore`, `build.js --public`, `vercel.json`).
+**Settings → Profile → Install App (`src/install.js`):** holds back the browser's banner and opens the browser's own install window only on click; accepted → "App installed" + one success message; dismissed → calm message, button stays; failure → error + manual steps; no direct install (iPhone/iPad, Firefox, Safari, or the browser hasn't offered) → steps for that device; opened as the installed app → "You're using the installed app"; if the browser offers again (app removed) the button returns. Nothing prompts by itself. Help guide updated.
+
+| Area | Test |
+|---|---|
+| Button in Settings only, icon, style, no self-prompt; accepted; installed from the browser menu; dismissed and re-offered; failure; steps for iPhone, Android, Firefox, Chrome; installed-app window; contrast | install (8, red first) |
+| Manifest fields, real PNG sizes, head tags, worker + offline page served, private files still 404 | api-pwa (3, red first) |
+| Real Chromium on the real server: Chrome reports no installability errors; worker controls the page; sign-up and `/api` work through it; nothing from `/api` or pages stored; offline page without a connection, back online with "Try again" | api-pwa (1, red first) |
+| Vercel build publishes the new files and they are uploaded | api-assets (updated, red first) |
+
+Screenshots checked: Settings (button, steps, installed) in dark, light, 390 px; offline page; the icons.
+**Not tested here (needs a real device):** the actual install window and the installed app on Windows, Android and iPhone. Automated browsers can't show it, so the tests send the same events the browser sends. To check after deploy.

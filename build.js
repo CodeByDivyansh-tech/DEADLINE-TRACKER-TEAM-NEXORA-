@@ -9,7 +9,7 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const ROOT = __dirname, ASSETS = path.join(ROOT, "assets");
-const parts = ["part1.html", "part2.js", "part3.js", "todo.js", "habits.js", "ai.js", "account.js", "widget.js", "motion.js", "portal.js", "part4.js"];
+const parts = ["part1.html", "part2.js", "part3.js", "todo.js", "habits.js", "install.js", "ai.js", "account.js", "widget.js", "motion.js", "portal.js", "part4.js"];
 const read = p => fs.readFileSync(path.join(ROOT, "src", p), "utf8");
 
 const html = read("part1.html");
@@ -46,7 +46,8 @@ if (process.argv.includes("--public")) {
   const PUB = path.join(ROOT, "public");
   fs.rmSync(PUB, { recursive: true, force: true });
   fs.mkdirSync(path.join(PUB, "pitch-assets"), { recursive: true });
-  for (const f of ["index.html", "admin.html", "pitch.html", "logo.svg"]) fs.copyFileSync(path.join(ROOT, f), path.join(PUB, f));
+  for (const f of ["index.html", "admin.html", "pitch.html", "logo.svg", "sw.js", "offline.html", "manifest.webmanifest"]) fs.copyFileSync(path.join(ROOT, f), path.join(PUB, f));
+  fs.cpSync(path.join(ROOT, "icons"), path.join(PUB, "icons"), { recursive: true });   // app icons (install as an app)
   fs.cpSync(ASSETS, path.join(PUB, "assets"), { recursive: true });
   const PA = path.join(ROOT, "pitch-assets");
   for (const f of fs.readdirSync(PA)) {

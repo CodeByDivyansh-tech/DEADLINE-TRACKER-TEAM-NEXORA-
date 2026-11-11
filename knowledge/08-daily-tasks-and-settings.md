@@ -26,3 +26,6 @@ Money in Deadline AI's answers is shown in Indian Rupees by default, written lik
 
 ## Light and dark mode
 Press the sun or moon button at the top of the page to switch between light and dark mode. The app remembers your choice.
+
+## Installing Deadline Tracker as an app
+Open Settings, then Profile, and press Install App. In Chrome and Edge on a computer, and in Chrome on Android, the browser shows its own install window; press Install. On an iPhone or iPad, open the site in Safari, tap the Share button and choose Add to Home Screen. Firefox on a computer cannot install web apps, so use Chrome or Edge there. If the browser does not offer a direct install, the Install App button shows the steps for your device. The installed app opens in its own window with its own icon and uses the same account and data. After installing, Settings shows App installed. The app needs the internet to open your tasks; without a connection it shows a "You're offline" page.

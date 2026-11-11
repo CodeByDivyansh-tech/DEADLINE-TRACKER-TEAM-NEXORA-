@@ -12,3 +12,8 @@
 !vendor
 !vendor/**
 !package.json
+!sw.js
+!offline.html
+!manifest.webmanifest
+!icons/
+!icons/**

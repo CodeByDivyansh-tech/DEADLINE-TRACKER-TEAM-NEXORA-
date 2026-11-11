@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Deadline Tracker — Every deadline in one calm place</title>
 <meta name="description" content="Deadline Tracker turns what you need to do into a clear to-do list, shows your progress and reminds you before anything is due. Free for students, teams and personal use.">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e0f" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Deadline Tracker">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Deadline Tracker"%3E %3Cdefs%3E%3ClinearGradient id="dtg" x1="0" y1="0" x2="1" y2="1"%3E%3Cstop offset="0" stop-color="#2a2d31"/%3E%3Cstop offset="1" stop-color="#151515"/%3E%3C/linearGradient%3E%3C/defs%3E %3Crect width="64" height="64" rx="16" fill="url%28#dtg%29"/%3E %3Ccircle cx="32" cy="33" r="17" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="5"/%3E %3Cpath d="M32 16 A17 17 0 1 1 17.28 24.5" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/%3E %3Cpath d="M24.5 33.5 30 39 40.5 27.5" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/%3E %3Ccircle cx="32" cy="16" r="4" fill="#99b6d2" stroke="#fff" stroke-width="1.5"/%3E %3C/svg%3E">
 <script>
 /* Start the first two server calls straight away, while the app's code is still downloading (the app picks them
@@ -1805,6 +1811,17 @@ body:has(#portal:not([hidden])) #bootSplash{display:none}
 .hb-hint{font-size:12.5px;color:var(--muted)}
 .hb-week b,.hb-week i{white-space:nowrap}
 @media (max-width:860px){.hb-weeks{grid-template-columns:repeat(2,minmax(0,1fr))}.hb-week{padding:8px;gap:6px}.hb-week .hb-ring{width:30px;height:30px}.hb-card{padding:16px}.hb-table th:first-child{min-width:104px;max-width:120px;padding-left:10px}}
+
+/* Settings: Install App */
+.inst-wrap{display:grid;gap:8px}
+.switch.inst{flex-wrap:wrap}
+.switch.inst > span:first-child{flex:1 1 220px;min-width:0}
+.inst-ok{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;font-weight:500;color:var(--ok);white-space:nowrap}
+.inst-ok svg{width:16px;height:16px}
+.inst-how{padding:12px 16px;border:1px solid var(--line);border-radius:14px;background:var(--steel-soft);font-size:14px;display:grid;gap:6px}
+.inst-how b{font-weight:500}
+.inst-how ol{margin:0;padding-left:20px;display:grid;gap:4px;color:var(--ink-2)}
+.inst-how p{margin:0;color:var(--ink-2)}
 </style>
 </head>
 <body>
@@ -3361,6 +3378,7 @@ function settingsHTML(w, s, gw, mgr, days){
         <p class="muted" style="font-size:13px">${MODE_LABEL[w.mode]} workspace · created ${fmtDate(w.createdAt, { day: "numeric", month: "short", year: "numeric" })}. You belong to ${state.workspaces.length} workspace${state.workspaces.length > 1 ? "s" : ""}; switch from the top of the sidebar.</p>
         <div class="field"><label for="pf-currency">Currency for money in answers</label><select id="pf-currency">${[["INR", "₹ Indian Rupee (INR)"], ["USD", "$ US Dollar (USD)"], ["EUR", "€ Euro (EUR)"], ["GBP", "£ British Pound (GBP)"], ["AED", "AED UAE Dirham"], ["SGD", "S$ Singapore Dollar"], ["AUD", "A$ Australian Dollar"], ["CAD", "C$ Canadian Dollar"], ["JPY", "¥ Japanese Yen"]].map(([v, l]) => `<option value="${v}" ${(state.user.currency || "INR") === v ? "selected" : ""}>${l}</option>`).join("")}</select></div>
         <label class="switch" for="pf-sound"><span><b>Sound effects</b><span>Soft clicks and chimes when you act. Saved on this device.</span></span><input type="checkbox" id="pf-sound" role="switch" ${SFX.on ? "checked" : ""}></label>
+        ${installHTML()}
         <div class="row-flex">${w.demo ? `<button class="btn sm" type="button" data-act="cleardemo">Clear sample data</button>` : ""}<button class="btn sm" type="button" data-act="wsnew">${IC.plus}New workspace</button>${state.workspaces.length > 1 && mgr ? `<button class="btn sm danger" type="button" data-act="wsdelete">Delete this workspace</button>` : ""}</div>
       ${ACCOUNT.user ? `<div class="acct-row">${IC.check}<span>Signed in as <b>${esc(ACCOUNT.user.email)}</b>${ACCOUNT.user.role === "admin" ? " · admin" : ""}</span>${ACCOUNT.user.role === "admin" ? `<a class="btn sm" href="/admin" target="_blank" rel="noopener">Open admin</a>` : ""}<button class="btn sm" type="button" data-act="pwopen" aria-expanded="${!!UI.pwOpen}" aria-controls="pwBox">Change password</button><button class="btn sm" type="button" data-act="logout">Log out</button></div>
       ${UI.pwOpen ? `<form class="pw-box" id="pwBox" novalidate><h4>Change password</h4>
@@ -4135,6 +4153,86 @@ document.addEventListener("keydown", e => {
   if (t.id === "habitName" && e.key === "Enter") { e.preventDefault(); habitAdd(); }
   else if (t.id === "hbEditName" && (e.key === "Enter" || e.key === "Escape")) { e.preventDefault(); const b = t.closest(".hb-row").querySelector(e.key === "Enter" ? "[data-act=habitsave]" : "[data-act=habitcancel]"); if (b) b.click(); }
 });
+/* =========================================================
+   Install App (Settings → Profile)
+   Uses the browser's own install window when the browser offers one ("beforeinstallprompt": Chrome, Edge, Android).
+   Where it doesn't (iPhone and iPad, Firefox, Safari), the button shows the manual steps for that device.
+   Nothing prompts by itself: the browser's banner is held back until the person clicks Install App.
+   The pieces the browser needs are at the site root: manifest.webmanifest, icons/, sw.js and offline.html.
+   ========================================================= */
+IC.download = svg('<path d="M12 4v11M7 11l5 5 5-5"/><path d="M5 20h14"/>');
+const INSTALL = { evt: null, installed: false, how: false, busy: false, told: false };
+try { INSTALL.installed = localStorage.getItem("dt-installed") === "1"; } catch (e) {}
+const instStandalone = () => !!((window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true);
+function instMark(on){ INSTALL.installed = on; try { on ? localStorage.setItem("dt-installed", "1") : localStorage.removeItem("dt-installed"); } catch (e) {} }
+function instDone(){
+  INSTALL.evt = null; INSTALL.how = false; instMark(true); refreshInstall();
+  if (!INSTALL.told) { INSTALL.told = true; toast("Deadline Tracker is installed. Open it from your home screen or your apps."); if (typeof sfx === "function") sfx("success"); }
+}
+// The browser says the site can be installed. It only does this while the app is NOT installed.
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); INSTALL.evt = e; INSTALL.told = false; instMark(false); refreshInstall(); });
+window.addEventListener("appinstalled", instDone);
+
+function instPlatform(){
+  const ua = navigator.userAgent || "";
+  if (/iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)) return "ios";
+  if (/Android/.test(ua)) return /Firefox/.test(ua) ? "android-firefox" : "android";
+  if (/Firefox\//.test(ua)) return "firefox";
+  if (/Edg\//.test(ua)) return "edge";
+  if (/Chrome\//.test(ua)) return "chrome";
+  if (/Safari\//.test(ua) && /Macintosh/.test(ua)) return "safari-mac";
+  return "other";
+}
+const INSTALL_STEPS = {
+  "ios": ["On iPhone and iPad", ["Open this page in Safari.", "Tap the Share button (the square with an arrow).", "Tap “Add to Home Screen”, then “Add”."]],
+  "android": ["On Android", ["Tap the ⋮ menu at the top right of the browser.", "Tap “Install app” or “Add to Home screen”.", "Tap “Install”."]],
+  "android-firefox": ["On Android (Firefox)", ["Tap the ⋮ menu.", "Tap “Install” or “Add to Home screen”.", "Tap “Add”."]],
+  "chrome": ["In Chrome", ["Look for the install icon at the right end of the address bar and click it.", "Or open the ⋮ menu, then “Cast, save and share”, then “Install Deadline Tracker”.", "Click “Install”."]],
+  "edge": ["In Edge", ["Look for the install icon at the right end of the address bar and click it.", "Or open the … menu, then “Apps”, then “Install this site as an app”.", "Click “Install”."]],
+  "safari-mac": ["In Safari on a Mac", ["Open the File menu.", "Choose “Add to Dock”.", "Click “Add”."]],
+  "firefox": ["Firefox on a computer can't install web apps", null, "Open this site in Chrome or Edge and use Install App there. On a phone, Firefox can add it to the home screen from its menu."],
+  "other": ["In your browser", ["Open the browser's menu.", "Look for “Install app” or “Add to Home screen”.", "Confirm with “Install” or “Add”."]]
+};
+function installHTML(){
+  const alone = instStandalone();
+  if (alone || INSTALL.installed) return `<div class="inst-wrap" id="installBox"><div class="switch inst"><span><b>Deadline Tracker app</b><span>${alone ? "You're using the installed app." : "Installed on this device. Open it from your home screen or your apps."}</span></span><span class="inst-ok" id="installDone">${IC.check}App installed</span></div></div>`;
+  const web = /^https?:$/.test(location.protocol);
+  const [title, steps, note] = web ? INSTALL_STEPS[instPlatform()] : ["Open the website first", null, "Installing works from the website's address, not from a file or a preview."];
+  return `<div class="inst-wrap" id="installBox"><div class="switch inst"><span><b>Install app</b><span>Put Deadline Tracker on your home screen or desktop. It opens in its own window, with the same account and data.</span></span>
+      <button class="btn primary sm" type="button" id="installBtn" data-act="installapp" aria-expanded="${INSTALL.how}" aria-controls="installHow">${IC.download}Install App</button></div>
+      ${INSTALL.how ? `<div class="inst-how" id="installHow"><b>${esc(title)}</b>${steps ? `<ol>${steps.map(x => `<li>${esc(x)}</li>`).join("")}</ol>` : `<p>${esc(note)}</p>`}</div>` : ""}</div>`;
+}
+// update just this row (the Settings form may have unsaved typing elsewhere)
+function refreshInstall(){ const box = document.getElementById("installBox"); if (box) box.outerHTML = installHTML(); }
+async function installApp(){
+  if (INSTALL.busy) return;
+  const e = INSTALL.evt;
+  if (!e) { INSTALL.how = !INSTALL.how; refreshInstall(); const b = $("#installBtn"); if (b) b.focus(); return; }   // no direct install here: show or hide the steps
+  INSTALL.busy = true;
+  try {
+    await e.prompt();
+    const choice = await e.userChoice;
+    INSTALL.evt = null;   // a prompt can be used once
+    if (choice && choice.outcome === "accepted") instDone();
+    else { toast("Not installed. You can install it any time from here."); refreshInstall(); }
+  } catch (err) {
+    INSTALL.evt = null; INSTALL.how = true; refreshInstall();
+    toast("Couldn't open the install window. Follow the steps shown instead.", null, null, "error");
+  }
+  INSTALL.busy = false;
+}
+document.addEventListener("click", e => {
+  const a = e.target.closest("[data-act]"); if (!a) return;
+  switch (a.dataset.act) {
+    case "installapp": installApp(); break;
+  }
+});
+
+// The service worker (sw.js): needed for a proper installed app and the "You're offline" page.
+// Not on test pages unless asked (&dt-sw), and only on a real web address.
+if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol) && (!/[?&]dt-test\b/.test(location.search) || /[?&]dt-sw\b/.test(location.search))) {
+  window.addEventListener("load", () => { navigator.serviceWorker.register("/sw.js").catch(() => {}); });
+}
 
 /* =========================================================
    Deadline AI - My Plan (your own tasks)
@@ -6489,7 +6587,7 @@ function closeModalIfOnb(){ $("#onb").hidden = true; }
 /* Test seam: only exposed when the page is opened with ?dt-test (used by the automated tests). */
 if (/[?&]dt-test\b/.test(location.search)) {
   window.__DT_TEST__ = { motion: MOTION, showAuth: () => { ACCOUNT.mode = "login"; showAuth(); }, weekStats, parseQuick, extractFromText, radar, estimateInsight, checkinCandidate, rulesPlan, runReminders, AI, planFor, backwardPlan, chunkPlan, conflicts, notifs, availHours, progressOf, remainingH, mkItem, newWorkspace, levelOf,
-    SFX, DW, get state(){ return state; }, set state(v){ state = v; }, W, render, save };
+    SFX, DW, INSTALL, get state(){ return state; }, set state(v){ state = v; }, W, render, save };
 }
 // Start: with the Deadline Tracker server you log in and your data comes from your account;
 // anywhere else (claude.ai, a plain file server) it's saved in this browser as before.

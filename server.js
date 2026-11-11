@@ -136,7 +136,7 @@ async function main(){
   const PRIVATE = /(^|[\\/])(\.env.*|ai-key\.txt|data|lib|tests|node_modules|knowledge|docs|src|\.git)([\\/]|$)|\.(db|db-wal|db-shm|md|bak|ps1|bat|sh|json|js)$/i;
   const MIME = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".webp": "image/webp", ".ico": "image/x-icon", ".webmanifest": "application/manifest+json" };
   // The pitch's public libraries (three.js, GSAP) are the only .js files served; all other .js is source code.
-  const PUBLIC_JS = /^(pitch-assets[\\/][\w.-]+\.min\.js|assets[\\/](app|gsap)\.[0-9a-f]{10}\.js)$/;
+  const PUBLIC_JS = /^(pitch-assets[\\/][\w.-]+\.min\.js|assets[\\/](app|gsap)\.[0-9a-f]{10}\.js|sw\.js)$/;   // sw.js: the service worker (install as an app)
   const BUILT = /^assets[\\/](app|gsap)\.[0-9a-f]{10}\.js$/;   // content-named by build.js: safe to keep for a year
   const etags = new Map();   // file -> { mtime, size, tag }
   const handle = async (req, res) => {
@@ -161,7 +161,7 @@ async function main(){
     if (!type) { res.writeHead(404, Object.assign({ "Content-Type": "text/plain" }, SECURITY_HEADERS)); return res.end("Not found"); }
     const relf = path.relative(cfg.ROOT, file);
     // app code: a year (its name changes with its content). Pages: kept but re-checked each visit (ETag → 304).
-    const cache = BUILT.test(relf) ? "public, max-age=31536000, immutable" : /^pitch-assets[\\/]/.test(relf) ? "public, max-age=86400" : /html/.test(type) ? "no-cache" : "no-store";
+    const cache = BUILT.test(relf) ? "public, max-age=31536000, immutable" : /^(pitch-assets|icons)[\\/]/.test(relf) ? "public, max-age=86400" : /html|manifest/.test(type) || relf === "sw.js" ? "no-cache" : "no-store";
     const st = fs.statSync(file); let e = etags.get(file);
     if (!e || e.mtime !== st.mtimeMs || e.size !== st.size) { e = { mtime: st.mtimeMs, size: st.size, tag: '"' + require("crypto").createHash("sha1").update(fs.readFileSync(file)).digest("base64url").slice(0, 22) + '"' }; etags.set(file, e); }
     const head = Object.assign({ "Content-Type": type, "Cache-Control": cache, ETag: e.tag }, SECURITY_HEADERS, /html/.test(type) ? { "Content-Security-Policy": CSP } : {});
