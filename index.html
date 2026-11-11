@@ -1726,8 +1726,9 @@ body:has(#portal:not([hidden])) #bootSplash{display:none}
 
 /* carry-forward and the day's task list in History */
 .dt-res{color:var(--steel-ink);font-weight:600}
-.ev.carried,.wcard.carried{border-left-style:dashed}
-.ev.carried::before,.wcard.carried b::before{content:"↻ ";color:var(--over)}
+.ev.missed,.wcard.missed{border-left-style:dashed;border-left-color:var(--over)}
+.ev.missed::before{content:"Missed · ";color:var(--over);font-weight:500}
+.dh-missed{font-size:13px;color:var(--muted)}
 .hist-sum{font-size:13px;color:var(--ink-2)}
 .hist-note{font-size:12.5px;color:var(--muted)}
 .hist-list{display:grid;gap:6px;max-height:300px;overflow-y:auto;padding-right:2px}
@@ -1742,7 +1743,7 @@ body:has(#portal:not([hidden])) #bootSplash{display:none}
 .hl-t{font-size:13.5px;font-weight:500;overflow-wrap:anywhere}
 .hist-list li[data-st="done"] .hl-t{text-decoration:line-through;color:var(--muted)}
 .hl-m{grid-column:2;font:400 11.5px/1.4 var(--font-mono);color:var(--muted)}
-.hist-list li.carried .hl-m{color:var(--over)}
+.hist-list li.missed .hl-m{color:var(--over)}
 
 /* Habit Tracker: same glass cards, tiles and tick buttons as Daily tasks */
 .hb-page{display:grid;gap:16px;grid-template-columns:minmax(0,1fr)}
@@ -1806,7 +1807,7 @@ body:has(#portal:not([hidden])) #bootSplash{display:none}
 @media (max-width:860px){.hb-weeks{grid-template-columns:repeat(2,minmax(0,1fr))}.hb-week{padding:8px;gap:6px}.hb-week .hb-ring{width:30px;height:30px}.hb-card{padding:16px}.hb-table th:first-child{min-width:104px;max-width:120px;padding-left:10px}}
 </style>
 <script defer src="/assets/gsap.92bb9a9647.js"></script>
-<script defer src="/assets/app.8f0ab568e6.js"></script>
+<script defer src="/assets/app.1528dd0a9c.js"></script>
 </head>
 <body>
 <!-- Shown only if starting takes longer than ~0.45 s (fades in late); hidden as soon as the log-in page or the app appears. -->

@@ -1,6 +1,6 @@
 # Test report: Deadline Tracker
 
-**Latest full run (11 Nov 2026, carry-forward fix): 464 of 464 tests pass, twice in a row.** Earlier first report: 140 of 140 (two full runs in a row, about 3.5 minutes each).
+**Latest full run (11 Nov 2026, missed tasks stay on their own day): 466 of 466 tests pass, twice in a row.** Earlier first report: 140 of 140 (two full runs in a row, about 3.5 minutes each).
 Every test runs the real app in Chromium with the clock fixed at **Friday 30 Oct 2026, 12:00 IST**, so dates are predictable.
 
 ## How it was done (test-driven)
@@ -427,3 +427,19 @@ Screenshots checked: Daily tasks and Habit Tracker in dark, light and 390 px (fi
 
 ## 11 Nov 2026 (2): live check after deploy
 Deployed `4f6810f`. On the owner's account: server restarted and restored, Habit Tracker in the menu, six tasks shown as "Carried forward · originally due …". Found: the numbers said 5 total with 1 "moved", because one task had been moved to the 11th and back to the 10th before move times were kept (`movedFrom` held today's date). Fix: such a task counts as moved only when its day is later than the day shown; otherwise it is carried. Test (carry, red first).
+
+## 11 Nov 2026 (3): missed tasks stay on their own day (replaces carry-forward on the Today and Daily lists)
+Owner's new rule: a task not finished on its scheduled day is NOT carried to the next day. It leaves the Today page and the Daily tasks Pending list, keeps its original day, and shows as "Missed" on that day in History and the Calendar. Nothing is deleted or copied.
+**Changes:** `isForToday()` and the Daily Pending list no longer include plain tasks whose day has passed (`isMissed()`); the day rule in `dayEntries()` no longer adds carried tasks to later days, so today's numbers count only today's tasks (plus anything finished today). History groups a past day's unfinished tasks under "Missed" (with "Finished …" if done later). Calendar: missed tasks are marked "Missed" on their own day and are no longer copied onto today. A small line on Daily tasks says how many were missed and where to find them. Help guide and handbook text updated. Old day records that had carried tasks in them are read without those.
+**Kept on purpose:** anything with a hard deadline still shows on Today until it is done (an overdue deadline is not hidden). A missed task can be opened from the Calendar and finished or moved; it then counts as done on the day it was finished and stays "Missed" on its own day. The assistant's "plan my day" can still suggest left-over tasks, and only adds them if the user confirms.
+**No database change.** Filtering is in the task logic, not CSS.
+
+| Area | Test |
+|---|---|
+| Next day: not on Today or Daily, today's tasks shown, data intact, completed stays completed, no copies | carry (rewritten, 10; 7 red first) |
+| History "Missed" on the original day; calendar month + week; finishing a missed task later; day change just after midnight India time + reload; old records | carry |
+| Real server: next day, reload, second browser logging in again, database unchanged | todo-tracking (+1) |
+| Older tests updated for the rule | progress (numbers back to today-only), daily (2) |
+
+Screenshots checked: Today, Daily tasks + History, Calendar in dark, light and 390 px.
+**Not covered:** the owner's own account data (checked after deploy); reminders for missed tasks (none are sent).

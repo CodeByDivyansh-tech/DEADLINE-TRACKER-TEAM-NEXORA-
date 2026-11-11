@@ -112,3 +112,32 @@ test("habits and carry-forward data are saved to the account: still there after 
   await go(page, "daily");
   assert.match(await page.locator('#dailyOpen .dt-row:has-text("Move me")').textContent(), /Rescheduled/);
 });
+
+test("missed tasks on the real server: hidden from Today and Daily the next day, after a reload and after logging in again; still saved as not done on their own day", async () => {
+  const page = await newUser(); const email = `todo${n}@example.com`;
+  await add(page, "Python 5 lectures"); await add(page, "Chemistry study");
+  const today = await page.evaluate(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; });
+  await saved(page);
+  const tomorrow = new Date(Date.now() + 26 * 3600e3);
+  await page.clock.setFixedTime(tomorrow);
+  await page.reload(); await page.waitForSelector("#app:not([hidden])"); await go(page, "overview");
+  assert.match((await page.textContent("#todoProgress")).trim(), /^0 of 0 done/);
+  assert.doesNotMatch(await page.textContent("#todayCard"), /Python 5 lectures|Chemistry study/);
+  await go(page, "daily");
+  assert.equal(await page.locator("#dailyOpen .dt-row").count(), 0);
+  assert.match(await page.textContent("#dailyMissed"), /2 missed on earlier days/);
+  await add(page, "Java notes");
+  assert.deepEqual(await section(page, "dailyOpen"), ["Java notes"]);
+  // a second browser: log in again
+  const ctx = await browser.newContext({ viewport: { width: 1366, height: 900 }, timezoneId: "Asia/Kolkata", locale: "en-IN" }); ctx.__errors = []; ctxs.push(ctx);
+  const p2 = await ctx.newPage(); await p2.clock.setFixedTime(tomorrow);
+  await p2.goto(s.base + "/?dt-test"); await p2.waitForSelector(".auth-card");
+  await p2.fill("#au-email", email); await p2.fill("#au-pass", "password123"); await p2.click("#authGo");
+  await p2.waitForSelector("#app:not([hidden])"); await go(p2, "overview");
+  assert.doesNotMatch(await p2.textContent("#todayCard"), /Python 5 lectures|Chemistry study/);
+  await pollPage(p2, () => /Java notes/.test(document.getElementById("todayCard").textContent), null, 8000);
+  await go(p2, "calendar");
+  assert.ok(await p2.locator(`[data-day="${today}"] .ev.missed`).count() >= 1, "Missed on its own day in the Calendar");
+  const db = await p2.evaluate(async () => (await (await fetch("/api/tasks?limit=200")).json()).tasks.map(t => [t.title, t.status]).sort());
+  assert.deepEqual(db, [["Chemistry study", "todo"], ["Java notes", "todo"], ["Python 5 lectures", "todo"]], "nothing deleted or changed in the database");
+});

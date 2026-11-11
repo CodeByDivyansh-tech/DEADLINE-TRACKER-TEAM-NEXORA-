@@ -30,16 +30,16 @@ const txt = sel => page.textContent(sel);
 test("today: total, completed, incomplete and percentage (completed / total × 100) with a bar", async () => {
   await open(SEED);
   const s = await txt("#dailyStats");
-  assert.match(s, /4\s*Total/); assert.match(s, /1\s*Completed/); assert.match(s, /3\s*Pending/); assert.match(s, /25%/);
-  assert.match(await txt("#dailyProgress"), /1 of 4 completed\s*[—-]\s*25%/);
-  assert.equal(await page.$eval("#dailyBar", b => b.style.width), "25%");
-  assert.match(await txt("#dailyOverdue"), /1 carried forward/, "yesterday's open task is carried into today and counted");
+  assert.match(s, /3\s*Total/); assert.match(s, /1\s*Completed/); assert.match(s, /2\s*Pending/); assert.match(s, /33%/);
+  assert.match(await txt("#dailyProgress"), /1 of 3 completed\s*[—-]\s*33%/);
+  assert.equal(await page.$eval("#dailyBar", b => b.style.width), "33%");
+  assert.match(await txt("#dailyMissed"), /1 missed on earlier days/, "yesterday's open task is not counted in today");
 });
 
 test("history: yesterday, a picked date, comparison with the day before, and the 7-day chart", async () => {
   await open(SEED);
-  assert.match(await txt("#histStats"), /1 of 4 completed\s*[—-]\s*25%/, "starts on today");
-  assert.match(await txt("#histCompare"), /down 25 points from Thu 29 Oct \(50%\)/i);
+  assert.match(await txt("#histStats"), /1 of 3 completed\s*[—-]\s*33%/, "starts on today");
+  assert.match(await txt("#histCompare"), /down 17 points from Thu 29 Oct \(50%\)/i);
   await page.click("[data-act=histday][data-v=yesterday]");
   assert.match(await txt("#histTitle"), /Thursday, 29 October/);
   assert.match(await txt("#histStats"), /1 of 2 completed\s*[—-]\s*50%/);
@@ -53,7 +53,7 @@ test("history: yesterday, a picked date, comparison with the day before, and the
   assert.match(bars[0][1], /no tasks/);
   await page.click("[data-act=histday][data-v=today]");
   const week = await page.$$eval("#histChart [data-day]", b => b.map(x => x.getAttribute("aria-label")));
-  assert.match(week[5], /Thu 29 Oct: 1 of 2 completed \(50%\)/); assert.match(week[6], /Fri 30 Oct: 1 of 4 completed \(25%\)/);
+  assert.match(week[5], /Thu 29 Oct: 1 of 2 completed \(50%\)/); assert.match(week[6], /Fri 30 Oct: 1 of 3 completed \(33%\)/);
   assert.equal(await page.$eval("#histDate", i => i.max), "2026-10-30", "no future days");
 });
 
@@ -62,7 +62,7 @@ test("history: a saved day record is never rewritten; finishing an old task toda
   await page.fill("#histDate", "2026-10-28"); await page.dispatchEvent("#histDate", "change");
   assert.match(await txt("#histStats"), /1 of 4 completed\s*[—-]\s*25%/, "the saved record wins over today's view of the tasks");
   // finish yesterday's open task B today
-  await page.click('#dailyOpen [aria-label="Mark as done: B"]');
+  await page.evaluate(() => { const T = window.__DT_TEST__; const b = T.W().items.find(i => i.title === "B"); b.status = "done"; b.doneAt = new Date().toISOString(); T.save(); T.render(); });
   const w = await ws(page);
   assert.deepEqual(w.dayLog["2026-10-28"], { total: 4, done: 1 }, "past record unchanged");
   assert.deepEqual({ total: w.dayLog["2026-10-30"].total, done: w.dayLog["2026-10-30"].done }, { total: 4, done: 2 }, "today's record saved");
@@ -76,7 +76,7 @@ test("history: a saved day record is never rewritten; finishing an old task toda
 test("history: moving a task to tomorrow takes it off today's total and is shown as moved", async () => {
   await open(SEED);
   await page.click('[aria-label="Move D to tomorrow"]');   // single-letter titles: pick the row by its button label
-  assert.match(await txt("#dailyProgress"), /1 of 3 completed\s*[—-]\s*33%/);
+  assert.match(await txt("#dailyProgress"), /1 of 2 completed\s*[—-]\s*50%/);
   assert.match(await txt("#histStats"), /1 moved to another day/);
 });
 

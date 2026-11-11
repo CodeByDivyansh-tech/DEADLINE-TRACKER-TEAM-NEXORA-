@@ -31,7 +31,7 @@ Press the bin (trash) button on the task row. An Undo button appears for a few s
 Press the arrow button on the task row to move it to tomorrow. Moving a task only changes the day you plan to work on it; its deadline never moves.
 
 ## Today, Upcoming and Done tabs
-The task list on the Today page has three tabs. Today shows what is planned or due today and unfinished work carried over. Upcoming shows future days. Done shows finished tasks.
+The task list on the Today page has three tabs. Today shows what is planned or due today. A task you do not finish on its day is not carried to the next day: it stays on that day and shows as Missed in History (on the Daily tasks page) and in the Calendar, where you can open it to finish it or move it to another day. Overdue deadlines still show on Today. Upcoming shows future days. Done shows finished tasks.
 
 ## Searching
 Use the Search box at the top to find tasks and deadlines by title.

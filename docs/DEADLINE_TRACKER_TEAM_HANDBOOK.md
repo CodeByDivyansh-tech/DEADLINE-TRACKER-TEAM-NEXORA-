@@ -304,7 +304,7 @@ Live calendar sync, college portal or timetable import, email, Telegram or Whats
 ## 5.3 Understand the Today page
 - **Greeting and Add box**: where you type new work.
 - **"N things need your attention"**: click to see what's risky.
-- **Today list**: tabs for **Today** (planned or due today, plus unfinished work carried over), **Upcoming** and **Done**.
+- **Today list**: tabs for **Today** (planned or due today; a plain task not finished on its day is not carried over, it stays on that day as "Missed" in History and the Calendar), **Upcoming** and **Done**.
 - **Next deadlines**: the closest deadlines, coloured by risk, sometimes with a progress check-in.
 
 ## 5.4 Add a task or deadline

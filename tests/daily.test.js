@@ -80,34 +80,29 @@ test("daily: ticking moves a task between Pending and Completed, with counts; un
   assert.deepEqual(await sec("dailyDone"), []);
 });
 
-test("daily: overdue tasks stay in Pending, first and clearly marked; nothing is completed or deleted by itself", async () => {
+test("daily: a task from an earlier day that wasn't finished leaves Pending (it is kept, on its own day); nothing is completed or deleted by itself", async () => {
   await open();
   await seed("Yesterday's reading", "2026-10-29"); await add("Today A"); await seed("Next week", "2026-11-05");
-  assert.deepEqual(await sec("dailyOpen"), ["Yesterday's reading", "Today A", "Next week"]);
-  const over = page.locator("#dailyOpen .dt-row", { hasText: "Yesterday's reading" });
-  assert.ok(await over.evaluate(r => r.classList.contains("overdue")));
-  assert.match(await over.textContent(), /Carried forward/);
-  assert.doesNotMatch(await page.locator("#dailyOpen .dt-row", { hasText: "Today A" }).textContent(), /Carried forward/);
+  assert.deepEqual(await sec("dailyOpen"), ["Today A", "Next week"]);
   const it = (await ws(page)).items.find(i => i.title === "Yesterday's reading");
-  assert.equal(it.status, "todo"); assert.equal(it.plan, "2026-10-29", "not moved by itself");
-  assert.match(await page.textContent("#dailyOverdue"), /1 carried forward/);
+  assert.equal(it.status, "todo"); assert.equal(it.plan, "2026-10-29", "not moved, not completed, not deleted");
+  assert.match(await page.textContent("#dailyMissed"), /1 missed on earlier days/);
 });
 
 test("daily: move to tomorrow keeps the same task (same id, notes), records where it came from, no duplicate", async () => {
   await open();
-  await seed("Read chapter 5", "2026-10-29", { notes: "pages 40-60", priority: "high" });
+  await seed("Read chapter 5", "2026-10-30", { notes: "pages 40-60", priority: "high" });
   const id0 = (await ws(page)).items.find(i => i.title === "Read chapter 5").id;
   await page.locator("#dailyOpen .dt-row", { hasText: "Read chapter 5" }).locator("[data-act=dailytomorrow]").click();
   const items = (await ws(page)).items.filter(i => i.title === "Read chapter 5");
   assert.equal(items.length, 1, "no copy made");
   assert.equal(items[0].id, id0); assert.equal(items[0].plan, "2026-10-31"); assert.equal(items[0].notes, "pages 40-60"); assert.equal(items[0].priority, "high");
-  assert.deepEqual(items[0].movedFrom, ["2026-10-29"]);
+  assert.deepEqual(items[0].movedFrom, ["2026-10-30"]);
   assert.equal(items[0].status, "todo", "still incomplete");
-  assert.doesNotMatch(await page.locator("#dailyOpen .dt-row", { hasText: "Read chapter 5" }).textContent(), /Carried forward/);
   assert.match(await page.textContent("#toastMsg"), /tomorrow/i);
   await page.click("#toastUndo");
   const back = (await ws(page)).items.find(i => i.title === "Read chapter 5");
-  assert.equal(back.plan, "2026-10-29"); assert.ok(!back.movedFrom || !back.movedFrom.length, "undo restores it exactly");
+  assert.equal(back.plan, "2026-10-30"); assert.ok(!back.movedFrom || !back.movedFrom.length, "undo restores it exactly");
 });
 
 test("daily: move to a chosen date; past dates are refused; moving twice doesn't repeat the history", async () => {

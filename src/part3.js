@@ -340,7 +340,7 @@ function helloHTML(name, w){
     ${w ? weekStatsHTML(w) : ""}
   </div>`;
 }
-// Today's tasks: planned for today, due today, or unfinished from an earlier day.
+// Today's tasks: planned for today or due today (and overdue deadlines). Missed plain tasks stay on their own day.
 function todayCard(w){
   const P = todayProgress(w, CTX.now);
   return `<section class="card today-card" id="todayCard"><div class="card-h"><div class="th-ring sm">${progressRing(P.done, P.total, 40)}</div><h3>${P.total && P.done === P.total ? "All done for today" : "Today"}</h3><span class="sub" id="todoProgress">${P.done} of ${P.total} done</span></div>
@@ -503,15 +503,13 @@ function viewCalendar(){
   const calKey = i => i.due ? ymd(new Date(i.due)) : i.plan;
   const calT = i => i.due ? fmtTime(i.due) : i.time ? fmtTime(`${i.plan}T${i.time}`) : "Task";
   const byDay = {}; vis.forEach(i => { const k = calKey(i); (byDay[k] = byDay[k] || []).push(i); });
-  // Unfinished tasks from earlier days are also shown on today ("carried forward"), like on the Today and Daily pages.
-  // They stay on their own day too: it is the same task shown twice, never a copy.
-  const tk = ymd(now); const isCarried = (i, key) => !i.due && !isDone(i) && !!i.plan && i.plan < tk && key === tk;
-  vis.forEach(i => { if (isCarried(i, tk)) (byDay[tk] = byDay[tk] || []).push(i); });
+  // A plain task left unfinished on a day that is over is "Missed". It stays on that day; it is not shown on today.
+  const tk = ymd(now); const isMiss = i => isMissed(i, tk);
   Object.values(byDay).forEach(a => a.sort((x, y) => (!x.due) - (!y.due) || (x.due ? new Date(x.due) - new Date(y.due) : (x.time || "").localeCompare(y.time || ""))));
   const P = planFor(w, now, viewerId(w), 21);
   const sessByDay = {}; P.days.forEach(d => sessByDay[d.key] = d.sessions);
   const todayKey = ymd(now);
-  const ev = (i, key) => { const g = groupOf(w, i.groupId); const lv = levelOf(R, i); const what = i.due ? LV[lv] : isCarried(i, key) ? `Carried forward from ${fmtDate(i.plan + "T12:00")}` : "Planned task"; return `<div class="ev lv-${lv}${isDone(i) ? " done" : ""}${i.due ? "" : " task"}${isCarried(i, key) ? " carried" : ""}" role="button" tabindex="0" draggable="${canEditItem(w, i) && !isDone(i)}" data-drag="${i.id}" data-act="open" data-id="${i.id}" style="--c:${g ? g.color : "var(--accent)"}" title="${esc(i.title)} · ${calT(i)} · ${what}" aria-label="${esc(i.title)}, ${calT(i)}, ${what}">${esc(i.title)}</div>`; };
+  const ev = (i, key) => { const g = groupOf(w, i.groupId); const lv = levelOf(R, i); const what = i.due ? LV[lv] : isMiss(i) ? "Missed" : "Planned task"; return `<div class="ev lv-${lv}${isDone(i) ? " done" : ""}${i.due ? "" : " task"}${isMiss(i) ? " missed" : ""}" role="button" tabindex="0" draggable="${canEditItem(w, i) && !isDone(i)}" data-drag="${i.id}" data-act="open" data-id="${i.id}" style="--c:${g ? g.color : "var(--accent)"}" title="${esc(i.title)} · ${calT(i)} · ${what}" aria-label="${esc(i.title)}, ${calT(i)}, ${what}">${esc(i.title)}</div>`; };
   let body;
   if (UI.calView === "month") {
     const m = UI.calMonth; const first = new Date(m.getFullYear(), m.getMonth(), 1); const start = addDays(first, -((first.getDay() + 6) % 7));
@@ -527,7 +525,7 @@ function viewCalendar(){
     body = `<div class="wgrid">${Array.from({ length: 7 }, (_, k) => {
       const d = addDays(UI.calWeek, k); const key = ymd(d); const list = byDay[key] || []; const ss = sessByDay[key] || [];
       return `<div class="wcol${key === todayKey ? " today" : ""}" data-day="${key}"><h4>${d.toLocaleDateString(undefined, { weekday: "short", day: "numeric" })}<span>${list.length ? list.length + " due" : ""}</span></h4>
-        ${list.map(i => { const g = groupOf(w, i.groupId); const lv = levelOf(R, i); const what = i.due ? LV[lv] : isCarried(i, key) ? `Carried forward from ${fmtDate(i.plan + "T12:00")}` : "Planned task"; return `<div class="wcard${i.due ? "" : " task"}${isCarried(i, key) ? " carried" : ""}" role="button" tabindex="0" draggable="${canEditItem(w, i) && !isDone(i)}" data-drag="${i.id}" data-act="open" data-id="${i.id}" style="--c:${g ? g.color : "var(--accent)"}" aria-label="${esc(i.title)}, ${calT(i)}, ${what}"><b>${esc(i.title)}</b><span>${calT(i)} · ${what}</span></div>`; }).join("")}
+        ${list.map(i => { const g = groupOf(w, i.groupId); const lv = levelOf(R, i); const what = i.due ? LV[lv] : isMiss(i) ? "Missed" : "Planned task"; return `<div class="wcard${i.due ? "" : " task"}${isMiss(i) ? " missed" : ""}" role="button" tabindex="0" draggable="${canEditItem(w, i) && !isDone(i)}" data-drag="${i.id}" data-act="open" data-id="${i.id}" style="--c:${g ? g.color : "var(--accent)"}" aria-label="${esc(i.title)}, ${calT(i)}, ${what}"><b>${esc(i.title)}</b><span>${calT(i)} · ${what}</span></div>`; }).join("")}
         ${ss.map(s => { const it = findItem(s.id, w); if (!it) return ""; const g = groupOf(w, it.groupId); return `<div class="wcard sess" style="--c:${g ? g.color : "var(--accent)"}"><b>Work on: ${esc(it.title)}</b><span>Planned ${fmtH(s.h)}</span></div>`; }).join("")}
         <button class="btn ghost xs" type="button" data-act="qa" data-date="${key}" style="margin-top:auto">${IC.plus}Add</button></div>`;
     }).join("")}</div>`;
