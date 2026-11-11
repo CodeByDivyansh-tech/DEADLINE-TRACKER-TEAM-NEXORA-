@@ -83,7 +83,8 @@ test("daily: ticking moves a task between Pending and Completed, with counts; un
 test("daily: a task from an earlier day that wasn't finished leaves Pending (it is kept, on its own day); nothing is completed or deleted by itself", async () => {
   await open();
   await seed("Yesterday's reading", "2026-10-29"); await add("Today A"); await seed("Next week", "2026-11-05");
-  assert.deepEqual(await sec("dailyOpen"), ["Today A", "Next week"]);
+  assert.deepEqual(await sec("dailyOpen"), ["Today A"]);
+  assert.match(await page.textContent("#dailyLater"), /1 planned for later days/);
   const it = (await ws(page)).items.find(i => i.title === "Yesterday's reading");
   assert.equal(it.status, "todo"); assert.equal(it.plan, "2026-10-29", "not moved, not completed, not deleted");
   assert.match(await page.textContent("#dailyMissed"), /1 missed on earlier days/);
@@ -105,7 +106,7 @@ test("daily: move to tomorrow keeps the same task (same id, notes), records wher
   assert.equal(back.plan, "2026-10-30"); assert.ok(!back.movedFrom || !back.movedFrom.length, "undo restores it exactly");
 });
 
-test("daily: move to a chosen date; past dates are refused; moving twice doesn't repeat the history", async () => {
+test("daily: move to a chosen date; past dates are refused; the task leaves today's list; moving again doesn't repeat the history", async () => {
   await open();
   await add("Plan the trip");
   const row = () => page.locator("#dailyOpen .dt-row", { hasText: "Plan the trip" });
@@ -116,11 +117,16 @@ test("daily: move to a chosen date; past dates are refused; moving twice doesn't
   await page.fill("#dtMoveDate", "2026-11-04"); await page.click("[data-act=dailymovego]");
   let it = (await ws(page)).items.find(i => i.title === "Plan the trip");
   assert.equal(it.plan, "2026-11-04"); assert.deepEqual(it.movedFrom, ["2026-10-30"]);
-  assert.match(await row().textContent(), /4 Nov/);
+  assert.equal(await row().count(), 0, "it belongs to 4 Nov now");
+  assert.match(await page.textContent("#toastMsg"), /4 Nov/);
+  await page.click("#toastUndo");
+  assert.equal(await row().count(), 1, "undo brings it back to today");
   await row().locator("[data-act=dailytomorrow]").click();
+  await page.clock.setFixedTime(new Date("2026-10-31T10:00:00+05:30"));
+  await page.evaluate(() => { const T = window.__DT_TEST__; T.save(); T.render(); });
   await row().locator("[data-act=dailymove]").click(); await page.fill("#dtMoveDate", "2026-11-04"); await page.click("[data-act=dailymovego]");
   it = (await ws(page)).items.find(i => i.title === "Plan the trip");
-  assert.deepEqual(it.movedFrom, ["2026-10-30", "2026-11-04", "2026-10-31"], "each day once, in order");
+  assert.deepEqual(it.movedFrom, ["2026-10-30", "2026-10-31"], "each day once, in order");
   assert.equal((await ws(page)).items.filter(i => i.title === "Plan the trip").length, 1);
 });
 

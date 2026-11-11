@@ -3437,7 +3437,7 @@ function isForToday(i, t){
   const d = dayOf(i); if (!d) return false;
   if (d === t || dueDay(i) === t) return true;
   if (d > t) return false;
-  if (isDone(i)) return !!i.doneAt && ymd(i.doneAt) === t;
+  if (isDone(i)) return !!i.due && !!i.doneAt && ymd(i.doneAt) === t;   // a plain task belongs to its own day, whenever it was ticked
   return !!i.due;
 }
 // a plain task (no deadline) left unfinished on a day that is now over
@@ -3529,11 +3529,13 @@ const dailyAll = w => myTasks(w).filter(i => !i.due);
    One task is one item; it is never copied. Three dates are kept apart: createdAt (never changed), plan (the day
    it is scheduled for) and doneAt (when it was really finished). Every change of plan is added to it.moves
    ({ at, from, to }), so we can tell which day a task belonged to on any date.
-   For a day D a task is:
-     done     finished on D (whatever day it was scheduled for)
-     pending  scheduled for D and not finished on D. Once D is over this is "missed"; it is not carried to D+1
-     moved    it was D's task, and on D it was rescheduled to a later day (not counted in D's total)
-   A task finished after D is still "pending" for D: nothing is counted as done on a day it wasn't done.
+   A task belongs to the day it is scheduled for (plan), never to the day it happened to be ticked.
+   For a day D, a task scheduled for D is:
+     done     finished on D or earlier
+     pending  not finished by the end of D. Once D is over this is "missed"; it is not carried to D+1,
+              and finishing it later does not move it to that later day
+   and a task that was D's and was rescheduled away on D is "moved" (not counted in D's total).
+   A task with no day at all counts on the day it was finished.
    Each day's record (numbers + task list) is saved in w.dayLog[D] while D is today and never changed afterwards,
    so history survives later edits and deletions. Days without a record are worked out from the tasks. */
 const doneDay = i => isDone(i) ? (i.doneAt ? ymd(i.doneAt) : i.plan || null) : null;
@@ -3557,12 +3559,11 @@ function setPlan(it, dayKey){
 function dayEntries(w, d){
   const out = [];
   for (const i of dailyAll(w)) {
-    const dd = doneDay(i), p = planOn(i, d), mv = Array.isArray(i.moves) ? i.moves : [];
+    const dd = doneDay(i), mv = Array.isArray(i.moves) ? i.moves : [];
+    const p = planOn(i, d) || (i.plan ? null : dd);
     const e = { id: i.id, title: i.title };
-    if (dd === d) out.push(Object.assign(e, { st: "done", from: p && p < d ? p : null }));
-    else if (dd && dd < d) continue;
+    if (p === d) out.push(Object.assign(e, { st: dd && dd <= d ? "done" : "pending", early: dd && dd < d ? dd : null }));
     else if (!mv.length && (i.movedFrom || []).includes(d) && p > d) out.push(Object.assign(e, { st: "moved", to: i.plan }));   // moved before movement times were kept
-    else if (p === d) out.push(Object.assign(e, { st: "pending", from: null }));
     else if (p && p > d && mv.some(x => ymd(x.at) === d && x.from && x.from <= d)) out.push(Object.assign(e, { st: "moved", to: p }));
   }
   return out;
@@ -3573,8 +3574,8 @@ function dayStatsLive(w, d){ return countEntries(dayEntries(w, d)); }
 function dayData(w, d){
   const t = todayKey(CTX ? CTX.now : Date.now()), r = d < t && w.dayLog && w.dayLog[d];
   if (r && Array.isArray(r.items)) {
-    // records saved on 11 Nov 2026 could hold tasks carried in from earlier days; those belong to their own day only
-    const entries = r.items.map(x => ({ id: x[0], title: x[1], st: x[2] === "d" ? "done" : x[2] === "m" ? "moved" : "pending", from: x[2] !== "m" ? x[3] || null : null, to: x[2] === "m" ? x[3] || null : null })).filter(e => !(e.st === "pending" && e.from));
+    // records saved on 11 Nov 2026 could hold tasks from other days (carried in, or ticked that day); those belong to their own day only
+    const entries = r.items.map(x => ({ id: x[0], title: x[1], st: x[2] === "d" ? "done" : x[2] === "m" ? "moved" : "pending", from: x[2] !== "m" ? x[3] || null : null, to: x[2] === "m" ? x[3] || null : null })).filter(e => !(e.st !== "moved" && e.from));
     return Object.assign(countEntries(entries), { entries, saved: true });
   }
   const entries = dayEntries(w, d);
@@ -3600,10 +3601,10 @@ function statLine(s){ return s.total ? `${s.done} of ${s.total} completed — ${
 function histListHTML(w, d, s, t){
   const E = s.entries || []; if (!E.length) return s.numbersOnly ? `<p class="hist-note" id="histNote">These numbers were saved before task lists were kept, so the tasks aren't listed.</p>` : "";
   const past = d < t;
-  const sched = E.filter(e => e.st !== "moved" && !e.from).length, late = E.filter(e => e.st === "done" && e.from).length, moved = E.filter(e => e.st === "moved").length;
-  const sum = [sched ? `${sched} scheduled for this day` : "", late ? `${late} finished from earlier days` : "", moved ? `${moved} moved to another day` : ""].filter(Boolean).join(" · ");
+  const sched = E.filter(e => e.st !== "moved").length, moved = E.filter(e => e.st === "moved").length;
+  const sum = [sched ? `${sched} scheduled for this day` : "", moved ? `${moved} moved to another day` : ""].filter(Boolean).join(" · ");
   const fin = e => { const it = w.items.find(i => i.id === e.id); const dd = it && doneDay(it); return dd && dd > d ? ` · Finished ${dShort(dd)}` : ""; };
-  const meta = e => e.st === "moved" ? (e.to ? `Moved to ${dShort(e.to)}` : "Moved to another day") : e.st === "done" ? (e.from ? `From ${dShort(e.from)}` : "Scheduled") : past ? "Missed" + fin(e) : "Scheduled";
+  const meta = e => e.st === "moved" ? (e.to ? `Moved to ${dShort(e.to)}` : "Moved to another day") : e.st === "done" ? (e.early ? `Finished early, ${dShort(e.early)}` : "Scheduled") : past ? "Missed" + fin(e) : "Scheduled";
   const group = (st, label, icon) => { const L = E.filter(e => e.st === st); if (!L.length) return "";
     return `<h4 class="hl-g">${label} <span class="cnt">${L.length}</span></h4><ul>${L.map(e => `<li data-st="${st}"${st === "pending" && past ? ` class="missed"` : ""}><span class="hl-i" aria-hidden="true">${icon}</span><span class="hl-t">${esc(e.title)}</span><span class="hl-m">${esc(meta(e))}</span></li>`).join("")}</ul>`; };
   return `<p class="hist-sum" id="histSum">${esc(sum)}</p>
@@ -3667,10 +3668,13 @@ function viewDaily(){
   const w = W(); const t = todayKey(CTX.now);
   const all = dailyAll(w);
   const s = dayStatsLive(w, t), pct = pctOf(s);
-  // Pending: today, then later days, then undated. Tasks missed on earlier days stay on their own day (History, Calendar).
-  const rank = i => !i.plan ? 3 : i.plan === t ? 1 : 2;
-  const open = all.filter(i => !isDone(i) && !isMissed(i, t)).sort((a, b) => rank(a) - rank(b) || (a.plan || "").localeCompare(b.plan || "") || new Date(a.createdAt) - new Date(b.createdAt));
-  const doneAll = all.filter(isDone).sort((a, b) => new Date(b.doneAt || 0) - new Date(a.doneAt || 0));
+  // Both lists hold only tasks that belong to today: scheduled for today (or with no day at all). The same rule as
+  // the Today page. Earlier days' tasks, done or missed, stay on their own day (History, Calendar); later days' tasks
+  // show here when their day comes. Before, Completed listed every finished task ever, whatever its day.
+  const mine = i => i.plan ? i.plan === t : (!isDone(i) || doneDay(i) === t);
+  const open = all.filter(i => !isDone(i) && mine(i)).sort((a, b) => (a.plan ? 0 : 1) - (b.plan ? 0 : 1) || new Date(a.createdAt) - new Date(b.createdAt));
+  const doneAll = all.filter(i => isDone(i) && mine(i)).sort((a, b) => new Date(b.doneAt || 0) - new Date(a.doneAt || 0));
+  const later = all.filter(i => !isDone(i) && i.plan && i.plan > t).length;
   const doneShown = doneAll.slice(0, UI.dailyMoreDone ? 500 : 30);
   const missed = all.filter(i => isMissed(i, t)).length;
   const empty = (h, p) => `<li class="dt-empty"><span class="dt-empty-ico">${IC.todo}</span><h3>${h}</h3><p>${p}</p></li>`;
@@ -3683,6 +3687,7 @@ function viewDaily(){
       <div class="dh-bar" role="progressbar" aria-label="Today's progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i id="dailyBar" style="width:${pct}%"></i></div>
       <p class="dh-prog" id="dailyProgress">${s.total ? `Progress: ${s.done} of ${s.total} completed — ${pct}%` : "No tasks for today yet. Add one below."}</p>
       ${missed ? `<p class="dh-missed" id="dailyMissed">${missed} missed on earlier days. ${missed === 1 ? "It stays" : "They stay"} on ${missed === 1 ? "its" : "their"} own day: open that day in History or the Calendar.</p>` : ""}
+      ${later ? `<p class="dh-missed" id="dailyLater">${later} planned for later days. ${later === 1 ? "It shows" : "They show"} here on ${later === 1 ? "its" : "their"} day; you can see ${later === 1 ? "it" : "them"} in the Calendar.</p>` : ""}
     </section>
     <form class="daily-form card" id="dailyForm" autocomplete="off">
       <div class="df-fields"><label class="sr" for="dailyTitle">Task</label><input id="dailyTitle" type="text" maxlength="140" placeholder="What do you want to get done today?" value="${esc(UI.dailyDraft || "")}">

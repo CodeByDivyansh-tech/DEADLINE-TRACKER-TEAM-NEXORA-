@@ -34,7 +34,8 @@ const row = t => page.locator("#dailyOpen .dt-row", { hasText: t });
 
 test("next day: missed tasks are not on the Today page or in Daily tasks; today's tasks are; nothing is deleted or copied", async () => {
   await open(YDAY.concat([{ t: "Java notes", plan: "2026-10-30" }, { t: "Maths practice", plan: "2026-10-30" }, { t: "Next week task", plan: "2026-11-05" }]));
-  assert.deepEqual(await page.$$eval("#dailyOpen .dt-row .dt-t", r => r.map(x => x.textContent.trim())), ["Java notes", "Maths practice", "Next week task"]);
+  assert.deepEqual(await page.$$eval("#dailyOpen .dt-row .dt-t", r => r.map(x => x.textContent.trim())), ["Java notes", "Maths practice"]);
+  assert.match(await txt("#dailyLater"), /1 planned for later days/);
   const s = await txt("#dailyStats");
   assert.match(s, /2\s*Total/); assert.match(s, /0\s*Completed/); assert.match(s, /2\s*Pending/);
   assert.doesNotMatch(await txt("#dailyList"), /Carried forward|Python 5 lectures/);
@@ -79,7 +80,7 @@ test("calendar: a missed task stays on its own day marked Missed, and is not sho
   assert.match(await page.locator('[data-day="2026-10-29"] .wcard.missed').first().textContent(), /Missed/);
 });
 
-test("a missed task can still be finished later: it is done on the day it was finished, and stays Missed on its own day", async () => {
+test("a missed task finished later still belongs to its own day: not listed or counted on the day it was finished", async () => {
   await open(YDAY);
   await go(page, "calendar");
   await page.locator('[data-day="2026-10-29"] .ev', { hasText: "Python 5 lectures" }).click();
@@ -88,14 +89,15 @@ test("a missed task can still be finished later: it is done on the day it was fi
   const it = (await ws(page)).items.find(i => i.title === "Python 5 lectures");
   assert.equal(it.status, "done"); assert.equal(it.plan, "2026-10-29"); assert.equal(it.doneAt.slice(0, 10), "2026-10-30");
   await go(page, "daily");
-  assert.match(await txt("#histStats"), /1 of 1 completed/);
-  assert.match(await page.locator('#histList [data-st="done"]').textContent(), /From Thu 29 Oct/);
+  assert.equal(await page.locator("#dailyDone .dt-row").count(), 0, "not in today's Completed");
+  assert.match(await txt("#histStats"), /No tasks on this day/);
   await page.click("[data-act=histday][data-v=yesterday]");
   assert.match(await txt("#histStats"), /1 of 5 completed — 20%/, "not counted as done on the day it was missed");
   assert.match(await page.locator('#histList li[data-st="pending"]', { hasText: "Python 5 lectures" }).textContent(), /Missed · Finished Fri 30 Oct/);
+  await go(page, "overview"); assert.doesNotMatch(await txt("#todayCard"), /Python 5 lectures/);
 });
 
-test("rescheduling keeps the movement history: when, from and to; the day it left shows it as moved", async () => {
+test("rescheduling keeps the movement history; the task leaves today's list and shows again on its new day", async () => {
   await open([{ t: "Chemistry 1.5 hours", plan: "2026-10-30", created: IST("2026-10-29", 8) }]);
   await row("Chemistry 1.5 hours").locator("[data-act=dailymove]").click();
   await page.fill("#dtMoveDate", "2026-11-04"); await page.click("[data-act=dailymovego]");
@@ -103,10 +105,14 @@ test("rescheduling keeps the movement history: when, from and to; the day it lef
   assert.equal(it.plan, "2026-11-04");
   assert.equal(it.moves.length, 1); assert.equal(it.moves[0].from, "2026-10-30"); assert.equal(it.moves[0].to, "2026-11-04"); assert.equal(it.moves[0].at.slice(0, 10), "2026-10-30");
   assert.equal(it.createdAt, IST("2026-10-29", 8));
-  const r = await row("Chemistry 1.5 hours").textContent();
-  assert.match(r, /Rescheduled/); assert.match(r, /originally due Fri,? (Oct 30|30 Oct)/i);
+  assert.equal(await row("Chemistry 1.5 hours").count(), 0, "it now belongs to 4 Nov");
+  assert.match(await txt("#dailyLater"), /1 planned for later days/);
   assert.deepEqual(await hist("moved"), ["Chemistry 1.5 hours"]);
   assert.match(await page.locator('#histList [data-st="moved"]').textContent(), /Moved to Wed 4 Nov/);
+  await page.clock.setFixedTime(new Date("2026-11-04T10:00:00+05:30"));
+  await page.evaluate(() => { const T = window.__DT_TEST__; T.save(); T.render(); });
+  const r = await row("Chemistry 1.5 hours").textContent();
+  assert.match(r, /Rescheduled/); assert.match(r, /originally due Fri,? (Oct 30|30 Oct)/i);
   await row("Chemistry 1.5 hours").locator("[data-act=dailymove]").click();
   await page.fill("#dtMoveDate", "2026-11-06"); await page.click("[data-act=dailymovego]");
   it = (await ws(page)).items.find(i => i.title === "Chemistry 1.5 hours");
@@ -114,11 +120,12 @@ test("rescheduling keeps the movement history: when, from and to; the day it lef
   assert.deepEqual(it.movedFrom, ["2026-10-30", "2026-11-04"]);
 });
 
-test("time zone: a task finished at 00:30 India time counts for that India day, not the day before", async () => {
-  await open([{ t: "Late night revision", plan: "2026-10-29", doneAt: IST("2026-10-30", 0, 30) }]);
+test("time zone: a task finished at 00:30 or 23:30 India time counts as done on its India day", async () => {
+  await open([{ t: "Just after midnight", plan: "2026-10-30", doneAt: IST("2026-10-30", 0, 30) }, { t: "Late night revision", plan: "2026-10-29", doneAt: IST("2026-10-29", 23, 30) }]);
   assert.match(await txt("#histStats"), /1 of 1 completed/);
+  assert.deepEqual(await page.$$eval("#dailyDone .dt-row .dt-t", r => r.map(x => x.textContent.trim())), ["Just after midnight"]);
   await page.click("[data-act=histday][data-v=yesterday]");
-  assert.match(await txt("#histStats"), /0 of 1 completed/);
+  assert.match(await txt("#histStats"), /1 of 1 completed/); assert.deepEqual(await hist("done"), ["Late night revision"]);
 });
 
 test("the day changes (app open, then reloaded): yesterday's unfinished tasks leave today's lists and stay in yesterday's record, even if deleted later", async () => {
@@ -173,4 +180,36 @@ test("deadlines are not hidden: an overdue deadline still shows on the Today pag
   await go(page, "overview");
   assert.match(await txt("#todayCard"), /Submit lab file/);
   assert.match(await txt("#todayCard"), /Overdue/);
+});
+
+test("the owner's example: today's to-do list shows only tasks scheduled for today, pending and completed; yesterday's completed tasks stay in yesterday", async () => {
+  await open([
+    { t: "Chemistry study", plan: "2026-10-29", doneAt: IST("2026-10-29", 17) }, { t: "Python practice", plan: "2026-10-29", doneAt: IST("2026-10-29", 19) },
+    { t: "Java notes", plan: "2026-10-30" }, { t: "Maths practice", plan: "2026-10-30", doneAt: IST("2026-10-30", 9) }]);
+  const names = id => page.$$eval(`#${id} .dt-row .dt-t`, r => r.map(x => x.textContent.trim()));
+  assert.deepEqual(await names("dailyOpen"), ["Java notes"]);
+  assert.deepEqual(await names("dailyDone"), ["Maths practice"]);
+  assert.match(await txt("#dailyOpenH"), /Pending 1/); assert.match(await txt("#dailyDoneH"), /Completed 1/);
+  assert.doesNotMatch(await txt("#dailyList"), /Chemistry study|Python practice/);
+  assert.match(await txt("#dailyProgress"), /1 of 2 completed — 50%/);
+  await page.click("[data-act=histday][data-v=yesterday]");
+  assert.match(await txt("#histStats"), /2 of 2 completed — 100%/);
+  assert.deepEqual(await hist("done"), ["Chemistry study", "Python practice"]);
+  await go(page, "overview");
+  assert.deepEqual((await page.$$eval("#todayCard .todo .t", r => r.map(x => x.textContent.trim()))).sort(), ["Java notes", "Maths practice"]);
+  await go(page, "calendar");
+  assert.match(await page.textContent('[data-day="2026-10-29"]'), /Chemistry study/);
+  assert.doesNotMatch(await page.textContent('[data-day="2026-10-30"]'), /Chemistry study|Python practice/);
+  const w = await ws(page); assert.equal(w.items.length, 4);
+  for (const t of ["Chemistry study", "Python practice"]) { const it = w.items.find(i => i.title === t); assert.equal(it.status, "done"); assert.equal(it.plan, "2026-10-29"); }
+});
+
+test("a task moved to another day and finished there belongs to that day; the day does not come from when it was ticked", async () => {
+  // like "coursera java" on the live site: first planned for the 28th, moved to the 29th, done on the 29th
+  await open([{ t: "Coursera Java", plan: "2026-10-29", doneAt: IST("2026-10-29", 18) }, { t: "Done early", plan: "2026-10-31", doneAt: IST("2026-10-30", 9) }]);
+  await page.evaluate(() => { const T = window.__DT_TEST__; T.W().items.find(i => i.title === "Coursera Java").movedFrom = ["2026-10-28"]; T.save(); T.render(); });
+  assert.equal(await page.locator("#dailyDone .dt-row").count(), 0);
+  assert.match(await txt("#histStats"), /No tasks on this day/, "a task planned for tomorrow and ticked today still belongs to tomorrow");
+  await page.click("[data-act=histday][data-v=yesterday]");
+  assert.deepEqual(await hist("done"), ["Coursera Java"]);
 });

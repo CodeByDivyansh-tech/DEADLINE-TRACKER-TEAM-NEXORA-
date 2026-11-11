@@ -110,7 +110,8 @@ test("habits and carry-forward data are saved to the account: still there after 
   await page.reload(); await page.waitForSelector("#app:not([hidden])"); await go(page, "habits");
   assert.equal(await page.locator('#habitToday .hb-row:has-text("Practice Python") .dt-check').getAttribute("aria-pressed"), "true");
   await go(page, "daily");
-  assert.match(await page.locator('#dailyOpen .dt-row:has-text("Move me")').textContent(), /Rescheduled/);
+  assert.equal(await page.locator('#dailyOpen .dt-row:has-text("Move me")').count(), 0, "moved to tomorrow, so not in today's list");
+  assert.match(await page.textContent("#dailyLater"), /1 planned for later days/);
 });
 
 test("missed tasks on the real server: hidden from Today and Daily the next day, after a reload and after logging in again; still saved as not done on their own day", async () => {

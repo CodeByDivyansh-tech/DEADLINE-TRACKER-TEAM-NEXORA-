@@ -1,6 +1,6 @@
 # Test report: Deadline Tracker
 
-**Latest full run (11 Nov 2026, missed tasks stay on their own day): 466 of 466 tests pass, twice in a row.** Earlier first report: 140 of 140 (two full runs in a row, about 3.5 minutes each).
+**Latest full run (11 Nov 2026, Daily lists follow the scheduled day): 468 of 468 tests pass, twice in a row.** Earlier first report: 140 of 140 (two full runs in a row, about 3.5 minutes each).
 Every test runs the real app in Chromium with the clock fixed at **Friday 30 Oct 2026, 12:00 IST**, so dates are predictable.
 
 ## How it was done (test-driven)
@@ -443,3 +443,16 @@ Owner's new rule: a task not finished on its scheduled day is NOT carried to the
 
 Screenshots checked: Today, Daily tasks + History, Calendar in dark, light and 390 px.
 **Not covered:** the owner's own account data (checked after deploy); reminders for missed tasks (none are sent).
+
+## 11 Nov 2026 (4): Daily tasks lists follow the scheduled day (completed tasks from earlier days were listed today)
+**Bug (owner's screenshot):** on 11 Nov the Daily tasks "Completed" section showed tasks scheduled and finished on 10 Nov. **Root cause:** `viewDaily()` built Completed from every finished task ever (`all.filter(isDone)`), with no date check; Pending also included later days. The Today page already filtered by day, so the two pages disagreed.
+**Fix:** both Daily lists now hold only tasks scheduled for today (or with no day at all). A task belongs to its scheduled day, never to the day it was ticked: `dayEntries()` counts a task on its plan day only (done if finished by the end of that day, otherwise pending/missed), so a missed task finished later stays on its own day and is not counted on the later day, and a task ticked early still belongs to its planned day. The Today page's one remaining exception for plain tasks (finished today but scheduled earlier) was removed so both pages use the same rule; items with a hard deadline are unchanged. A line says how many tasks are planned for later days. Old day records are read without entries from other days. Help guide updated. No database change; nothing is deleted, moved or copied.
+
+| Area | Test |
+|---|---|
+| Owner's example: only today's pending + completed listed; yesterday's completed in yesterday's History and Calendar; data unchanged | carry (+2, red first) |
+| Missed task finished later, rescheduling (leaves today, returns on its new day), India-time edges | carry (3 rewritten, red first) |
+| Later-day tasks not in Pending; move to a date + undo | daily (2 updated), todo-tracking (1 updated) |
+| Finishing an old task today doesn't change today's numbers | progress (1 updated) |
+
+Screenshot checked: Daily tasks (dark, light, 390 px).

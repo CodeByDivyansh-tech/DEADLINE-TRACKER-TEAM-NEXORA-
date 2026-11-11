@@ -57,7 +57,7 @@ test("history: yesterday, a picked date, comparison with the day before, and the
   assert.equal(await page.$eval("#histDate", i => i.max), "2026-10-30", "no future days");
 });
 
-test("history: a saved day record is never rewritten; finishing an old task today counts for today", async () => {
+test("history: a saved day record is never rewritten; finishing an old task today does not move it into today", async () => {
   await open([SEED[0].concat([{ t: "G", plan: "2026-10-28", doneAt: IST("2026-10-28") }]), { "2026-10-28": { total: 4, done: 1 } }]);
   await page.fill("#histDate", "2026-10-28"); await page.dispatchEvent("#histDate", "change");
   assert.match(await txt("#histStats"), /1 of 4 completed\s*[—-]\s*25%/, "the saved record wins over today's view of the tasks");
@@ -65,8 +65,8 @@ test("history: a saved day record is never rewritten; finishing an old task toda
   await page.evaluate(() => { const T = window.__DT_TEST__; const b = T.W().items.find(i => i.title === "B"); b.status = "done"; b.doneAt = new Date().toISOString(); T.save(); T.render(); });
   const w = await ws(page);
   assert.deepEqual(w.dayLog["2026-10-28"], { total: 4, done: 1 }, "past record unchanged");
-  assert.deepEqual({ total: w.dayLog["2026-10-30"].total, done: w.dayLog["2026-10-30"].done }, { total: 4, done: 2 }, "today's record saved");
-  assert.match(await txt("#dailyProgress"), /2 of 4 completed\s*[—-]\s*50%/);
+  assert.deepEqual({ total: w.dayLog["2026-10-30"].total, done: w.dayLog["2026-10-30"].done }, { total: 3, done: 1 }, "today's record: B still belongs to the 29th");
+  assert.match(await txt("#dailyProgress"), /1 of 3 completed\s*[—-]\s*33%/);
   await page.click("[data-act=histday][data-v=yesterday]");
   assert.match(await txt("#histStats"), /1 of 2 completed\s*[—-]\s*50%/, "yesterday still shows B as not done that day");
   await page.reload(); await page.waitForSelector("#app:not([hidden])"); await go(page, "daily");
