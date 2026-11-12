@@ -195,8 +195,11 @@ function planDay(w, now, key){
 /* ---------- conversation ---------- */
 function chatOf(w){ w.chat = w.chat || []; return w.chat; }
 // Server actions -> what the suggestion card shows. (Saving goes back to the server, which re-checks everything.)
+// A suggestion card can sit in My Plan or (spoken or typed task commands) in the Help chat.
+const propMsg = id => chatOf(W()).find(m => m.id === id) || helpChat().find(m => m.id === id);
 function fromServerAction(a){
   if (a.type === "plan") return Object.assign({}, a, { type: "update", changes: { date: a.date } });
+  if (a.type === "priority") return Object.assign({}, a, { type: "update", changes: { priority: a.priority } });
   if (a.type === "deadline") return Object.assign({}, a, { type: "update", changes: { deadline: a.date }, date: null, _deadline: a.date });
   return Object.assign({}, a);
 }
@@ -241,9 +244,9 @@ async function applyServerProposal(msg, discard){
   if (!r.ok) { toast(r.json.error || "Couldn't save. Check your connection and try again.", null, null, "error"); return; }
   const id = msg.id;
   await reloadFromServer();
-  const again = chatOf(W()).find(m => m.id === id) || msg;
+  const again = propMsg(id) || msg;
   if (again.proposal) { again.proposal.status = discard ? "discarded" : "saved"; if (!discard) again.proposal.result = { created: r.json.result.created, updated: r.json.result.updated, done: r.json.result.completed, ids: r.json.result.ids }; }
-  save(); render();
+  save(); render(); if (DW.open) renderWidget();
   if (!discard) { const x = r.json.result; toast([x.created && `Saved ${x.created} task${x.created === 1 ? "" : "s"}`, x.updated && `updated ${x.updated}`, x.completed && `completed ${x.completed}`].filter(Boolean).join(", ") + "."); }
 }
 function applyProposal(msg){
@@ -379,7 +382,7 @@ document.addEventListener("input", e => {
 });
 document.addEventListener("change", e => {
   const t = e.target; const box = t.closest && t.closest(".proposal[data-msg]"); if (!box) return;
-  const msg = chatOf(W()).find(m => m.id === box.dataset.msg); if (!msg || !msg.proposal) return;
+  const msg = propMsg(box.dataset.msg); if (!msg || !msg.proposal) return;
   const k = +(t.dataset.pk ?? t.dataset.pt ?? t.dataset.pd ?? t.dataset.ptm ?? t.dataset.pp); const a = msg.proposal.actions[k]; if (!a) return;
   if (t.dataset.pk != null) { a.keep = t.checked; t.closest(".prop-row").classList.toggle("off", !a.keep); }
   else if (t.dataset.pt != null) a.title = t.value.trim().slice(0, 140) || a.title;
@@ -394,7 +397,7 @@ document.addEventListener("click", e => {
   switch (a.dataset.act) {
     case "aisuggest": sendToAssistant(a.dataset.v); break;
     case "propsave": case "propdiscard": {
-      const box = a.closest(".proposal[data-msg]"); const msg = box && chatOf(w).find(m => m.id === box.dataset.msg);
+      const box = a.closest(".proposal[data-msg]"); const msg = box && propMsg(box.dataset.msg);
       if (!msg) break;
       if (a.dataset.act === "propsave") { if (!msg.proposal.actions.some(x => x.keep)) { toast("Tick at least one suggestion to save.", null, null, "error"); break; } if (msg.serverId) applyServerProposal(msg); else applyProposal(msg); }
       else if (msg.serverId) applyServerProposal(msg, true);

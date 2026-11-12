@@ -192,11 +192,13 @@ test("'Let Deadline AI see my tasks': off by default; turning it on asks first, 
   assert.match(await m.textContent(), /Chemistry revision at 9:00/); assert.match(await m.textContent(), /used your task list/i);
   assert.match(g.streams()[0].raw, /Chemistry revision UITASK/);
   assert.equal(await page.getAttribute("#dwTabHelp", "aria-selected"), "true");
-  // changing tasks still goes to My Plan, which saves only after approval
-  g.seen = []; await page.fill("#dwInput", "add a task to buy graph paper tomorrow"); await page.press("#dwInput", "Enter");
-  await page.waitForSelector('#dwTabPlan[aria-selected="true"]'); assert.equal(g.chats().length, 0);
+  // adding a task: Deadline AI shows a card to confirm (nothing is saved by itself), and no saved tasks are sent for that
+  g.seen = []; g.respond = b => b.generationConfig.responseMimeType === "application/json" ? { text: JSON.stringify({ intent: "create", tasks: [{ title: "Buy graph paper", when: "tomorrow" }] }) } : { text: "x" };
+  const card = await send(page, "add a task to buy graph paper tomorrow");
+  await card.locator(".vc-card [data-act=vcconfirm]").waitFor(); assert.doesNotMatch(g.chats()[0].raw, /UITASK/);
+  assert.equal(await page.getAttribute("#dwTabHelp", "aria-selected"), "true");
   // off again in one click, remembered after a reload
-  await page.click("#dwTabHelp"); await sw.click();
+  await sw.click();
   await pollPage(page, async () => (await (await fetch("/api/ai/prefs")).json()).shareTasks === false, null, 4000);
   await page.reload(); await page.waitForSelector("#dwBtn:not([hidden])"); await page.click("#dwBtn"); await page.locator("#dwShareTasks").waitFor();
   assert.equal(await page.locator("#dwShareTasks").isChecked(), false);

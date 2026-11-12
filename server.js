@@ -75,7 +75,7 @@ async function main(){
   const plan = Plan.createPlan({ db, tasks, conversations, stats, notifications });
   const gemini = createGemini(cfg, db, log);
   const rag = createRag(db, gemini, { root: cfg.ROOT, log });
-  const help = Help.createHelp({ db, gemini, rag, conversations });
+  const help = Help.createHelp({ db, gemini, rag, conversations, plan });
 
   // ---------- routes ----------
   const R = router();

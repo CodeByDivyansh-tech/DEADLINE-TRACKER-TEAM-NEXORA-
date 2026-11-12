@@ -513,3 +513,26 @@ Screenshots checked: sidebar light and dark, phone top bar 390 px (no sideways s
 Full suite: 498/498 twice in a row (an earlier run had one unrelated timeout while two suites were running at once by mistake; a bug the older tests caught on the way: "How do I delete a task?" was being sent to My Plan, fixed).
 Screenshots checked: the switch and its confirm box, an answer mid-stream with Stop, the finished answer with Copy (light, dark, 390 px phone; no sideways scroll).
 **Not tested here:** real Gemini answers. This workspace has no Gemini key, so answer quality (the eight example questions in the brief), real time-to-first-word and whether Vercel's `/api` rewrite passes the stream through unbuffered can only be checked on the live site after deploy. Limits that remain: the free tier allows few requests (site-wide 8 a minute, 400 a day, 40 per person by our settings); Render's free server sleeps, so the first question after a quiet period waits for it to wake; no live web search.
+
+## 12 Nov 2026: Voice assistant (speak to Deadline AI, add tasks by voice, answers read aloud)
+**How it works:** a microphone button in the Deadline AI message row uses the browser's own speech recognition (Web Speech API; no paid service, no audio stored or sent by the app). A listening panel shows a wave, "Listening…" / "Processing…", a timer and the live words, with Cancel and Done; Done puts the words in the message box to check and edit; sending is always the person's own press. A task command in the Help chat (obvious ones by their first words; others flagged by the chat model with `TASK_COMMAND`) makes one small JSON request to Gemini that only picks out the title, the day/time words, priority and hours. Our own code turns the words into dates in the person's time zone (existing parser plus "in two hours"), drops any date nobody said, caps and cleans values, marks tasks already on the list, and for changes finds the person's own task. The result is a card (task, date, time, priority) with Confirm and add / Edit details / Cancel; saving goes through the existing `/api/plan/apply` (new action: change priority). Saved tasks are not sent to Gemini for this. With sharing off, "what's on my list tomorrow" (flagged `MY_TASKS`) is answered by the private planner. If the AI is off or failing, the built-in rules read the sentence. Answers can be read aloud (Listen, Pause/Resume, Stop; a "Read answers aloud" switch, off at first, short answers only).
+
+| Area | Test |
+|---|---|
+| One task: card, nothing saved before Confirm, saved by the backend, second Confirm refused, another user can't confirm | api-voice (new, red first) |
+| Friday 6 PM, today + high priority, two tasks with hours, day after tomorrow, next Monday, this Friday, in two hours | api-voice |
+| Invented dates dropped, bad values cleaned, empty titles dropped, at most 12 tasks | api-voice |
+| Non-obvious command flagged by the chat model (marker never shown), general and how-to questions unaffected | api-voice |
+| Unclear command asks a question; the follow-up resolves it; broken AI replies never become tasks | api-voice |
+| Duplicate command: unticked "already on your list" | api-voice |
+| Change priority / mark done / plan for a day on the user's own task only; unknown task asks | api-voice |
+| Privacy: no saved tasks in the command request even with sharing on; MY_TASKS answered privately | api-voice |
+| AI down or no key: rules fallback still gives a card | api-voice |
+| Browser (fake speech engine): mic, panel, live words, wave, timer, Done to box, edit, send; Cancel; nothing heard; no microphone; blocked permission; window close stops the mic; unsupported browser message | voice-ui (new, red first) |
+| Browser: spoken task, card, Confirm and add, saved, on the list after reload; two tasks, Edit details, untick, Cancel; unclear; same sentence twice sent once | voice-ui |
+| Browser: Listen / Pause / Resume / Stop, no symbols or code read out, auto-read switch (short only, remembered), no buttons when the browser can't speak | voice-ui |
+| Phone 390 px dark: mic size, panel and card without sideways scroll | voice-ui |
+
+Full suite: 514/514 twice in a row.
+Screenshots checked: listening panel, confirm card, saved state (light, dark, phone).
+**Not tested here (needs real devices and a real microphone):** actual speech recognition quality and permission prompts in Chrome, Edge, Android Chrome and iPhone Safari; the installed app on iPhone (Apple often doesn't offer speech recognition there; the app then shows the "can't turn speech into text" note); real Gemini extraction quality (no key in this workspace).
