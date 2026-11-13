@@ -5108,7 +5108,7 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) voice
 window.addEventListener("pagehide", () => { voiceCancel(); stopSpeaking(); });
 // Styles for the voice parts. They live with the code (not in the page) so the page itself stays small; they are
 // added once, when the Deadline AI window is first built.
-const VOICE_CSS = ".dw-mic{background:var(--surface-2);color:var(--steel-ink);border:1px solid var(--line);transition:transform .15s ease,background .15s ease}.dw-mic:hover{background:var(--line)}.dw-mic:active{transform:scale(.94)}.dw-mic:disabled{opacity:.45}.dw-vnote{margin:0 12px 8px;padding:8px 10px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);font-size:12.5px;line-height:1.45;color:var(--ink);display:flex;gap:8px;align-items:flex-start}.dw-vnote svg{width:14px;height:14px;flex:none;margin-top:2px}.dw-vnote span{flex:1;min-width:0}.dw-vnote .ib{flex:none;width:22px;height:22px;font-size:15px;line-height:1}.dw-voice{margin:0 12px 12px;padding:12px;border-radius:16px;background:var(--surface-2);border:1px solid var(--line);display:flex;flex-direction:column;gap:10px}.dw-voice .vhead{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;color:var(--ink)}.dw-voice .vstatus{flex:1}.dw-voice time{font:500 12px/1 var(--mono,ui-monospace,monospace);color:var(--muted)}.vwave{display:inline-flex;align-items:center;gap:3px;height:22px}.vwave i{width:3px;height:6px;border-radius:2px;background:var(--steel-ink);opacity:.45}.dw-voice.listening .vwave i{opacity:1;animation:vwave 1.1s ease-in-out infinite}.vwave i:nth-child(2){animation-delay:.12s}.vwave i:nth-child(3){animation-delay:.3s}.vwave i:nth-child(4){animation-delay:.05s}.vwave i:nth-child(5){animation-delay:.22s}.vwave i:nth-child(6){animation-delay:.4s}.vwave i:nth-child(7){animation-delay:.16s}@keyframes vwave{0%,100%{height:5px}35%{height:20px}65%{height:11px}}.dw-voice.processing .vwave i{animation:vpulse 1s ease-in-out infinite}@keyframes vpulse{50%{opacity:.25}}.dw-voice .vtext{margin:0;font-size:14px;line-height:1.5;color:var(--ink);max-height:96px;overflow-y:auto;overflow-wrap:anywhere}.dw-voice .vtext.empty{color:var(--muted);font-size:13px}.dw-voice .vtext span{color:var(--muted)}.dw-voice .vfoot{display:flex;justify-content:flex-end;gap:8px}@media (prefers-reduced-motion:reduce){.dw-voice .vwave i{animation:none!important;height:12px}}.vc-card{margin-top:8px;border:1px solid var(--line);border-radius:14px;padding:10px;background:var(--surface-2);display:flex;flex-direction:column;gap:8px}.vc-card.done{flex-direction:row;align-items:center;flex-wrap:wrap;font-size:13px;font-weight:600;color:var(--ink)}.vc-card.done svg{width:15px;height:15px;flex:none}.vc-card.done span{flex:1;min-width:0}.vc-card.done.off{font-weight:500;color:var(--muted)}.vc-task{padding-bottom:8px;border-bottom:1px solid var(--line)}.vc-task:last-of-type{border-bottom:0;padding-bottom:0}.vc-task b{display:block;font-size:14px;color:var(--ink);overflow-wrap:anywhere}.vc-task.off b{text-decoration:line-through;color:var(--muted)}.vc-task dl{margin:4px 0 0;display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px}.vc-task dl div{display:flex;gap:5px}.vc-task dt{color:var(--muted)}.vc-task dd{margin:0;font-weight:600;color:var(--ink)}.vc-dup{margin:4px 0 0;font-size:12px;color:var(--muted)}.vc-foot{display:flex;flex-wrap:wrap;gap:8px}";
+const VOICE_CSS = ".dw-mic{background:var(--surface-2);color:var(--steel-ink);border:1px solid var(--line);transition:transform .15s ease,background .15s ease}.dw-mic:hover{background:var(--line)}.dw-mic:active{transform:scale(.94)}.dw-mic:disabled{opacity:.45}.dw-vnote{margin:0 12px 8px;padding:8px 10px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);font-size:12.5px;line-height:1.45;color:var(--ink);display:flex;gap:8px;align-items:flex-start}.dw-vnote svg{width:14px;height:14px;flex:none;margin-top:2px}.dw-vnote span{flex:1;min-width:0}.dw-vnote .ib{flex:none;width:22px;height:22px;font-size:15px;line-height:1}.dw-voice{margin:0 12px 12px;padding:12px;border-radius:16px;background:var(--surface-2);border:1px solid var(--line);display:flex;flex-direction:column;gap:10px}.dw-voice .vhead{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;color:var(--ink)}.dw-voice .vstatus{flex:1}.dw-voice time{font:500 12px/1 var(--mono,ui-monospace,monospace);color:var(--muted)}.vwave{display:inline-flex;align-items:center;gap:3px;height:22px}.vwave i{width:3px;height:6px;border-radius:2px;background:var(--steel-ink);opacity:.45}.dw-voice.listening .vwave i{opacity:.7}.dw-voice.listening.hearing .vwave i{opacity:1;animation:vwave 1.1s ease-in-out infinite}.dw-vnote .vretry{margin-left:6px;flex:none}.vwave i:nth-child(2){animation-delay:.12s}.vwave i:nth-child(3){animation-delay:.3s}.vwave i:nth-child(4){animation-delay:.05s}.vwave i:nth-child(5){animation-delay:.22s}.vwave i:nth-child(6){animation-delay:.4s}.vwave i:nth-child(7){animation-delay:.16s}@keyframes vwave{0%,100%{height:5px}35%{height:20px}65%{height:11px}}.dw-voice.processing .vwave i{animation:vpulse 1s ease-in-out infinite}@keyframes vpulse{50%{opacity:.25}}.dw-voice .vtext{margin:0;font-size:14px;line-height:1.5;color:var(--ink);max-height:96px;overflow-y:auto;overflow-wrap:anywhere}.dw-voice .vtext.empty{color:var(--muted);font-size:13px}.dw-voice .vtext span{color:var(--muted)}.dw-voice .vfoot{display:flex;justify-content:flex-end;gap:8px}@media (prefers-reduced-motion:reduce){.dw-voice .vwave i{animation:none!important;height:12px}}.vc-card{margin-top:8px;border:1px solid var(--line);border-radius:14px;padding:10px;background:var(--surface-2);display:flex;flex-direction:column;gap:8px}.vc-card.done{flex-direction:row;align-items:center;flex-wrap:wrap;font-size:13px;font-weight:600;color:var(--ink)}.vc-card.done svg{width:15px;height:15px;flex:none}.vc-card.done span{flex:1;min-width:0}.vc-card.done.off{font-weight:500;color:var(--muted)}.vc-task{padding-bottom:8px;border-bottom:1px solid var(--line)}.vc-task:last-of-type{border-bottom:0;padding-bottom:0}.vc-task b{display:block;font-size:14px;color:var(--ink);overflow-wrap:anywhere}.vc-task.off b{text-decoration:line-through;color:var(--muted)}.vc-task dl{margin:4px 0 0;display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px}.vc-task dl div{display:flex;gap:5px}.vc-task dt{color:var(--muted)}.vc-task dd{margin:0;font-weight:600;color:var(--ink)}.vc-dup{margin:4px 0 0;font-size:12px;color:var(--muted)}.vc-foot{display:flex;flex-wrap:wrap;gap:8px}";
 function voiceCss(){ if (!document.getElementById("dwVoiceCss")) { const st = document.createElement("style"); st.id = "dwVoiceCss"; st.textContent = VOICE_CSS; document.head.appendChild(st); } }
 /* ---------- voice: speaking to Deadline AI, confirm cards for spoken tasks, answers read aloud ---------- */
 const VC_IC = {
@@ -5139,12 +5139,24 @@ function vcHTML(m){
 }
 // Speech to text: the browser's own speech recognition (Chrome, Edge, Safari). The microphone is used only between
 // pressing the button and Done / Cancel / silence; no audio is stored or sent by this app.
-const VOICE = { rec: null, state: "", finals: "", interim: "", t0: 0, tick: null, note: "", err: "", cancelled: false };
+const VOICE = { rec: null, state: "", finals: "", interim: "", t0: 0, tick: null, note: "", retry: false, err: "", cancelled: false, perm: "", sound: false, lastWord: 0 };
+// The browser's microphone permission for this site ("granted", "prompt", "denied", or "" when it can't be asked).
+// Looked up when the window opens and kept up to date, so pressing the mic can start listening at once.
+function micPermission(){
+  try { if (!navigator.permissions || !navigator.permissions.query) return Promise.resolve("");
+    return Promise.resolve(navigator.permissions.query({ name: "microphone" })).then(st => { VOICE.perm = (st && st.state) || ""; try { st.onchange = () => { VOICE.perm = st.state || ""; }; } catch (e) {} return VOICE.perm; }).catch(() => "");
+  } catch (e) { return Promise.resolve(""); }
+}
+// false only when the site's own settings (its Permissions-Policy header) forbid the microphone
+function micAllowedBySite(){ try { const pol = document.featurePolicy || document.permissionsPolicy; return !(pol && pol.allowsFeature) || pol.allowsFeature("microphone"); } catch (e) { return true; } }
+const voiceHearing = () => VOICE.state === "listening" && (VOICE.sound || Date.now() - VOICE.lastWord < 1500);
+const voiceNote = (text, retry) => { VOICE.note = text; VOICE.retry = !!retry; };
+const MIC_DENIED = "Microphone permission is required. Allow the microphone for this site (the lock or settings icon next to the address), then try again. You can keep typing meanwhile.";
 const speechCtor = () => window.SpeechRecognition || window.webkitSpeechRecognition;
 const voiceClock = () => { const s = VOICE.t0 ? Math.max(0, Math.floor((Date.now() - VOICE.t0) / 1000)) : 0; return `${Math.floor(s / 60)}:${pad2(s % 60)}`; };
 function voiceHTML(){
   const text = (VOICE.finals + " " + VOICE.interim).trim();
-  return `<div class="dw-voice ${VOICE.state}" id="dwVoice" role="group" aria-label="Voice input">
+  return `<div class="dw-voice ${VOICE.state}${voiceHearing() ? " hearing" : ""}" id="dwVoice" role="group" aria-label="Voice input">
     <div class="vhead"><span class="vwave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="vstatus" id="dwVoiceStatus" role="status">${VOICE.state === "processing" ? "Processing…" : VOICE.state === "listening" ? "Listening…" : "Starting…"}</span><time id="dwVoiceTime">${voiceClock()}</time></div>
     <p class="vtext${text ? "" : " empty"}" id="dwVoiceText">${text ? `${esc(VOICE.finals)} <span>${esc(VOICE.interim)}</span>` : "Speak now. For example: “Add chemistry revision for tomorrow at 5 PM”."}</p>
     <div class="vfoot"><button class="btn ghost sm" type="button" data-act="dwvoicecancel">Cancel</button><button class="btn primary sm" type="button" data-act="dwvoicedone">${IC.check}Done</button></div></div>`;
@@ -5152,42 +5164,55 @@ function voiceHTML(){
 function paintVoice(){
   const box = $("#dwVoice"); if (!box || !VOICE.rec) { renderWidget(); return; }
   const text = (VOICE.finals + " " + VOICE.interim).trim();
-  box.className = "dw-voice " + VOICE.state;
+  box.className = "dw-voice " + VOICE.state + (voiceHearing() ? " hearing" : "");
   $("#dwVoiceStatus").textContent = VOICE.state === "processing" ? "Processing…" : VOICE.state === "listening" ? "Listening…" : "Starting…";
   $("#dwVoiceTime").textContent = voiceClock();
   const t = $("#dwVoiceText"); if (text) { t.classList.remove("empty"); t.innerHTML = `${esc(VOICE.finals)} <span>${esc(VOICE.interim)}</span>`; t.scrollTop = t.scrollHeight; }
 }
 function voiceStart(){
   if (VOICE.rec || DW.busy) return;
-  VOICE.note = ""; stopSpeaking();
+  voiceNote(""); stopSpeaking();
   const C = speechCtor();
-  if (!C) { VOICE.note = "This browser can't turn speech into text. Try Chrome, Edge or Safari. On a phone you can also tap the microphone key on the keyboard and speak into the message box."; renderWidget(); return; }
-  if (window.isSecureContext === false) { VOICE.note = "The microphone only works on a secure (https) page."; renderWidget(); return; }
-  let rec; try { rec = new C(); } catch (e) { VOICE.note = "Voice input couldn't start in this browser."; renderWidget(); return; }
+  if (!C) { voiceNote("Voice recognition is unavailable in this browser. Try Chrome, Edge or Safari. On a phone you can also tap the microphone key on the keyboard and speak into the message box."); renderWidget(); return; }
+  if (window.isSecureContext === false) { voiceNote("The microphone only works on a secure (https) page."); renderWidget(); return; }
+  if (!micAllowedBySite()) { voiceNote("Voice input is switched off for this site, so the microphone can't be used here. This is a site setting, not your device. Please tell the site's owner."); renderWidget(); return; }
+  // Blocked earlier: check again (the person may have just allowed it) before saying so; never show a listening panel that can't listen.
+  if (VOICE.perm === "denied") { micPermission().then(st => { if (st === "denied") { voiceNote(MIC_DENIED, true); renderWidget(); } else voiceListen(C); }); return; }
+  voiceListen(C);
+}
+function voiceListen(C){
+  if (VOICE.rec) return;
+  let rec; try { rec = new C(); } catch (e) { voiceNote("Voice input couldn't start in this browser.", true); renderWidget(); return; }
   // Phones end after one sentence (their continuous mode repeats words); computers listen until Done.
   rec.continuous = !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent); rec.interimResults = true; rec.maxAlternatives = 1;
   rec.lang = (navigator.language && navigator.language.length >= 2 ? navigator.language : "en-IN");
-  Object.assign(VOICE, { rec, state: "starting", finals: "", interim: "", t0: 0, err: "", cancelled: false });
+  Object.assign(VOICE, { rec, state: "starting", finals: "", interim: "", t0: 0, err: "", cancelled: false, sound: false, lastWord: 0 });
+  // the wave moves only while the browser reports sound or words (not just because the panel is open)
+  const heard = on => () => { if (VOICE.rec !== rec) return; VOICE.sound = on; paintVoice(); };
+  rec.onsoundstart = heard(true); rec.onspeechstart = heard(true); rec.onspeechend = heard(false); rec.onsoundend = heard(false);
   rec.onstart = () => { if (VOICE.rec !== rec) return; VOICE.state = "listening"; VOICE.t0 = Date.now(); clearInterval(VOICE.tick); VOICE.tick = setInterval(() => { if (VOICE.rec === rec) paintVoice(); if (Date.now() - VOICE.t0 > 120000) voiceDone(); }, 500); paintVoice(); };
   rec.onresult = e => { if (VOICE.rec !== rec) return; let fin = "", inter = "";
     for (let i = 0; i < e.results.length; i++) { const r = e.results[i]; const t = (r[0] && r[0].transcript || "").trim(); if (!t) continue; if (r.isFinal) fin += (fin ? " " : "") + t; else inter += (inter ? " " : "") + t; }
-    VOICE.finals = fin.slice(0, 1900); VOICE.interim = inter.slice(0, 400); paintVoice(); };
+    VOICE.finals = fin.slice(0, 1900); VOICE.interim = inter.slice(0, 400); VOICE.lastWord = Date.now(); paintVoice(); };
   rec.onerror = e => { if (VOICE.rec === rec && e && e.error && e.error !== "aborted" && !(e.error === "no-speech" && VOICE.finals)) VOICE.err = e.error; };
   rec.onend = () => { if (VOICE.rec === rec) voiceEnded(); };
-  try { rec.start(); } catch (e) { VOICE.rec = null; VOICE.note = "Voice input couldn't start. Try again."; }
+  try { rec.start(); } catch (e) { VOICE.rec = null; voiceNote("Voice input couldn't start.", true); }
+  // a browser that never answers (no start, no error) must not leave "Starting…" on screen forever
+  setTimeout(() => { if (VOICE.rec === rec && VOICE.state === "starting") { VOICE.err = VOICE.err || "no-start"; try { rec.abort(); } catch (e) {} if (VOICE.rec === rec) voiceEnded(); } }, 8000);
   renderWidget();
 }
 function voiceDone(){ const rec = VOICE.rec; if (!rec) return; VOICE.state = "processing"; paintVoice(); try { rec.stop(); } catch (e) { voiceEnded(); } }
 function voiceCancel(){ const rec = VOICE.rec; if (!rec) return; VOICE.cancelled = true; try { rec.abort(); } catch (e) {} if (VOICE.rec === rec) voiceEnded(); }
 function voiceEnded(){
   const text = (VOICE.finals + " " + VOICE.interim).replace(/\s+/g, " ").trim(); const err = VOICE.err, cancelled = VOICE.cancelled;
-  clearInterval(VOICE.tick); Object.assign(VOICE, { rec: null, state: "", finals: "", interim: "", err: "", cancelled: false, tick: null });
+  clearInterval(VOICE.tick); Object.assign(VOICE, { rec: null, state: "", finals: "", interim: "", err: "", cancelled: false, tick: null, sound: false, lastWord: 0 });
   if (cancelled) { if (DW.open) renderWidget(); return; }
-  if (err === "not-allowed" || err === "service-not-allowed") VOICE.note = "The microphone is blocked for this site. Allow it in your browser (the lock or settings icon next to the address), then tap the microphone again. You can keep typing meanwhile.";
-  else if (err === "audio-capture") VOICE.note = "No microphone was found. Connect one or check your device's sound settings.";
-  else if (err === "network") VOICE.note = "Voice input needs an internet connection. Check it and try again.";
-  else if (err === "language-not-supported") VOICE.note = "Voice input doesn't support this device's language. Type your message instead.";
-  else if (!text) VOICE.note = "I didn't hear anything. Tap the microphone and try again.";
+  if (err === "not-allowed" || err === "service-not-allowed") { voiceNote(micAllowedBySite() ? "The microphone is blocked for this site. " + MIC_DENIED : "Voice input is switched off for this site, so the microphone can't be used here.", true); micPermission(); }
+  else if (err === "audio-capture") voiceNote("No microphone was found. Connect one or check your device's sound settings.", true);
+  else if (err === "network") voiceNote("Couldn't reach the browser's speech service. Check your internet connection and try again. Browsers built into other apps often can't do voice: open the site in Chrome, Edge or Safari.", true);
+  else if (err === "language-not-supported") voiceNote("Voice input doesn't support this device's language. Type your message instead.");
+  else if (err === "no-start") voiceNote("Voice input didn't start. Try again, or open the site in Chrome, Edge or Safari.", true);
+  else if (!text) voiceNote("I couldn't hear you. Please try again.", true);
   if (text) { const tab = DW.tab; const cur = (DW.draft[tab] || "").trim(); DW.draft[tab] = (cur ? cur + " " : "") + text; DW.voiceText = DW.draft[tab]; }
   if (!DW.open) return;
   renderWidget();
@@ -5266,7 +5291,7 @@ function renderWidget(){
     if (sh.__html !== html) { sh.innerHTML = html; sh.__html = html; }
   }
   // voice: a note (blocked microphone, nothing heard…) and, while listening, the panel in place of the typing box
-  const vs = $("#dwVoiceSlot"); const vhtml = (VOICE.note ? `<p class="dw-vnote" id="dwVoiceNote" role="alert">${IC.info}<span>${esc(VOICE.note)}</span><button type="button" class="ib" data-act="dwvoicenote" aria-label="Dismiss">×</button></p>` : "") + (VOICE.rec ? voiceHTML() : "");
+  const vs = $("#dwVoiceSlot"); const vhtml = (VOICE.note ? `<p class="dw-vnote" id="dwVoiceNote" role="alert">${IC.info}<span>${esc(VOICE.note)}</span>${VOICE.retry ? `<button type="button" class="btn xs vretry" data-act="dwmic">Try again</button>` : ""}<button type="button" class="ib" data-act="dwvoicenote" aria-label="Dismiss">×</button></p>` : "") + (VOICE.rec ? voiceHTML() : "");
   if (vs.__html !== vhtml || (VOICE.rec && !$("#dwVoice"))) { vs.innerHTML = vhtml; vs.__html = vhtml; }
   $("#dwForm").hidden = !!VOICE.rec;
   const w = W(); let msgs = help ? helpChat() : chatOf(w);
@@ -5296,6 +5321,7 @@ function openWidget(tab){
   DW.open = true; if (tab) DW.tab = tab; DW.scroll = true; renderWidget();
   if (fresh) MOTION.dwOpen($("#dw"), $("#dwBtn"));
   setTimeout(() => { const i = $("#dwInput"); if (i && !i.disabled) i.focus(); }, 60);
+  micPermission();
   if (ACCOUNT.on && !DW.helpLoaded) loadHelpHistory();
   if (ACCOUNT.on && DW.share === null) apiJSON("GET", "/api/ai/prefs").then(r => { DW.share = !!(r.ok && r.json.shareTasks); if (DW.open) renderWidget(); }).catch(() => {});
   if (ACCOUNT.on && !DW.sugg) apiJSON("GET", "/api/help/suggestions").then(r => { if (r.ok && r.json.help && r.json.help.length) { DW.sugg = r.json.help.slice(0, 2).concat(["Explain recursion with a Python example", "Solve 2x + 5 = 17 step by step"]); if (DW.tab === "help") renderWidget(); } }).catch(() => {});

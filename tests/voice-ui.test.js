@@ -34,7 +34,7 @@ function fakes({ speech = true, deny = false, tts = true } = {}){
   })();`;
 }
 async function newUser(opts = {}, viewport){
-  const ctx = await browser.newContext({ viewport: viewport || { width: 1280, height: 800 }, permissions: ["clipboard-read", "clipboard-write"] });
+  const ctx = await browser.newContext({ viewport: viewport || { width: 1280, height: 800 }, permissions: ["clipboard-read", "clipboard-write", "microphone"] });   // headless Chromium reports the microphone as blocked unless it is granted
   await ctx.addInitScript(fakes(opts));
   const page = await ctx.newPage(); ctx.__errors = []; page.on("pageerror", e => ctx.__errors.push(String(e)));
   await page.goto(s.base + "/?dt-test"); await page.waitForSelector(".auth-card"); await page.click("[data-act=authmode][data-v=signup]");
@@ -63,7 +63,7 @@ test("microphone: listening panel with live words, timer, Done puts the words in
   await mic.click(); await page.waitForSelector("#dwVoice");
   await page.waitForFunction(() => /Listening/.test(document.querySelector("#dwVoiceStatus").textContent));
   assert.ok(await page.locator("#dwVoice .vwave i").count() >= 5, "a sound-wave animation");
-  await page.emulateMedia({ reducedMotion: "no-preference" }); assert.equal(await page.$eval("#dwVoice .vwave i", e => getComputedStyle(e).animationName), "vwave"); assert.match(await page.textContent("#dwVoiceTime"), /^0:0\d$/);
+  await page.emulateMedia({ reducedMotion: "no-preference" }); await page.evaluate(() => window.__sr.live.onsoundstart()); assert.equal(await page.$eval("#dwVoice .vwave i", e => getComputedStyle(e).animationName), "vwave", "moves once sound is heard"); assert.match(await page.textContent("#dwVoiceTime"), /^0:0\d$/);
   assert.ok(await page.isHidden("#dwInput"), "the panel takes the place of the typing box");
   await page.evaluate(() => window.__sr.say("what is machine", false));
   await page.waitForFunction(() => /what is machine/.test(document.querySelector("#dwVoiceText").textContent));
@@ -89,7 +89,7 @@ test("cancel throws the words away; silence, a blocked microphone and a missing 
   assert.equal(await page.inputValue("#dwInput"), ""); assert.equal(await page.evaluate(() => window.__sr.live), null);
   // nothing heard
   await page.click("#dwMic"); await page.waitForSelector("#dwVoice"); await page.click("[data-act=dwvoicedone]"); await page.waitForSelector("#dwVoice", { state: "detached" });
-  assert.match(await page.textContent("#dwVoiceNote"), /didn't hear anything/i);
+  assert.match(await page.textContent("#dwVoiceNote"), /couldn't hear you/i);
   // no microphone
   await page.click("#dwMic"); await page.waitForSelector("#dwVoice"); await page.evaluate(() => window.__sr.fail("audio-capture")); await page.waitForSelector("#dwVoice", { state: "detached" });
   assert.match(await page.textContent("#dwVoiceNote"), /no microphone/i);
@@ -106,7 +106,7 @@ test("cancel throws the words away; silence, a blocked microphone and a missing 
 test("a browser without speech recognition says so plainly and never pretends to listen", async () => {
   const page = await newUser({ speech: false });
   await page.click("#dwMic");
-  await page.waitForSelector("#dwVoiceNote"); assert.match(await page.textContent("#dwVoiceNote"), /can't turn speech into text[\s\S]*(Chrome|keyboard)/i);
+  await page.waitForSelector("#dwVoiceNote"); assert.match(await page.textContent("#dwVoiceNote"), /unavailable in this browser[\s\S]*(Chrome|keyboard)/i);
   assert.equal(await page.locator("#dwVoice").count(), 0);
   g.respond = () => ({ text: "Typed still works." }); await page.fill("#dwInput", "hello there friend"); await page.press("#dwInput", "Enter");
   assert.match(await (await waitAnswer(page, 0)).textContent(), /Typed still works/);
@@ -203,4 +203,75 @@ test("phone (390 px): the microphone, listening panel and confirm card fit with 
   await page.click("[data-act=dwvoicedone]"); await page.waitForSelector("#dwVoice", { state: "detached" }); await page.press("#dwInput", "Enter");
   await (await waitAnswer(page, 0)).locator(".vc-card").waitFor(); assert.ok(await fits());
   assert.deepEqual(page.context().__errors, []);
+});
+
+// ---- 13 Nov 2026: the microphone was refused on the live site because the site's own headers switched it off ----
+test("the site allows its own pages to use the microphone (a real permission check, no fakes), and still blocks camera and location", async () => {
+  // headers, as sent by the server and as configured for Vercel
+  const h = (await fetch(s.base + "/")).headers.get("permissions-policy");
+  assert.match(h, /microphone=\(self\)/, "server header: " + h); assert.match(h, /camera=\(\)/); assert.match(h, /geolocation=\(\)/);
+  const vj = JSON.parse(require("fs").readFileSync(require("path").join(__dirname, "..", "vercel.json"), "utf8"));
+  const vh = vj.headers.flatMap(x => x.headers).filter(x => x.key === "Permissions-Policy").map(x => x.value);
+  assert.ok(vh.length >= 1); for (const v of vh) { assert.match(v, /microphone=\(self\)/, "Vercel header: " + v); assert.match(v, /camera=\(\)/); }
+  // a real browser with a stand-in microphone device: the page must be able to open it
+  const b2 = await chromium.launch({ args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] });
+  try {
+    const page = await b2.newPage(); await page.goto(s.base + "/?dt-test"); await page.waitForSelector(".auth-card");
+    const r = await page.evaluate(async () => {
+      const pol = document.featurePolicy || document.permissionsPolicy;
+      const out = { mic: pol ? pol.allowsFeature("microphone") : null, cam: pol ? pol.allowsFeature("camera") : null };
+      try { const st = await navigator.mediaDevices.getUserMedia({ audio: true }); out.tracks = st.getAudioTracks().length; st.getTracks().forEach(t => t.stop()); } catch (e) { out.error = e.name; }
+      return out;
+    });
+    assert.equal(r.error, undefined, "opening the microphone failed: " + r.error); assert.ok(r.tracks >= 1);
+    assert.equal(r.mic, true); assert.equal(r.cam, false);
+  } finally { await b2.close(); }
+});
+
+test("mic problems are caught before listening starts, each with a plain message and a Try again button", async () => {
+  // the site itself switched the microphone off (what happened on the live site): say so, don't blame the person's settings
+  const page = await newUser();
+  await page.evaluate(() => { const pol = document.featurePolicy || document.permissionsPolicy; pol.allowsFeature = f => f !== "microphone"; });
+  await page.click("#dwMic"); await page.waitForSelector("#dwVoiceNote");
+  assert.match(await page.textContent("#dwVoiceNote"), /switched off (for|on) this site/i);
+  assert.equal(await page.evaluate(() => window.__sr.started), 0); assert.equal(await page.locator("#dwVoice").count(), 0);
+  // the person blocked the microphone earlier: told at once, without a listening panel flashing up
+  const p2 = await newUser();
+  await p2.evaluate(() => { navigator.permissions.query = async () => ({ state: "denied" }); });
+  await p2.click("[data-act=dwclose]"); await p2.waitForSelector("#dw", { state: "hidden" }); await p2.click("#dwBtn"); await p2.waitForSelector("#dw:not([hidden])");   // the permission is looked up when the window opens
+  await p2.click("#dwMic"); await p2.waitForSelector("#dwVoiceNote");
+  assert.match(await p2.textContent("#dwVoiceNote"), /Microphone permission is required/i); assert.match(await p2.textContent("#dwVoiceNote"), /allow/i);
+  assert.equal(await p2.evaluate(() => window.__sr.started), 0);
+  // Try again starts listening once the problem is gone
+  await p2.evaluate(() => { navigator.permissions.query = async () => ({ state: "granted" }); });
+  await p2.click("#dwVoiceNote [data-act=dwmic]"); await p2.waitForSelector("#dwVoice");
+  await p2.waitForFunction(() => /Listening/.test(document.querySelector("#dwVoiceStatus").textContent));
+  assert.equal(await p2.locator("#dwVoiceNote").count(), 0);
+  // nothing heard: the asked-for wording, and Try again
+  await p2.click("[data-act=dwvoicedone]"); await p2.waitForSelector("#dwVoiceNote");
+  assert.match(await p2.textContent("#dwVoiceNote"), /I couldn't hear you\. Please try again\./);
+  assert.ok(await p2.locator("#dwVoiceNote [data-act=dwmic]").isVisible());
+  // the speech service can't be reached (for example inside an app's built-in browser)
+  await p2.click("#dwVoiceNote [data-act=dwmic]"); await p2.waitForFunction(() => /Listening/.test((document.querySelector("#dwVoiceStatus") || {}).textContent || ""));
+  await p2.evaluate(() => window.__sr.fail("network")); await p2.waitForSelector("#dwVoiceNote");
+  assert.match(await p2.textContent("#dwVoiceNote"), /speech service/i);
+  // unsupported browser: the asked-for wording
+  const p3 = await newUser({ speech: false });
+  await p3.click("#dwMic"); await p3.waitForSelector("#dwVoiceNote");
+  assert.match(await p3.textContent("#dwVoiceNote"), /Voice recognition is unavailable in this browser/);
+});
+
+test("the wave moves only while sound is actually being heard", async () => {
+  const page = await newUser();
+  await page.click("#dwMic"); await page.waitForFunction(() => /Listening/.test((document.querySelector("#dwVoiceStatus") || {}).textContent || ""));
+  assert.equal(await page.locator("#dwVoice.hearing").count(), 0, "still until there is sound");
+  assert.equal(await page.$eval("#dwVoice .vwave i", e => getComputedStyle(e).animationName), "none");
+  await page.evaluate(() => { const r = window.__sr.live; r.onspeechstart && r.onspeechstart(); });
+  await page.waitForSelector("#dwVoice.hearing");
+  assert.notEqual(await page.$eval("#dwVoice .vwave i", e => getComputedStyle(e).animationName), "none");
+  await page.evaluate(() => window.__sr.say("add maths practice", false));
+  assert.ok(await page.locator("#dwVoice.hearing").count(), "interim words keep it moving");
+  await page.evaluate(() => { const r = window.__sr.live; r.onspeechend && r.onspeechend(); });
+  await page.waitForSelector("#dwVoice:not(.hearing)");
+  await page.click("[data-act=dwvoicecancel]");
 });

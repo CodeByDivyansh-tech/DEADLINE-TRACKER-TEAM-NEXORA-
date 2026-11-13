@@ -536,3 +536,17 @@ Screenshots checked: the switch and its confirm box, an answer mid-stream with S
 Full suite: 514/514 twice in a row.
 Screenshots checked: listening panel, confirm card, saved state (light, dark, phone).
 **Not tested here (needs real devices and a real microphone):** actual speech recognition quality and permission prompts in Chrome, Edge, Android Chrome and iPhone Safari; the installed app on iPhone (Apple often doesn't offer speech recognition there; the app then shows the "can't turn speech into text" note); real Gemini extraction quality (no key in this workspace).
+
+## 13 Nov 2026: Voice assistant did not work on the live site (fixed)
+**Cause (confirmed on the live site):** the site's own security header was `Permissions-Policy: camera=(), microphone=(), geolocation=()`, sent by both Vercel (`vercel.json`) and the server (`lib/http.js`). `microphone=()` tells every browser to refuse the microphone on this site, so speech recognition ended at once with "not-allowed" in Chrome, Edge, Android and Safari alike, whatever the person's own settings. The header was written long before voice existed. The voice tests didn't catch it because they replaced the browser's speech engine with a fake, which never asks the real permission system.
+**Fix:** `microphone=(self)` in both places (camera and location stay off). Hardening while there: the app checks the site policy and the saved permission before opening the listening panel (no panel that can't listen); clearer messages ("Microphone permission is required…", "I couldn't hear you. Please try again.", "Voice recognition is unavailable in this browser…", speech service unreachable, voice switched off for this site); a Try again button on recoverable problems; a browser that never starts is given up on after 8 s instead of showing "Starting…" forever; the wave now moves only while the browser reports sound or words.
+
+| Area | Test |
+|---|---|
+| Server and Vercel headers allow the site's own microphone, block camera and location | voice-ui (new, red first) |
+| A real Chromium with a stand-in microphone device can open the microphone on the served page (no fakes) | voice-ui (new, red first: failed with NotAllowedError before the fix) |
+| Site policy off / permission denied: message at once, recognition never started; Try again works after allowing; nothing heard; speech service unreachable; unsupported browser wording | voice-ui (new, red first) |
+| Wave still until sound, moving while heard, still again after | voice-ui (new, red first) |
+
+Full suite: 517/517 twice in a row.
+**Still not tested (needs a real microphone and real devices):** actual recognition in Chrome/Edge on Windows, Android Chrome, iPhone Safari and installed apps. Browsers built into other apps (including the Claude desktop app's browser pane) have the speech API but no speech service; they now get a clear message. Not built: a server-side transcription fallback (recording audio and sending it to Gemini) for Firefox and iPhone installed apps; it would use the free Gemini allowance and send the audio to Google, so it needs the owner's decision.
