@@ -47,7 +47,8 @@ test("Study Planner with no deadlines: explains how to get a plan; the focus pic
   const t = await text();
   assert.match(t, /Nothing to plan yet/);
   assert.match(t, /~3h/, "shows how to give a time estimate");
-  assert.equal(await page.locator("#focusItem").count(), 0, "no empty dropdown");
+  assert.equal(await page.locator("#fzTask").count(), 0, "no dropdown with nothing to choose");
+  assert.equal(await page.locator("#fzTitle").count(), 1, "Deep Focus asks what you'll work on instead");
   assert.ok(await page.locator("#viewInner [data-act=qa]").count() >= 1);
 });
 
@@ -58,7 +59,7 @@ test("Study Planner: a new deadline with an estimate appears in the plan at once
   assert.ok(await page.locator(".pday .sess:has-text('Physics report')").count() >= 1, "planned straight away");
   await page.reload(); await page.waitForSelector("#app:not([hidden])"); await go(page, "planner");
   assert.ok(await page.locator(".pday .sess:has-text('Physics report')").count() >= 1, "still there after a reload");
-  assert.ok(await page.locator("#focusItem option:has-text('Physics report')").count() === 1);
+  assert.ok(await page.locator("#fzTask option:has-text('Physics report')").count() === 1);
 });
 
 test("with sample data the usual Reports and Planner are unchanged", async () => {

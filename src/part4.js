@@ -541,40 +541,6 @@ let seenInit = false; const seen = new Set();
 function checkNewNotifs(){ runReminders(); }
 
 /* =========================================================
-   Focus sessions
-   ========================================================= */
-function startFocus(id, mins){
-  const w = W(); const it = findItem(id); if (!it) return;
-  if (UI.focus) finishFocus(false);
-  UI.focus = { id, total: mins * 60, left: mins * 60, running: true, endAt: Date.now() + mins * 60000 };
-  render(); toast(`Focus session started: ${mins} minutes on "${it.title}".`);
-}
-function focusLeft(){ const F = UI.focus; return F ? Math.max(0, F.running ? (F.endAt - Date.now()) / 1000 : F.left) : 0; }
-function finishFocus(log = true, auto = false){
-  const F = UI.focus; if (!F) return;
-  const w = W(); const it = findItem(F.id);
-  const mins = Math.round((F.total - focusLeft()) / 60);
-  UI.focus = null;
-  if (log && it && mins >= 1) {
-    it.loggedMin = (it.loggedMin || 0) + mins;
-    if (Number(it.estimate) > 0 && !(it.milestones || []).length && !isDone(it)) it.progress = clamp(Math.round((Number(it.progress) || 0) + mins / 60 / Number(it.estimate) * 100), 0, 100);
-    if (it.status === "todo") it.status = "doing";
-    touch(it); logItem(w, it, `Focused for ${mins} min on "${it.title}"`); save();
-    toast(auto ? `Session complete. Logged ${mins} min on "${it.title}".` : `Logged ${mins} min on "${it.title}".`);
-    burst($(".focus-mini") || $("#fringTm"));
-  } else if (log) toast("Session ended. Less than a minute, so nothing was logged.");
-  render();
-}
-function renderFocusMini(){
-  const host = $("#focusMini"); const F = UI.focus;
-  if (!F || UI.route === "planner") { host.innerHTML = ""; return; }
-  const it = findItem(F.id); const left = focusLeft(); const c = 2 * Math.PI * 14;
-  host.innerHTML = `<div class="focus-mini" role="status"><div class="mr"><svg viewBox="0 0 34 34"><circle cx="17" cy="17" r="14" fill="none" stroke="rgba(255,255,255,.15)" stroke-width="4"/><circle id="fmPr" cx="17" cy="17" r="14" fill="none" stroke="#e8a06a" stroke-width="4" stroke-linecap="round" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${(c * (1 - left / F.total)).toFixed(1)}"/></svg></div>
-    <div><div class="t" id="fmTm">${pad(Math.floor(left / 60))}:${pad(Math.floor(left % 60))}</div><div class="n">${esc(it ? it.title : "")}</div></div>
-    <button type="button" data-act="fpause">${F.running ? "Pause" : "Resume"}</button><button type="button" data-act="ffinish">Finish</button></div>`;
-}
-
-/* =========================================================
    Export & backup
    ========================================================= */
 function icsText(w){
@@ -651,7 +617,7 @@ document.addEventListener("click", async e => {
     case "open": closeNotif(); if (modalKind === "rescue") closeModal(); if (id) openDrawer(id); break;
     case "toggle": completeItem(id, a); break;
     case "delete": deleteItem(id); break;
-    case "focus": closeDrawer(); startFocus(id, 25); break;
+    case "focus": closeDrawer(); openFocusSetup(id); break;
     case "rescue": openRescue(id); break;
     case "tab": UI.drawerTab = a.dataset.v; renderDrawer(); break;
     case "setest": { const it = findItem(id); if (it) { it.estimate = +a.dataset.v; touch(it); logItem(w, it, `Estimated ${fmtH(it.estimate)} of work`); save(); render(); } break; }
@@ -693,11 +659,6 @@ document.addEventListener("click", async e => {
     case "caltoday": UI.calMonth = null; UI.calWeek = null; render(); break;
     case "calweek": { const d = new Date(a.dataset.date + "T12:00"); UI.calView = "week"; UI.calWeek = addDays(startOfDay(d), -((d.getDay() + 6) % 7)); render(); break; }
     /* planner/focus */
-    case "flen": UI.flen = +a.dataset.v; render(); break;
-    case "fstart": { const sel = $("#focusItem"); if (sel && sel.value) startFocus(sel.value, UI.flen || 25); break; }
-    case "fpause": { const F = UI.focus; if (!F) break; if (F.running) { F.left = focusLeft(); F.running = false; } else { F.endAt = Date.now() + F.left * 1000; F.running = true; } render(); break; }
-    case "ffinish": finishFocus(true); break;
-    case "fstop": UI.focus = null; render(); toast("Session discarded."); break;
     /* plan tab */
     case "mstoggle": break;
     case "msdel": { const it = findItem(UI.drawerId); if (!it) break; const before = clone(it); it.milestones = it.milestones.filter(m => m.id !== a.dataset.ms); touch(it); save(); render(); toast("Step removed.", () => { replaceItem(w, before); save(); render(); }); break; }
@@ -871,6 +832,7 @@ document.addEventListener("keydown", e => {
   if (e.key === "Enter" && t.id === "onb-name") { e.preventDefault(); const b = document.querySelector("[data-act=onbnext]"); if (b) b.click(); return; }
   if ((e.key === "Enter" || e.key === " ") && t.getAttribute && t.getAttribute("role") === "button" && t.dataset.act) { e.preventDefault(); t.click(); return; }
   if (e.key === "Escape") { if (modalKind) { closeModal(); return; } if (UI.notifOpen) { closeNotif(); return; } if (UI.drawerId) { closeDrawer(); return; } if (UI.wsMenu) { UI.wsMenu = false; renderSide(); return; } }
+  if (document.body.classList.contains("in-focus")) return;   // the focus room is on screen: no app shortcuts behind it
   const typing = ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName) || t.isContentEditable;
   if (!state || !state.workspaces.length || modalKind) return;
   if ((e.key === "k" || e.key === "K") && (e.metaKey || e.ctrlKey)) { e.preventDefault(); openQuickAdd(); return; }
@@ -905,14 +867,6 @@ setInterval(() => {
   const now = Date.now(); tickN++;
   $$("[data-cd]").forEach(el => { el.textContent = countdown(el.dataset.cd, now); });
   $$("[data-ecd]").forEach(el => { const v = examCountdown(el.dataset.ecd, now); const bs = el.querySelectorAll("b"); bs[0].textContent = v[0]; bs[1].textContent = v[1]; bs[2].textContent = v[2]; if (bs[3]) bs[3].textContent = pad(v[3]); });
-  if (UI.focus) {
-    const left = focusLeft();
-    if (UI.focus.running && left <= 0) { finishFocus(true, true); return; }
-    const tm = `${pad(Math.floor(left / 60))}:${pad(Math.floor(left % 60))}`;
-    const a = $("#fringTm"), b = $("#fmTm"); if (a) a.textContent = tm; if (b) b.textContent = tm;
-    const p1 = $("#fringPr"); if (p1) p1.style.strokeDashoffset = (2 * Math.PI * 56 * (1 - left / UI.focus.total)).toFixed(1);
-    const p2 = $("#fmPr"); if (p2) p2.style.strokeDashoffset = (2 * Math.PI * 14 * (1 - left / UI.focus.total)).toFixed(1);
-  }
   runReminders();
   if (tickN % 15 === 0) {
     const w = W(); const R = radar(w, now);
@@ -938,6 +892,7 @@ function afterLoad(){
   UI.route = routeAllowed(h) ? h : (routeAllowed(UI.route) ? UI.route : "overview");
   UI.animate = true; closeModalIfOnb();
   render(); reminderBoot = true; UI.forceNotice = true; runReminders(); renderBell();
+  focusBoot();   // an open or just-finished focus session comes back on screen
 }
 function closeModalIfOnb(){ $("#onb").hidden = true; }
 /* Test seam: only exposed when the page is opened with ?dt-test (used by the automated tests). */

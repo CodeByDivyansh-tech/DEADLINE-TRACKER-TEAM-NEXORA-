@@ -20,6 +20,7 @@ const Tasks = require("./lib/modules/tasks");
 const Notifs = require("./lib/modules/notifications");
 const Convs = require("./lib/modules/conversations");
 const Stats = require("./lib/modules/stats");
+const Focus = require("./lib/modules/focus");
 const Plan = require("./lib/modules/plan");
 const Admin = require("./lib/modules/admin");
 const { createGemini } = require("./lib/ai/gemini");
@@ -70,6 +71,7 @@ async function main(){
   const channels = Channels.createChannels({ db, cfg, mail, telegram, outbox, events, log });
   const notifications = Notifs.createNotifications(db, { prefsOf: auth.prefsOf, log, onDelivered: channels.onDelivered });
   const tasks = Tasks.createTasks(db, { onChange: uid => notifications.touch(uid) });
+  const focus = Focus.createFocus(db);
   const conversations = Convs.createConversations(db);
   const stats = Stats.createStats(db);
   const plan = Plan.createPlan({ db, tasks, conversations, stats, notifications });
@@ -99,6 +101,7 @@ async function main(){
   Notifs.routes(R, { db, notifications, auth });
   Convs.routes(R, { db, conversations });
   Stats.routes(R, { stats });
+  Focus.routes(R, { focus });
   Help.routes(R, { help });
   Admin.routes(R, { db, rag, help, gemini, notifications, auth });
   Channels.routes(R, { channels, telegram });

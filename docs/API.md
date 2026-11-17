@@ -57,6 +57,21 @@ Runs on the server's planning engine; your tasks are never sent to an outside AI
 
 Action types in a proposal: `create` (new task), `plan` (plan an existing task for a day), `deadline` (change a hard deadline: only when you said so), `complete`, `steps` (add work sessions to a task).
 
+## Deep Focus sessions 🔒
+One open session per person (the database refuses a second). The server's clock decides all times; `at` (a time the page saw something happen, in server time) is used only when it is recent and after the last change. Every answer has `serverNow` (for the page's clock) and each session has a `report` worked out at that moment: `{ status, plannedMs, focusedMs, remainingMs, breakMs, awayMs, interruptions, lastInterruption: { kind, at, to }, completed }`. States: `ACTIVE`, `PAUSED` (Pause pressed), `INTERRUPTED` (left the page), `COMPLETED`, `ENDED_EARLY` (`NOT_STARTED` is the setup screen; nothing is saved then). Another person's session id answers 404.
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/api/focus` | `{ session, unseen }`: the open session (brought up to date: time that ran out completes it; no heartbeat for 45 s stops the clock at the last one as a `closed` interruption; 12 hours unused ends it as `expired`), and the latest finished one whose report hasn't been seen |
+| POST | `/api/focus/sessions` | `{ minutes (1–240), mode: "normal"\|"strict", title, subject?, topic?, taskId?, clientKey? }` → 201 `{ session }`. Same `clientKey` again → 200 the same session (`duplicate: true`). Already one open → 409 `session_open` with it. `taskId` is kept only if it is your own task |
+| POST | `/api/focus/sessions/:id/pause` · `/resume` · `/beat` | `{ at? }`. `beat` = the page is open (every 15 s while focusing) |
+| POST | `/api/focus/sessions/:id/interrupt` | `{ kind: "tab"\|"fullscreen"\|"window"\|"reload"\|"closed", at? }` |
+| POST | `/api/focus/sessions/:id/complete` | Only when the planned time is focused (409 `not_finished`); ends at the moment the timer reached zero; repeating it is harmless |
+| POST | `/api/focus/sessions/:id/end` | Ends early, keeping the focused part. Finished sessions can't change (409 `finished`) |
+| POST | `/api/focus/sessions/:id/ack` | The report was shown → `{ first }` (true only the first time; the page logs the minutes on the task then) |
+| GET | `/api/focus/sessions?limit=20` | Finished sessions, newest first |
+| GET | `/api/focus/stats?days=7` | `{ today, week: { focusedMin, plannedMin, pctOfPlan, completed, endedEarly, interruptions, awayMin, breakMin }, days: [{ date, focusedMin, plannedMin, sessions }], subjects, streak, activeDays, total }`, days in your time zone (1–90) |
+
 ## Help (Deadline AI) 🔒
 | Method | Path | |
 |---|---|---|

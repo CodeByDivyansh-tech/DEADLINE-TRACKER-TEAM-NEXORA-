@@ -179,7 +179,7 @@ New workspaces can start with example deadlines so you can try everything. A **S
 - **Study Planner** (students): spreads study sessions for your deadlines and exams over the coming days, within your hours per day, and lists what **won't fit in time**.
 - **Clash detection:** warns about overloaded weeks and deadlines piling up.
 - **Rescue mode:** for deadlines that are Critical or Overdue (or At risk), it walks you through four steps: (1) break the rest into small steps; (2) make a revised schedule up to a target day; (3) clear blockers; (4) **ask for an extension** with a ready-made message you copy and send yourself. If the extension is granted, you record it and the deadline moves only then, with Undo. The app never sends the message and never moves a deadline by itself.
-- **Focus sessions:** a 25-minute focus timer from a task. The time logged feeds **Estimate accuracy** in Reports, which compares your estimates with the real time spent.
+- **Deep Focus:** study sessions from the Study Planner (25 to 90 minutes or any length), in Normal or Strict Focus. Strict goes fullscreen and pauses the timer whenever you leave the page until you press Resume; interruptions are recorded and only real focus time counts. Sessions are saved in the account and come back after a refresh or a closed browser. Statistics (today, week, streak, subjects, planned vs actual) are in the Study Planner and Reports. The time logged feeds **Estimate accuracy** in Reports, which compares your estimates with the real time spent.
 
 ## 3.9 Calendar ✅
 Month and week views of tasks and deadlines. **Drag a task to another day** to plan it for that day. Today, previous and next buttons are included.
@@ -605,7 +605,7 @@ Short answers first; longer ones where the question is technical.
 23. **Is there undo?** Yes: after deleting, moving or other changes, an Undo button appears for a few seconds.
 24. **What is Rescue mode?** A four-step helper for late work: smaller steps, a revised schedule, clearing blockers, and a ready-made extension message you send yourself.
 25. **What are progress check-ins?** Quick questions ("How far along is X?") that update progress so risk stays accurate.
-26. **What is a focus session?** A 25-minute timer started from a task; the time logged improves estimate accuracy in Reports.
+26. **What is Deep Focus?** A study session from the Study Planner. The timer counts only real focus time: it pauses when you leave the page, and in Strict Focus it waits for you to press Resume. A website can't lock a device, so it can't block other tabs or apps; it makes leaving visible and records it. The time logged also improves estimate accuracy in Reports.
 27. **Are reminders real?** Yes. With an account, the server creates them on time in your time zone even while the app is closed; you see them in the bell, and as desktop pop-ups while the app is open.
 28. **Can I export to Google Calendar?** You can download a .ics file and import it. Live sync isn't available yet.
 29. **Is there dark mode?** Yes, with the moon/sun button.

@@ -223,7 +223,7 @@ function rowHTML(it){
     </div>
     <div class="acts">
       ${!done && ["critical", "overdue"].includes(lv) && canEditItem(w, it) ? `<button class="ib" type="button" data-act="rescue" aria-label="Rescue mode" title="Rescue mode" style="color:var(--crit)">${IC.rescue}</button>` : ""}
-      ${!done && canEditItem(w, it) ? `<button class="ib" type="button" data-act="focus" aria-label="Start a focus session" title="Start a 25-minute focus session">${IC.planner}</button>` : ""}
+      ${!done && canEditItem(w, it) ? `<button class="ib" type="button" data-act="focus" aria-label="Start a focus session" title="Start a focus session">${IC.planner}</button>` : ""}
       <button class="ib more-ib" type="button" data-act="open" aria-label="Open details" title="Open details">${IC.more}</button>
     </div>
   </div>`;
@@ -546,29 +546,14 @@ function viewPlanner(){
   const P = planFor(w, now, who, 7);
   const word = w.mode === "company" ? "working" : "study";
   const active = w.items.filter(i => !isDone(i) && (w.mode !== "company" || i.assignee === who)).sort((a, b) => new Date(a.due) - new Date(b.due));
-  const F = UI.focus;
-  const fItem = F ? findItem(F.id, w) : null;
-  const left = F ? Math.max(0, F.running ? (F.endAt - now) / 1000 : F.left) : 25 * 60;
-  const tot = F ? F.total : 25 * 60;
-  const circ = 2 * Math.PI * 56;
   const shortList = Object.entries(P.short).map(([id, h]) => [findItem(id, w), h]).filter(x => x[0]);
   const planEmpty = !active.some(i => i.due);
   const emptyCard = `<section class="card empty-card"><h3>Nothing to plan yet</h3>
-    <p class="muted">Add a deadline and say how long it takes, like “Essay due Friday 5pm ~3h”. The planner then spreads the work over your free ${word} time before it's due, and you can start a focus session from here.</p>
+    <p class="muted">Add a deadline and say how long it takes, like “Essay due Friday 5pm ~3h”. The planner then spreads the work over your free ${word} time before it's due, and you can start a Deep Focus session from here.</p>
     <div class="row-flex"><button class="btn primary" type="button" data-act="qa" data-type="deadline">${IC.plus}Add a deadline</button><a class="btn ghost" href="#prefs" data-route="prefs">Set your ${word} hours</a></div></section>`;
   return `
-    <section class="card focus-card">
-      <div class="fring"><svg viewBox="0 0 132 132"><circle class="tr" cx="66" cy="66" r="56"/><circle class="pr" id="fringPr" cx="66" cy="66" r="56" stroke-dasharray="${circ.toFixed(1)}" stroke-dashoffset="${(circ * (1 - left / tot)).toFixed(1)}"/></svg><div class="tm mono" id="fringTm">${pad(Math.floor(left / 60))}:${pad(Math.floor(left % 60))}</div></div>
-      <div style="display:grid;gap:10px">
-        <h3 style="font-size:18px">${F ? (F.running ? "Focusing on" : "Paused:") + " " + esc(fItem ? fItem.title : "") : "Focus session"}</h3>
-        <p class="muted" style="font-size:13.5px">${F ? "Time you finish is logged on the deadline and moves its progress forward." : "Pick a deadline and work without switching tasks. Finished minutes are logged and count toward progress."}</p>
-        ${F ? `<div class="row-flex"><button class="btn primary" type="button" data-act="fpause">${F.running ? IC.pause + "Pause" : IC.play + "Resume"}</button><button class="btn" type="button" data-act="ffinish">Finish & log</button><button class="btn ghost" type="button" data-act="fstop">Discard</button></div>`
-          : !active.length ? `<p class="muted" style="font-size:13.5px">Add a task or deadline first, then pick it here.</p>`
-          : `<div class="row-flex"><select id="focusItem" aria-label="Deadline to focus on">${active.map(i => `<option value="${i.id}">${esc(i.title)} (${relDay(i.due, now)})</option>`).join("")}</select>
-            <div class="seg" role="group" aria-label="Length">${[25, 50].map(n => `<button type="button" data-act="flen" data-v="${n}" aria-pressed="${(UI.flen || 25) === n}">${n} min</button>`).join("")}</div>
-            <button class="btn primary" type="button" data-act="fstart" ${active.length ? "" : "disabled"}>${IC.play}Start</button></div>`}
-      </div>
-    </section>
+    ${focusSetupHTML(w)}
+    ${focusStatsHTML()}
     ${planEmpty ? emptyCard : ""}
     <div class="row-flex"><p class="muted" style="margin-right:auto">Suggested sessions for the next 7 days, earliest deadline first, within your ${fmtH(P.hpd)} of ${word} time per day. <a href="#prefs" data-route="prefs">Change availability</a></p></div>
     <div class="plan-days">${P.days.map((d, k) => {
@@ -758,6 +743,7 @@ function viewReports(){
         <div class="legend">${["overdue", "critical", "risk", "attention", "ontrack"].map(l => `<button type="button" class="lv-${l}" data-act="riskgo" data-lv="${l}"><i></i><span class="lt">${LV[l]}</span><b>${dist[l]}</b></button>`).join("")}</div>
       </section>
     </div>
+    ${focusStatsHTML(true)}
     ${(() => { const rows = TYPES_BY_MODE[w.mode].map(t => ({ t, s: estimateSamples(w, t) })).filter(x => x.s.length);
       if (!rows.length) return "";
       return `<section class="card" id="estAccuracy"><div class="card-h"><h3>Estimate accuracy</h3><span class="sub">From focus time logged on finished work</span></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Type</th><th class="r">Finished</th><th class="r">Actual vs estimate</th><th>What it means</th></tr></thead><tbody>

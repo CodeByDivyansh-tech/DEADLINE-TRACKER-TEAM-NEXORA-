@@ -403,15 +403,7 @@ button.risk:hover{background:color-mix(in srgb,var(--rc) 22%,transparent)}
 .sess b{font-weight:600;overflow-wrap:anywhere}
 .sess .sm{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--muted);font-family:var(--font-mono)}
 .sess .play{border:0;background:var(--surface);border-radius:6px;padding:2px 7px;font-size:11px;font-weight:600;color:var(--accent);font-family:var(--font-body)}
-.focus-card{display:grid;grid-template-columns:auto minmax(0,1fr);gap:20px;align-items:center}
-.focus-card > div{min-width:0}
 #focusItem{flex:1 1 200px;min-width:0;width:0;max-width:100%}
-.fring{width:132px;height:132px;position:relative}
-.fring svg{width:100%;height:100%;transform:rotate(-90deg)}
-.fring circle{fill:none;stroke-width:9}
-.fring .tr{stroke:var(--surface-2)}
-.fring .pr{stroke:var(--accent);stroke-linecap:round;transition:stroke-dashoffset 1s linear}
-.fring .tm{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--font-mono);font-size:24px;font-weight:600}
 .focus-mini{position:fixed;right:20px;bottom:20px;background:var(--side-bg);color:#fff;border-radius:14px;padding:10px 12px;display:flex;gap:12px;align-items:center;box-shadow:var(--shadow-lg);z-index:40;max-width:calc(100vw - 40px)}
 .focus-mini .t{font-family:var(--font-mono);font-size:18px;font-weight:600}
 .focus-mini .n{font-size:12px;color:#c7b9a6;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -773,8 +765,7 @@ button.risk:hover{background:color-mix(in srgb,var(--rc) 22%,transparent)}
 body{transition:background-color .3s ease}
 body::before{content:"";position:fixed;inset:-10%;z-index:-1;pointer-events:none;
   background:radial-gradient(38% 34% at 12% 8%,var(--blob-1),transparent 70%),radial-gradient(34% 34% at 92% 88%,var(--blob-2),transparent 70%),radial-gradient(28% 28% at 78% 12%,var(--blob-3),transparent 70%)}
-.card,.stat,.list,.cal,.kpi,.exam,.pday,.notif,.focus-card{background:var(--glass);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--glass-edge);box-shadow:var(--glass-shadow),inset 0 1px 0 var(--glass-line)}
-.stat:hover{box-shadow:var(--glass-shadow),inset 0 1px 0 var(--glass-line),0 0 0 1px color-mix(in srgb,var(--tone) 35%,transparent)}
+.card,.stat,.list,.cal,.kpi,.exam,.pday,.notif,.stat:hover{box-shadow:var(--glass-shadow),inset 0 1px 0 var(--glass-line),0 0 0 1px color-mix(in srgb,var(--tone) 35%,transparent)}
 .topbar{background:var(--glass);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border-bottom:1px solid var(--glass-edge)}
 .side{background:var(--side-bg);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border-right:1px solid var(--glass-edge)}
 .ws-btn{background:var(--side-hover);border:1px solid var(--glass-edge)}
@@ -1098,8 +1089,7 @@ body::before{content:"";position:fixed;inset:-10%;z-index:-1;pointer-events:none
   .cand > input[type=date],.cand > input[type=time]{grid-column:2}
   .wl-row{grid-template-columns:110px minmax(0,1fr) 70px}
   .next{grid-template-columns:minmax(0,1fr)}
-  .focus-card{grid-template-columns:minmax(0,1fr);justify-items:center;text-align:center}
-  .crumb h1{font-size:18px}
+    .crumb h1{font-size:18px}
   .kpis{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
 }
 /* account statistics (Reports) */
@@ -1840,6 +1830,7 @@ body:has(#portal:not([hidden])) #bootSplash{display:none}
 .inst-how b{font-weight:500}
 .inst-how ol{margin:0;padding-left:20px;display:grid;gap:4px;color:var(--ink-2)}
 .inst-how p{margin:0;color:var(--ink-2)}
+
 </style>
 </head>
 <body>

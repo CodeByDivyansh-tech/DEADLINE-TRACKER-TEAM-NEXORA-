@@ -36,6 +36,7 @@ lib/modules/plan.js       My Plan chat: suggestions + confirm-then-save (/api/pl
 lib/modules/notifications.js  reminder job + notification API
 lib/modules/conversations.js  chat history
 lib/modules/stats.js      productivity statistics
+lib/modules/focus.js      Deep Focus study sessions (timing rules in src/focus-core.js, shared with the page)
 lib/modules/admin.js      admin-only routes
 lib/ai/gemini.js          Gemini client: free-tier model, our limits, quota/error handling, usage log
 lib/ai/rag.js             knowledge base: chunk, embed, store vectors, hybrid retrieval
@@ -83,6 +84,9 @@ Indexes: (user_id, status), (user_id, due_at), (user_id, plan_date), (due_at) fo
 **error_log**: `id` · `area` · `message` · `detail` · `created_at` (kept 30 days)
 **settings**: `k` PK · `v` (AI instructions, seed flag)
 **schema_migrations**: `version` PK · `name` · `applied_at`
+
+### focus_sessions (migration 5)
+One row per Deep Focus session: `user_id`, `mode` (normal/strict), `status` (ACTIVE, PAUSED, INTERRUPTED, COMPLETED, ENDED_EARLY), `title`, `subject`, `topic`, `task_id` (only the person's own task), `planned_ms`, `focused_ms` (time already banked), `active_since` (start of the current active stretch), `started_at`, `ended_at`, `end_reason` (completed, early, expired), `last_seen` (heartbeat), `breaks` (JSON `[{kind, from, to}]`: "manual" = Pause, anything else = an interruption), `acked_at` (report seen), `client_key`. A partial unique index allows only one open session per person; another makes a repeated Start click return the same row. Focused time is always worked out from these timestamps, never counted by a timer. Tests move the server clock with `DT_TEST_CLOCK_FILE` (read only when `NODE_ENV=test`, `lib/clock.js`).
 
 ## Reminder rules
 Every minute (and right after a task changes) the job works out which notifications each user should have and stores them with a scheduled time and a unique key, so nothing is ever sent twice:
